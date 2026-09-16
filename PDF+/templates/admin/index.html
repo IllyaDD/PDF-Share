@@ -1,0 +1,38 @@
+{% extends 'admin/base.html' %}
+
+{% load i18n unfold %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {% for stat in stats %}
+            {% component "unfold/components/card.html" with icon=stat.icon %}
+                {% component "unfold/components/text.html" %}{{ stat.title }}{% endcomponent %}
+                {% component "unfold/components/title.html" %}{{ stat.value }}{% endcomponent %}
+            {% endcomponent %}
+        {% endfor %}
+    </div>
+
+    <div class="mb-8">
+        {% component "unfold/components/card.html" with title="Activity — last 30 days" %}
+            {% component "unfold/components/chart/line.html" with data=activity_chart height=320 %}{% endcomponent %}
+
+            <ul class="flex flex-wrap justify-end mt-4 text-sm text-subtle" style="gap: 8px 24px">
+                {% for item in activity_legend %}
+                    <li class="flex items-center" style="gap: 8px">
+                        {# Tailwind в Unfold зібраний наперед — довільні розміри задаємо inline. #}
+                        <span class="inline-block rounded-full" style="background: {{ item.color }}; width: 10px; height: 10px"></span>
+                        {{ item.label }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endcomponent %}
+    </div>
+
+    {% include "unfold/helpers/dashboard_default.html" %}
+{% endblock %}

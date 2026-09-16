@@ -1,0 +1,21 @@
+{% comment %}
+  Універсальна картка з crispy-формою.
+  Очікує: form, а також опційно form_title, form_hint, cancel_url.
+{% endcomment %}
+{% load crispy_forms_tags %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        {% if form_title %}<h1 class="h5 mb-1">{{ form_title }}</h1>{% endif %}
+        {% if form_hint %}<p class="text-body-secondary small mb-4">{{ form_hint }}</p>{% endif %}
+
+        {% crispy form %}
+
+        {% if cancel_url %}
+          <a href="{{ cancel_url }}" class="btn btn-link px-0 mt-2">Скасувати</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

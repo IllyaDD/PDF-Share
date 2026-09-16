@@ -1,0 +1,76 @@
+{# Очікує: book — book_library.Book; show_folder — показувати шлях теки (для пошуку). #}
+<div class="col-6 col-md-4 col-xl-3">
+  <div class="card entity-card h-100 border-0 shadow-sm">
+
+    <a href="{% url 'book_library:book_reader' book.pk %}" class="text-decoration-none">
+      <div class="book-thumb d-flex align-items-center justify-content-center rounded-top">
+        <i class="bi bi-file-earmark-pdf display-5 text-danger opacity-75"></i>
+      </div>
+    </a>
+
+    <div class="card-body pb-2">
+      <a href="{% url 'book_library:book_detail' book.pk %}"
+         class="text-decoration-none text-body fw-medium d-block text-truncate"
+         title="{{ book.title }}">{{ book.title }}</a>
+      <div class="small text-body-secondary mt-1">
+        {{ book.page_count }} с. · {{ book.file_size|filesizeformat }}
+      </div>
+      {% if show_folder %}
+        <div class="small text-body-secondary text-truncate mt-1" title="{{ book.folder.path_label|default:'Корінь бібліотеки' }}">
+          <i class="bi bi-folder me-1"></i>{% if book.folder %}{{ book.folder.path_label }}{% else %}Корінь бібліотеки{% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="card-footer bg-transparent border-0 pt-0 d-flex gap-2">
+      <a href="{% url 'book_library:book_reader' book.pk %}" class="btn btn-sm btn-primary flex-grow-1">
+        Читати
+      </a>
+      <div class="dropdown">
+        <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Дії з книгою">
+          <i class="bi bi-three-dots"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'book_library:book_detail' book.pk %}">Деталі</a></li>
+          <li><a class="dropdown-item" href="{% url 'annotations:book_annotations' book.pk %}">Мої нотатки</a></li>
+          {% if book.owner_id == user.pk %}
+            <li><a class="dropdown-item" href="{% url 'book_library:book_edit' book.pk %}">Редагувати</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <button type="button" class="dropdown-item"
+                      data-bs-toggle="modal" data-bs-target="#moveModal"
+                      data-action="{% url 'book_library:book_move' book.pk %}"
+                      data-title="{{ book.title }}"
+                      data-folder="{{ book.folder_id|default_if_none:'' }}">
+                <i class="bi bi-folder-symlink me-1"></i>Перемістити в теку…
+              </button>
+            </li>
+            {% if book.folder_id %}
+              <li>
+                <form method="post" action="{% url 'book_library:book_move' book.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="folder" value="">
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="dropdown-item">
+                    <i class="bi bi-folder-minus me-1"></i>Прибрати з теки
+                  </button>
+                </form>
+              </li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <button type="button" class="dropdown-item text-danger"
+                      data-bs-toggle="modal" data-bs-target="#confirmModal"
+                      data-action="{% url 'book_library:book_delete' book.pk %}"
+                      data-title="Видалити «{{ book.title }}»?"
+                      data-text="Книга та всі анотації до неї будуть видалені безповоротно.">
+                Видалити
+              </button>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,14 @@
+{# Очікує: query, placeholder (опційно). Надсилає GET на поточний URL. #}
+<form method="get" class="mb-4" role="search">
+  <div class="input-group">
+    <span class="input-group-text bg-body"><i class="bi bi-search"></i></span>
+    <input type="search" name="q" value="{{ query }}" class="form-control"
+           placeholder="{{ placeholder|default:'Пошук за назвою…' }}" aria-label="Пошук">
+    {% if query %}
+      <a href="{{ request.path }}" class="btn btn-outline-secondary" title="Скинути пошук">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    {% endif %}
+    <button type="submit" class="btn btn-outline-primary">Знайти</button>
+  </div>
+</form>

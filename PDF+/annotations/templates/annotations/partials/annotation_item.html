@@ -1,0 +1,50 @@
+{# Очікує: annotation — annotations.Annotation #}
+<div class="card border-0 shadow-sm mb-2">
+  <div class="card-body p-3">
+
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <span class="rounded-circle flex-shrink-0"
+            style="width: .75rem; height: .75rem; background: {{ annotation.color }};"
+            aria-hidden="true"></span>
+      <span class="badge text-bg-light border">с. {{ annotation.page_number }}</span>
+      <span class="small text-body-secondary ms-auto">{{ annotation.created_at|date:"d.m.Y" }}</span>
+
+      <div class="dropdown">
+        <button class="btn btn-sm btn-link text-body-secondary p-0 px-1"
+                data-bs-toggle="dropdown" aria-label="Дії з нотаткою">
+          <i class="bi bi-three-dots"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <a class="dropdown-item"
+               href="{% url 'book_library:book_reader' annotation.layer.book_id %}?page={{ annotation.page_number }}&amp;annotation={{ annotation.pk }}">
+              Перейти в книзі
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <button type="button" class="dropdown-item text-danger"
+                    data-bs-toggle="modal" data-bs-target="#confirmModal"
+                    data-action="{% url 'annotations:annotation_delete' annotation.pk %}"
+                    data-title="Видалити нотатку?"
+                    data-text="Виділення та коментар до нього буде видалено.">
+              Видалити
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    {% if annotation.selected_text %}
+      <blockquote class="border-start border-3 ps-2 mb-2 small fst-italic text-body-secondary"
+                  style="border-color: {{ annotation.color }} !important;">
+        {{ annotation.selected_text|truncatechars:220 }}
+      </blockquote>
+    {% endif %}
+
+    {% if annotation.note_text %}
+      <p class="small mb-0">{{ annotation.note_text|linebreaksbr }}</p>
+    {% endif %}
+
+  </div>
+</div>

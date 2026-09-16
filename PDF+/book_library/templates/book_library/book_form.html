@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — PDF+{% endblock %}
+
+{% block content %}
+  {% include "partials/form_card.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (() => {
+    const zone = document.querySelector('[data-dropzone]');
+    if (!zone) return;
+
+    const input = zone.querySelector('input[type="file"]');
+    const nameEl = zone.querySelector('[data-dropzone-name]');
+    const sizeEl = zone.querySelector('[data-dropzone-size]');
+    const promptEl = zone.querySelector('[data-dropzone-prompt]');
+
+    const formatSize = (bytes) => {
+      const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+      let value = bytes, unit = 0;
+      while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+      return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    };
+
+    const showFile = (file) => {
+      if (!file) return;
+      nameEl.textContent = file.name;
+      sizeEl.textContent = formatSize(file.size);
+      promptEl.textContent = 'Обрати інший файл';
+      zone.classList.add('has-file');
+    };
+
+    input.addEventListener('change', () => showFile(input.files[0]));
+
+    // dragover треба гасити, інакше браузер просто відкриє файл у вкладці.
+    ['dragenter', 'dragover'].forEach((event) => {
+      zone.addEventListener(event, (e) => {
+        e.preventDefault();
+        zone.classList.add('is-dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((event) => {
+      zone.addEventListener(event, (e) => {
+        e.preventDefault();
+        zone.classList.remove('is-dragover');
+      });
+    });
+
+    zone.addEventListener('drop', (e) => {
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      // input.files можна присвоїти лише FileList — будуємо його через DataTransfer.
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+
+      showFile(file);
+    });
+  })();
+</script>
+{% endblock %}

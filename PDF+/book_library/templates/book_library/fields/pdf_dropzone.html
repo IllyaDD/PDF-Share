@@ -1,0 +1,29 @@
+{% load crispy_forms_field %}
+
+<div id="div_{{ field.auto_id }}" class="mb-3">
+  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+  <label class="pdf-dropzone d-block text-center p-4 rounded" for="{{ field.id_for_label }}" data-dropzone>
+
+    <i class="bi bi-cloud-arrow-up display-6 text-body-secondary d-block mb-2"></i>
+
+    <span class="d-block fw-medium" data-dropzone-prompt>
+      Перетягніть PDF сюди або натисніть, щоб обрати
+    </span>
+    <span class="d-block small text-body-secondary" data-dropzone-hint>
+      {{ field.help_text }}
+    </span>
+
+    <span class="d-none align-items-center justify-content-center gap-2 mt-2" data-dropzone-file>
+      <i class="bi bi-file-earmark-pdf text-danger"></i>
+      <span class="text-truncate fw-medium" data-dropzone-name></span>
+      <span class="small text-body-secondary" data-dropzone-size></span>
+    </span>
+
+    <span class="visually-hidden">{% crispy_field field %}</span>
+  </label>
+
+  {% for error in field.errors %}
+    <div class="invalid-feedback d-block">{{ error }}</div>
+  {% endfor %}
+</div>

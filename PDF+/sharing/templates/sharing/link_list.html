@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Посилання — PDF+{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'sharing:link_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Нове посилання
+  </a>
+{% endblock %}
+
+{% block content %}
+{% if links %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Матеріал</th>
+            <th scope="col">Посилання</th>
+            <th scope="col" class="d-none d-md-table-cell">Діє до</th>
+            <th scope="col" class="text-end">Дії</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for link in links %}
+            <tr>
+              <td>
+                <i class="bi {% if link.book %}bi-file-earmark-pdf text-danger{% else %}bi-folder-fill text-warning{% endif %} me-1"></i>
+                {% if link.book %}{{ link.book.title }}{% else %}{{ link.folder.name }}{% endif %}
+              </td>
+              <td>
+                <div class="input-group input-group-sm" style="max-width: 22rem;">
+                  <input type="text" class="form-control font-monospace" readonly
+                         value="{{ request.scheme }}://{{ request.get_host }}{% url 'sharing:share_view' link.token %}"
+                         aria-label="URL посилання">
+                  <button class="btn btn-outline-secondary" type="button" data-copy-input title="Скопіювати">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </td>
+              <td class="d-none d-md-table-cell">
+                {% if link.expires_at %}
+                  {% if link.is_expired %}
+                    <span class="badge text-bg-danger">Прострочене</span>
+                  {% else %}
+                    {{ link.expires_at|date:"d.m.Y" }}
+                  {% endif %}
+                {% else %}
+                  <span class="text-body-secondary">безстрокове</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-link text-danger"
+                        data-bs-toggle="modal" data-bs-target="#confirmModal"
+                        data-action="{% url 'sharing:link_delete' link.pk %}"
+                        data-title="Відкликати посилання?"
+                        data-text="Хто має це посилання, втратить доступ негайно."
+                        data-confirm="Відкликати">
+                  Відкликати
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% else %}
+  {% include "partials/empty_state.html" with icon="bi-link-45deg" title="Посилань немає" text="Посилання дає доступ до книги або теки без реєстрації в групі." action_url=create_url action_label="Створити посилання" %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-copy-input]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const input = button.closest('.input-group').querySelector('input');
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch {
+        input.select();
+        return;
+      }
+      const icon = button.querySelector('i');
+      icon.className = 'bi bi-check-lg';
+      setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
+    });
+  });
+</script>
+{% endblock %}

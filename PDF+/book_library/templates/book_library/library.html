@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — PDF+{% endblock %}
+
+{% block breadcrumbs %}{% include "partials/breadcrumbs.html" %}{% endblock %}
+
+{% block page_actions %}
+  {% if is_owner %}
+    {% if folder %}
+      <a href="{% url 'book_library:folder_add_books' folder.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-journal-plus me-1"></i>Додати книги
+      </a>
+    {% endif %}
+    <a href="{% url 'book_library:folder_create' %}{% if folder %}?parent={{ folder.pk }}{% endif %}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-folder-plus me-1"></i>Нова тека
+    </a>
+    <a href="{% url 'book_library:book_upload' %}{% if folder %}?folder={{ folder.pk }}{% endif %}"
+       class="btn btn-primary">
+      <i class="bi bi-upload me-1"></i>Завантажити PDF
+    </a>
+  {% else %}
+    <span class="badge text-bg-light border">
+      <i class="bi bi-people me-1"></i>Спільна тека · {{ folder.owner.username }}
+    </span>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% include "partials/search_form.html" with placeholder=folder|yesno:"Пошук у цій теці та вкладених…,Пошук по всій бібліотеці…" %}
+
+  {% if query %}
+    <h2 class="h6 text-body-secondary text-uppercase mb-3">
+      Знайдено за «{{ query }}»: {{ books|length }}
+    </h2>
+    {% if books %}
+      <div class="row g-3">
+        {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
+      </div>
+    {% else %}
+      {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Спробуйте іншу назву або скиньте пошук." action_url=request.path action_label="Скинути пошук" %}
+    {% endif %}
+  {% else %}
+    {% if folders %}
+      <h2 class="h6 text-body-secondary text-uppercase mb-3">Теки</h2>
+      <div class="row g-3 mb-4">
+        {% for folder in folders %}{% include "partials/folder_card.html" %}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if books %}
+      <h2 class="h6 text-body-secondary text-uppercase mb-3">Книги</h2>
+      <div class="row g-3">
+        {% for book in books %}{% include "partials/book_card.html" %}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if not folders and not books %}
+      {% if is_owner %}
+        {% if folder %}
+          {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Покладіть сюди книги з бібліотеки або завантажте новий PDF." action_url=add_books_url action_label="Додати книги" %}
+        {% else %}
+          {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тут порожньо" text="Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали." action_url=upload_url action_label="Завантажити PDF" %}
+        {% endif %}
+      {% else %}
+        {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Власник ще нічого сюди не поклав." %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+
+  {% if is_owner %}{% include "partials/move_modal.html" %}{% endif %}
+{% endblock %}

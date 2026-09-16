@@ -1,0 +1,14 @@
+{# Очікує: crumbs — список {url, label}; останній елемент рендериться як активний. #}
+{% if crumbs %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb small mb-1">
+      {% for crumb in crumbs %}
+        {% if forloop.last %}
+          <li class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</li>
+        {% else %}
+          <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.label }}</a></li>
+        {% endif %}
+      {% endfor %}
+    </ol>
+  </nav>
+{% endif %}

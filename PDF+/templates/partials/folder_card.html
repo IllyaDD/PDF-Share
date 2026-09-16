@@ -1,0 +1,38 @@
+{# Очікує: folder — book_library.Folder #}
+<div class="col-6 col-md-4 col-xl-3">
+  <div class="card entity-card h-100 border-0 shadow-sm">
+    <div class="card-body d-flex align-items-center gap-3">
+      <i class="bi bi-folder-fill fs-3 text-warning"></i>
+
+      <div class="flex-grow-1 min-w-0">
+        <a href="{% url 'book_library:folder' folder.pk %}"
+           class="text-decoration-none text-body fw-medium d-block text-truncate"
+           title="{{ folder.name }}">{{ folder.name }}</a>
+        <div class="small text-body-secondary">
+          {{ folder.books.count }} кн. · {{ folder.children.count }} тек
+        </div>
+      </div>
+
+      {% if folder.owner_id == user.pk %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Дії з текою">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'book_library:folder_edit' folder.pk %}">Перейменувати</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <button type="button" class="dropdown-item text-danger"
+                      data-bs-toggle="modal" data-bs-target="#confirmModal"
+                      data-action="{% url 'book_library:folder_delete' folder.pk %}"
+                      data-title="Видалити теку «{{ folder.name }}»?"
+                      data-text="Вкладені теки та книги буде видалено разом з нею.">
+                Видалити
+              </button>
+            </li>
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>

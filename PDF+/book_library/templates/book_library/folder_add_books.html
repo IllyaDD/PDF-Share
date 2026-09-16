@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — PDF+{% endblock %}
+
+{% block breadcrumbs %}{% include "partials/breadcrumbs.html" %}{% endblock %}
+
+{% block page_actions %}
+  <a href="{% url 'book_library:folder' folder.pk %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>До теки
+  </a>
+  <a href="{% url 'book_library:book_upload' %}?folder={{ folder.pk }}" class="btn btn-primary">
+    <i class="bi bi-upload me-1"></i>Завантажити PDF
+  </a>
+{% endblock %}
+
+{% block content %}
+  {% include "partials/search_form.html" with placeholder="Пошук серед книг поза цією текою…" %}
+
+  {% if books %}
+    <div class="card border-0 shadow-sm">
+      <ul class="list-group list-group-flush">
+        {% for book in books %}
+          <li class="list-group-item d-flex align-items-center gap-3">
+            <i class="bi bi-file-earmark-pdf fs-4 text-danger opacity-75"></i>
+            <div class="flex-grow-1 min-w-0">
+              <a href="{% url 'book_library:book_detail' book.pk %}"
+                 class="text-decoration-none text-body fw-medium d-block text-truncate"
+                 title="{{ book.title }}">{{ book.title }}</a>
+              <div class="small text-body-secondary text-truncate">
+                <i class="bi bi-folder me-1"></i>{% if book.folder %}{{ book.folder.path_label }}{% else %}Корінь бібліотеки{% endif %}
+                · {{ book.page_count }} с.
+              </div>
+            </div>
+            <form method="post" action="{% url 'book_library:book_move' book.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="folder" value="{{ folder.pk }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                <i class="bi bi-plus-lg me-1"></i>Додати
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% elif query %}
+    {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Серед книг поза цією текою немає збігів." action_url=request.path action_label="Скинути пошук" %}
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-journal-check" title="Усі книги вже тут" text="Поза цією текою книг не залишилось. Завантажте новий PDF, щоб додати ще." %}
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Групи — PDF+{% endblock %}
+
+{% block page_actions %}
+  {% if user.role == 'teacher' %}
+    <a href="{% url 'sharing:group_create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Нова група
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+{% if owned_groups %}
+  <h2 class="h6 text-body-secondary text-uppercase mb-3">Мої групи</h2>
+  <div class="list-group mb-4 shadow-sm">
+    {% for group in owned_groups %}
+      <div class="list-group-item d-flex align-items-center gap-3">
+        <i class="bi bi-mortarboard fs-4 text-primary"></i>
+        <div class="flex-grow-1 min-w-0">
+          <a href="{% url 'sharing:group_detail' group.pk %}"
+             class="text-decoration-none text-body fw-medium d-block text-truncate">{{ group.name }}</a>
+          <span class="small text-body-secondary">
+            {{ group.memberships.count }} учасників · {{ group.accesses.count }} матеріалів
+          </span>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Дії з групою">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'sharing:group_edit' group.pk %}">Перейменувати</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <button type="button" class="dropdown-item text-danger"
+                      data-bs-toggle="modal" data-bs-target="#confirmModal"
+                      data-action="{% url 'sharing:group_delete' group.pk %}"
+                      data-title="Видалити групу «{{ group.name }}»?"
+                      data-text="Учасники втратять доступ до наданих через цю групу матеріалів.">
+                Видалити
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if member_groups %}
+  <h2 class="h6 text-body-secondary text-uppercase mb-3">Я учасник</h2>
+  <div class="list-group shadow-sm">
+    {% for group in member_groups %}
+      <a href="{% url 'sharing:group_detail' group.pk %}"
+         class="list-group-item list-group-item-action d-flex align-items-center gap-3">
+        <i class="bi bi-people fs-4 text-secondary"></i>
+        <div class="min-w-0">
+          <div class="fw-medium text-truncate">{{ group.name }}</div>
+          <div class="small text-body-secondary">Вчитель: {{ group.owner.username }}</div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if not owned_groups and not member_groups %}
+  {% include "partials/empty_state.html" with icon="bi-mortarboard" title="Груп немає" text="Групи дають класу доступ до ваших матеріалів одним рухом." action_url=create_url action_label="Створити групу" %}
+{% endif %}
+{% endblock %}

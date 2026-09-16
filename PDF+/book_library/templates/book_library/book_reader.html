@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ book.title }} — читалка{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'vendor/pdfjs/text_layer.css' %}">
+{% endblock %}
+
+{# Читалка займає весь екран: без сайдбара і без контейнера. #}
+{% block layout %}
+<div class="reader-shell d-flex flex-column">
+
+  <div class="border-bottom bg-body px-3 py-2 d-flex align-items-center gap-2 flex-wrap">
+    <a href="{% url 'book_library:book_detail' book.pk %}" class="btn btn-sm btn-light" title="Назад">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+
+    <span class="fw-medium text-truncate me-auto" style="max-width: 40ch;" title="{{ book.title }}">
+      {{ book.title }}
+    </span>
+
+    <div class="btn-group btn-group-sm" role="group" aria-label="Сторінки">
+      <button class="btn btn-light" data-reader-prev title="Попередня сторінка">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <span class="btn btn-light disabled d-flex align-items-center gap-1">
+        <input type="number" class="form-control form-control-sm border-0 p-0 text-center"
+               style="width: 4ch;" value="1" min="1" max="{{ book.page_count }}"
+               data-reader-page aria-label="Номер сторінки">
+        <span class="text-body-secondary">/ {{ book.page_count }}</span>
+      </span>
+      <button class="btn btn-light" data-reader-next title="Наступна сторінка">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </div>
+
+    <div class="btn-group btn-group-sm" role="group" aria-label="Масштаб">
+      <button class="btn btn-light" data-reader-zoom-out title="Зменшити"><i class="bi bi-zoom-out"></i></button>
+      <button class="btn btn-light" data-reader-zoom-in title="Збільшити"><i class="bi bi-zoom-in"></i></button>
+    </div>
+
+    <button class="btn btn-sm btn-light" data-reader-toggle-panel title="Панель нотаток">
+      <i class="bi bi-layout-sidebar-reverse"></i>
+      <span class="badge text-bg-secondary ms-1">{{ annotations|length }}</span>
+    </button>
+  </div>
+
+  <div class="flex-grow-1 d-flex overflow-hidden">
+
+    <div class="reader-canvas-area flex-grow-1" id="pdf-viewer"
+         data-file-url="{{ book.file.url }}"
+         data-page-count="{{ book.page_count }}"
+         data-pdfjs-url="{% static 'vendor/pdfjs/pdf.min.mjs' %}"
+         data-pdfjs-worker-url="{% static 'vendor/pdfjs/pdf.worker.min.mjs' %}"
+         data-csrf-token="{{ csrf_token }}"
+         data-annotations-url="{% url 'annotations:api_book_annotations' book.pk %}"
+         data-annotation-url-template="{% url 'annotations:api_annotation_detail' 0 %}"
+         {% if user.is_authenticated %}data-can-annotate="1"{% endif %}>
+      {# Вміст замінює reader.js. Лишається видимим, якщо модуль не завантажився. #}
+      <div class="h-100 d-flex flex-column align-items-center justify-content-center text-body-secondary p-4 text-center">
+        <div class="spinner-border mb-3" role="status"><span class="visually-hidden">Завантаження</span></div>
+        <p class="mb-1">Готуємо документ…</p>
+        <a href="{{ book.file.url }}" class="btn btn-sm btn-outline-secondary mt-2" target="_blank" rel="noopener">
+          Відкрити файл у новій вкладці
+        </a>
+      </div>
+    </div>
+
+    <aside class="reader-side border-start bg-body d-none d-lg-block" id="readerPanel">
+      <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+        <h2 class="h6 mb-0">Мої нотатки</h2>
+        {% if user.is_authenticated %}
+          <a href="{% url 'annotations:book_annotations' book.pk %}" class="small text-decoration-none">
+            Усі
+          </a>
+        {% endif %}
+      </div>
+
+      {# Чіпи кольорів і навігацію по мітках наповнює reader.js. #}
+      <div class="px-3 py-2 border-bottom d-none" id="annotationFilter">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Навігація по мітках">
+            <button type="button" class="btn btn-light" data-annotation-prev title="Попередня мітка">
+              <i class="bi bi-chevron-up"></i>
+            </button>
+            <button type="button" class="btn btn-light" data-annotation-next title="Наступна мітка">
+              <i class="bi bi-chevron-down"></i>
+            </button>
+          </div>
+          <span class="small text-body-secondary" data-filter-summary></span>
+          <button type="button" class="btn btn-sm btn-link p-0 ms-auto d-none" data-filter-reset>
+            Усі
+          </button>
+        </div>
+        <div class="d-flex flex-wrap gap-1" data-filter-chips></div>
+      </div>
+
+      {% if not book.extracted_text %}
+        <div class="alert alert-warning rounded-0 border-0 border-bottom mb-0 small" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          У документі нема текстового шару — схоже, це скан. Виділення тексту тут
+          не працюватиме.
+        </div>
+      {% endif %}
+
+      <div class="p-3" id="annotationList">
+        {% for annotation in annotations %}
+          {% include "annotations/partials/annotation_item.html" %}
+        {% empty %}
+          {% if user.is_authenticated %}
+            {% include "partials/empty_state.html" with icon="bi-highlighter" title="Нотаток ще немає" text="Виділіть текст у книзі, щоб створити перше виділення." %}
+          {% else %}
+            {% include "partials/empty_state.html" with icon="bi-person-plus" title="Нотатки для зареєстрованих" text="Увійдіть, щоб робити виділення у цій книзі." action_url=login_url action_label="Увійти" %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </aside>
+
+  </div>
+
+  {% if user.is_authenticated %}
+    {# З'являється біля виділеного тексту. Позицію ставить reader.js. #}
+    <div class="floating-panel highlight-palette" id="highlightPalette" hidden>
+      {% for value, label in palette %}
+        <button type="button" class="swatch" data-color="{{ value }}"
+                style="--swatch: {{ value }}" title="{{ label }}"
+                aria-label="Виділити: {{ label }}"></button>
+      {% endfor %}
+    </div>
+
+    {# Відкривається кліком по наявному виділенню. #}
+    <div class="floating-panel annotation-popover" id="annotationPopover" hidden>
+      <div class="d-flex gap-1 mb-2">
+        {% for value, label in palette %}
+          <button type="button" class="swatch" data-color="{{ value }}"
+                  style="--swatch: {{ value }}" title="{{ label }}"
+                  aria-label="Перефарбувати: {{ label }}"></button>
+        {% endfor %}
+      </div>
+
+      <textarea class="form-control form-control-sm mb-2" rows="3"
+                data-note placeholder="Коментар до виділення…"></textarea>
+
+      <div class="d-flex justify-content-between align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-danger" data-delete>
+          <i class="bi bi-trash"></i>
+        </button>
+        <div class="d-flex gap-2">
+          <span class="small text-body-secondary align-self-center" data-status></span>
+          <button type="button" class="btn btn-sm btn-primary" data-close>Готово</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+{# Початкові дані для рушія. #}
+{{ annotations_data|json_script:"annotations-data" }}
+{# Назви кольорів для чіпів фільтра — доступні й анонімним, на відміну від палітри вище. #}
+{{ palette|json_script:"palette-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Тулбар працює автономно від рушія: перемикає панель і тримає стан сторінки/масштабу
+  // в data-атрибутах #pdf-viewer, звідки їх забере рушій рендерингу, коли з'явиться.
+  (() => {
+    const viewer = document.getElementById('pdf-viewer');
+    const panel = document.getElementById('readerPanel');
+    const pageInput = document.querySelector('[data-reader-page]');
+    const pageCount = Number(viewer.dataset.pageCount) || 1;
+    let scale = 1;
+
+    const setPage = (value) => {
+      const page = Math.min(Math.max(value, 1), pageCount);
+      pageInput.value = page;
+      viewer.dataset.currentPage = page;
+      viewer.dispatchEvent(new CustomEvent('reader:page', { detail: { page } }));
+    };
+
+    const setScale = (value) => {
+      scale = Math.min(Math.max(value, 0.5), 3);
+      viewer.dataset.scale = scale.toFixed(2);
+      viewer.dispatchEvent(new CustomEvent('reader:scale', { detail: { scale } }));
+    };
+
+    document.querySelector('[data-reader-prev]').addEventListener('click', () => setPage(Number(pageInput.value) - 1));
+    document.querySelector('[data-reader-next]').addEventListener('click', () => setPage(Number(pageInput.value) + 1));
+    pageInput.addEventListener('change', () => setPage(Number(pageInput.value)));
+    document.querySelector('[data-reader-zoom-in]').addEventListener('click', () => setScale(scale + 0.25));
+    document.querySelector('[data-reader-zoom-out]').addEventListener('click', () => setScale(scale - 0.25));
+    document.querySelector('[data-reader-toggle-panel]').addEventListener('click', () => panel.classList.toggle('d-none'));
+
+    // ?page= із «Моїх нотаток». Скролом займається reader.js — тут лише поле тулбара.
+    setPage(Number(new URLSearchParams(location.search).get('page')) || 1);
+    setScale(1);
+  })();
+</script>
+
+<script type="module" src="{% static 'js/reader.js' %}"></script>
+{% endblock %}

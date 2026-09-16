@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ group.name }} — PDF+{% endblock %}
+
+{% block breadcrumbs %}{% include "partials/breadcrumbs.html" %}{% endblock %}
+
+{% block page_actions %}
+  {% if is_owner %}
+    <a href="{% url 'sharing:group_edit' group.pk %}" class="btn btn-outline-secondary">Перейменувати</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Учасники <span class="badge text-bg-secondary">{{ memberships|length }}</span></h2>
+
+        <ul class="list-group list-group-flush">
+          {% for membership in memberships %}
+            <li class="list-group-item px-0 d-flex align-items-center gap-3">
+              <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width: 2rem; height: 2rem;">
+                <i class="bi bi-person text-secondary"></i>
+              </div>
+              <div class="flex-grow-1 min-w-0">
+                <div class="fw-medium text-truncate">{{ membership.user.username }}</div>
+                <div class="small text-body-secondary">{{ membership.user.email }}</div>
+              </div>
+              <span class="small text-body-secondary text-nowrap d-none d-sm-inline">
+                з {{ membership.joined_at|date:"d.m.Y" }}
+              </span>
+              {% if is_owner %}
+                <button type="button" class="btn btn-sm btn-link text-danger"
+                        data-bs-toggle="modal" data-bs-target="#confirmModal"
+                        data-action="{% url 'sharing:membership_remove' membership.pk %}"
+                        data-title="Видалити учасника?"
+                        data-text="{{ membership.user.username }} втратить доступ до матеріалів групи."
+                        data-confirm="Видалити">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              {% endif %}
+            </li>
+          {% empty %}
+            <li class="list-group-item px-0 text-body-secondary small">Учасників ще немає.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {% if is_owner and membership_form %}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Додати учасника</h2>
+          {% crispy membership_form %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h6 mb-0">Доступні матеріали</h2>
+          {% if is_owner %}
+            <a href="{% url 'sharing:access_create' %}?group={{ group.pk }}"
+               class="btn btn-sm btn-outline-primary">Надати доступ</a>
+          {% endif %}
+        </div>
+
+        {% for access in accesses %}
+          <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+            <i class="bi {% if access.book %}bi-file-earmark-pdf text-danger{% else %}bi-folder-fill text-warning{% endif %}"></i>
+            <span class="flex-grow-1 text-truncate small">
+              {% if access.book %}{{ access.book.title }}{% else %}{{ access.folder.name }}{% endif %}
+            </span>
+            <span class="badge text-bg-light border">{{ access.get_permission_display }}</span>
+            {% if is_owner %}
+              <button type="button" class="btn btn-sm btn-link text-danger p-0 px-1"
+                      data-bs-toggle="modal" data-bs-target="#confirmModal"
+                      data-action="{% url 'sharing:access_delete' access.pk %}"
+                      data-title="Відкликати доступ?"
+                      data-text="Учасники групи «{{ group.name }}» більше не бачитимуть цей матеріал."
+                      data-confirm="Відкликати"
+                      aria-label="Відкликати доступ">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="small text-body-secondary mb-0">Групі ще нічого не надано.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

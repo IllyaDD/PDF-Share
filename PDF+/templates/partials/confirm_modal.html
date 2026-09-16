@@ -1,0 +1,37 @@
+{% comment %}
+  Одна модалка підтвердження на сторінку. Підключається в base.html.
+  Кнопка-тригер задає дію через data-атрибути: data-action (URL форми),
+  data-title, data-text, data-confirm (напис на кнопці).
+{% endcomment %}
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-confirm-title>Підтвердити дію</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" data-confirm-text>Дію не можна скасувати.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+        <form method="post" data-confirm-form>
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger" data-confirm-submit>Видалити</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('confirmModal').addEventListener('show.bs.modal', (event) => {
+    const trigger = event.relatedTarget;
+    if (!trigger) return;
+    const modal = event.target;
+    modal.querySelector('[data-confirm-form]').action = trigger.dataset.action || '';
+    modal.querySelector('[data-confirm-title]').textContent = trigger.dataset.title || 'Підтвердити дію';
+    modal.querySelector('[data-confirm-text]').textContent = trigger.dataset.text || 'Дію не можна скасувати.';
+    modal.querySelector('[data-confirm-submit]').textContent = trigger.dataset.confirm || 'Видалити';
+  });
+</script>
