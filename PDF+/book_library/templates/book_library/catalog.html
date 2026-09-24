@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог — PDF+{% endblock %}
+
+{% block content %}
+  {% include "partials/search_form.html" with placeholder="Пошук по каталогу…" %}
+
+  {% if query %}
+    <h2 class="h6 text-body-secondary text-uppercase mb-3">
+      Знайдено за «{{ query }}»: {{ books|length }}
+    </h2>
+    {% if books %}
+      <div class="row g-3">
+        {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
+      </div>
+    {% else %}
+      {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Спробуйте іншу назву або скиньте пошук." action_url=request.path action_label="Скинути пошук" %}
+    {% endif %}
+  {% elif folders %}
+    <div class="row g-3">
+      {% for folder in folders %}{% include "partials/folder_card.html" %}{% endfor %}
+    </div>
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-collection" title="Каталог порожній" text="Адміністратор ще не відкрив жодної теки для всіх." %}
+  {% endif %}
+{% endblock %}

@@ -19,6 +19,10 @@
        class="btn btn-primary">
       <i class="bi bi-upload me-1"></i>Завантажити PDF
     </a>
+  {% elif in_catalog %}
+    <span class="badge text-bg-light border">
+      <i class="bi bi-collection me-1"></i>Каталог
+    </span>
   {% else %}
     <span class="badge text-bg-light border">
       <i class="bi bi-people me-1"></i>Спільна тека · {{ folder.owner.username }}
@@ -62,6 +66,8 @@
         {% else %}
           {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тут порожньо" text="Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали." action_url=upload_url action_label="Завантажити PDF" %}
         {% endif %}
+      {% elif in_catalog %}
+        {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Адміністратор ще нічого сюди не поклав." %}
       {% else %}
         {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Власник ще нічого сюди не поклав." %}
       {% endif %}

@@ -1,14 +1,3 @@
-/**
- * Читалка PDF: рендер сторінок, показ і створення виділень.
- *
- * Інтеграція з book_reader.html через data-атрибути #pdf-viewer:
- *   data-file-url, data-pdfjs-url, data-pdfjs-worker-url
- *   data-csrf-token, data-annotations-url, data-annotation-url-template
- *   data-can-annotate — присутній лише для залогінених
- *
- * Події від тулбара: reader:page, reader:scale.
- */
-
 const viewer = document.getElementById("pdf-viewer");
 
 if (viewer) {
@@ -33,7 +22,6 @@ if (viewer) {
   const pageViewports = new Map();
   const pageDivs = new Map();
 
-  // Кольори, сховані фільтром. Стан живе лише поки відкрита вкладка.
   const hiddenColors = new Set();
   const chipNodes = new Map();
 
@@ -51,7 +39,6 @@ if (viewer) {
     }
   }
 
-  // Назви кольорів палітри для підписів чіпів: #FFEB3B → "Жовтий".
   const paletteLabels = new Map();
   const paletteNode = document.getElementById("palette-data");
   if (paletteNode) {
@@ -60,18 +47,13 @@ if (viewer) {
     }
   }
 
-  // ---------- фільтр за кольором ----------
-
   const isVisible = (annotation) => !hiddenColors.has(annotation.color);
 
   const byPageThenId = (a, b) => a.page - b.page || a.id - b.id;
 
-  /** Видимі мітки в порядку читання — основа і для списку, і для кнопок ← →. */
   function visibleSorted() {
     return [...annotations.values()].filter(isVisible).sort(byPageThenId);
   }
-
-  // ---------- мережа ----------
 
   async function request(url, method, body) {
     const response = await fetch(url, {
@@ -94,15 +76,6 @@ if (viewer) {
   const detailUrl = (id) =>
     viewer.dataset.annotationUrlTemplate.replace("/0/", `/${id}/`);
 
-  // ---------- координати ----------
-
-  /**
-   * Прямокутник з PDF user space у пікселі поточного viewport.
-   *
-   * pdf.js 6 прибрав convertToViewportRectangle — лишились лише точкові
-   * перетворення, тому рахуємо по двох кутах. Вісь Y у PDF перевернута,
-   * звідси min/max замість прямого віднімання.
-   */
   function toViewportRect(coords, viewport) {
     const [ax, ay] = viewport.convertToViewportPoint(coords.x0, coords.y0);
     const [bx, by] = viewport.convertToViewportPoint(coords.x1, coords.y1);
@@ -114,7 +87,6 @@ if (viewer) {
     };
   }
 
-  /** Екранний прямокутник у PDF user space — саме це лягає в базу. */
   function toPdfRect(rect, canvasRect, viewport) {
     const [ax, ay] = viewport.convertToPdfPoint(
       rect.left - canvasRect.left,
@@ -132,8 +104,6 @@ if (viewer) {
     };
   }
 
-  // ---------- малювання ----------
-
   function drawPage(pageNumber) {
     const pageDiv = pageDivs.get(pageNumber);
     const layer = pageDiv?.querySelector(".annotation-layer");
@@ -148,6 +118,7 @@ if (viewer) {
       if (annotation.page !== pageNumber || !isVisible(annotation)) {
         continue;
       }
+
       for (const coords of annotation.coords || []) {
         const rect = toViewportRect(coords, viewport);
         const mark = document.createElement("div");
@@ -171,8 +142,6 @@ if (viewer) {
       drawPage(pageNumber);
     }
   }
-
-  // ---------- бічна панель ----------
 
   function buildSidebarItem(annotation) {
     const card = document.createElement("div");
@@ -220,7 +189,7 @@ if (viewer) {
     const sorted = visibleSorted();
 
     if (counter) {
-      // При активному фільтрі показуємо, скільки з усіх зараз видно.
+
       counter.textContent = hiddenColors.size
         ? `${sorted.length}/${annotations.size}`
         : String(annotations.size);
@@ -230,8 +199,7 @@ if (viewer) {
     }
 
     if (!sorted.length) {
-      // Порожній стан з серверного рендеру лишаємо як є при першому заході —
-      // але лише поки фільтр нічого не ховає: інакше треба пояснити, куди все зникло.
+
       if (sidebar.dataset.jsOwned !== "1" && !hiddenColors.size) {
         return;
       }
@@ -249,8 +217,6 @@ if (viewer) {
     sidebar.dataset.jsOwned = "1";
     sidebar.replaceChildren(...sorted.map(buildSidebarItem));
   }
-
-  // ---------- чіпи фільтра ----------
 
   function buildFilterChip(color) {
     const chip = document.createElement("button");
@@ -275,13 +241,6 @@ if (viewer) {
     return chip;
   }
 
-  /**
-   * Стан чіпа оновлюємо на місці, а не перестворенням вузла.
-   *
-   * Браузер видає dblclick лише коли обидва кліки влучили в той самий елемент;
-   * якби перший клік підміняв кнопку новою, подвійний клік ніколи б не спрацював
-   * (та й фокус з клавіатури злітав би на кожне оновлення).
-   */
   function syncFilterChip(chip, color, count) {
     const hidden = hiddenColors.has(color);
     chip.classList.toggle("is-off", hidden);
@@ -290,7 +249,6 @@ if (viewer) {
     chip.querySelector("[data-chip-count]").textContent = String(count);
   }
 
-  /** Скільки міток кожного кольору зараз у книзі. */
   function colorCounts() {
     const counts = new Map();
     for (const annotation of annotations.values()) {
@@ -299,9 +257,8 @@ if (viewer) {
     return counts;
   }
 
-  /** Фільтр не має тримати кольори, яких у книзі вже нема. */
   function pruneHiddenColors(counts) {
-    // Один колір фільтрувати нема сенсу.
+
     if (counts.size < 2) {
       hiddenColors.clear();
       return;
@@ -323,18 +280,15 @@ if (viewer) {
       return;
     }
 
-    // Чіпи — лише для кольорів, які реально є в книзі: API пропускає будь-який
-    // #RRGGBB, тож палітра не покриває всіх можливих значень, а порожні чіпи — шум.
     const known = [...paletteLabels.keys()];
     const rank = (color) => {
       const index = known.indexOf(color);
-      return index < 0 ? known.length : index; // поза палітрою — у кінець
+      return index < 0 ? known.length : index;
     };
     const ordered = [...counts.keys()].sort(
       (a, b) => rank(a) - rank(b) || a.localeCompare(b),
     );
 
-    // Перебудовуємо DOM лише коли змінився набір кольорів; інакше — оновлення на місці.
     const sameSet =
       chipNodes.size === ordered.length && ordered.every((color) => chipNodes.has(color));
     if (!sameSet) {
@@ -356,12 +310,6 @@ if (viewer) {
     filterReset?.classList.toggle("d-none", hiddenColors.size === 0);
   }
 
-  /**
-   * Єдина точка оновлення після будь-якої зміни міток або фільтра.
-   *
-   * Чистка фільтра йде перед малюванням: інакше сторінки й список встигли б
-   * відрендеритись за станом, який тут же стане неактуальним.
-   */
   function refresh() {
     const counts = colorCounts();
     pruneHiddenColors(counts);
@@ -376,15 +324,6 @@ if (viewer) {
     renderFilters(counts);
   }
 
-  // ---------- перехід до мітки ----------
-
-  /**
-   * Скрол до конкретної мітки з підсвіткою.
-   *
-   * Сторінки рендеряться ліниво (IntersectionObserver нижче), тому на ще не
-   * відрендереній сторінці прямокутників просто не існує — спершу примусово
-   * рендеримо сторінку. renderPage ідемпотентна, повторний виклик безкоштовний.
-   */
   async function focusAnnotation(id, behavior = "smooth") {
     const annotation = annotations.get(id);
     if (!annotation) {
@@ -392,7 +331,6 @@ if (viewer) {
     }
     navId = id;
 
-    // Не ведемо туди, що самі ж і сховали.
     if (hiddenColors.delete(annotation.color)) {
       refresh();
     }
@@ -400,32 +338,27 @@ if (viewer) {
     await renderPage(annotation.page);
 
     const mark = document.querySelector(`.annotation-rect[data-annotation-id="${id}"]`);
-    // Фолбек на сторінку: у сканах без текстового шару прямокутника може не бути.
+
     (mark ?? pageDivs.get(annotation.page))?.scrollIntoView({ behavior, block: "center" });
 
-    // Підсвітка завжди одна: таймер від попереднього переходу інакше гасив би
-    // свіжу ціль, а на повторному переході в ту саму мітку анімація б не перезапустилась.
     clearTimeout(flashTimer);
     document
       .querySelectorAll(".annotation-rect.is-target")
       .forEach((node) => node.classList.remove("is-target"));
 
     if (mark) {
-      void mark.offsetWidth; // перезапуск CSS-анімації
+      void mark.offsetWidth;
       mark.classList.add("is-target");
       flashTimer = setTimeout(() => mark.classList.remove("is-target"), 1600);
     }
   }
 
-  /** Крок по видимих мітках кнопками ← →. */
   function stepAnnotation(delta) {
     const sorted = visibleSorted();
     if (!sorted.length) {
       return;
     }
 
-    // Курсор тримаємо за id, а не за індексом: список змінюється під час роботи
-    // (фільтр, створення, видалення), і індекс швидко починає брехати.
     const current = sorted.findIndex((item) => item.id === navId);
     let next = delta > 0 ? 0 : sorted.length - 1;
     if (current >= 0) {
@@ -433,8 +366,6 @@ if (viewer) {
     }
     focusAnnotation(sorted[next].id);
   }
-
-  // ---------- плаваючі панелі ----------
 
   function place(panel, x, y) {
     panel.hidden = false;
@@ -462,8 +393,6 @@ if (viewer) {
     activeId = null;
   }
 
-  // ---------- створення виділення ----------
-
   function readSelection() {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) {
@@ -473,8 +402,7 @@ if (viewer) {
     const range = selection.getRangeAt(0);
     const startPage = range.startContainer.parentElement?.closest(".pdf-page");
     const endPage = range.endContainer.parentElement?.closest(".pdf-page");
-    // Виділення через розрив сторінок поки не підтримуємо: у кожної сторінки
-    // власна система координат, одним записом його не описати.
+
     if (!startPage || startPage !== endPage) {
       return null;
     }
@@ -516,7 +444,7 @@ if (viewer) {
         color,
       });
       annotations.set(created.id, created);
-      // Інакше свіжа мітка зникла б у ту ж мить — це читається як баг.
+
       hiddenColors.delete(created.color);
       refresh();
       window.getSelection()?.removeAllRanges();
@@ -526,8 +454,6 @@ if (viewer) {
       hidePalette();
     }
   }
-
-  // ---------- редагування наявного ----------
 
   function openPopover(id, x, y) {
     const annotation = annotations.get(id);
@@ -556,7 +482,7 @@ if (viewer) {
     try {
       const updated = await request(detailUrl(activeId), "PATCH", fields);
       annotations.set(updated.id, updated);
-      // Перефарбування у схований колір не має «з'їдати» мітку, яку щойно правили.
+
       hiddenColors.delete(updated.color);
       refresh();
       document
@@ -582,8 +508,6 @@ if (viewer) {
     }
   }
 
-  // ---------- рендер сторінок ----------
-
   async function renderPage(pageNumber) {
     const pageDiv = pageDivs.get(pageNumber);
     if (!pageDiv || pageDiv.dataset.rendered === String(scale)) {
@@ -598,12 +522,8 @@ if (viewer) {
     pageDiv.style.width = `${Math.floor(viewport.width)}px`;
     pageDiv.style.height = `${Math.floor(viewport.height)}px`;
 
-    // setLayerDimensions лише ЧИТАЄ цю змінну — визначити її має хост.
-    // Без неї font-size спанів текстового шару не рахується, і прямокутники
-    // виділення виходять не того розміру.
     pageDiv.style.setProperty("--total-scale-factor", String(scale));
 
-    // Щільність пікселів екрана — окремо від зуму: канвас більший, CSS-розмір логічний.
     const outputScale = window.devicePixelRatio || 1;
     const canvas = document.createElement("canvas");
     canvas.width = Math.floor(viewport.width * outputScale);
@@ -630,8 +550,6 @@ if (viewer) {
     const annotationLayer = document.createElement("div");
     annotationLayer.className = "annotation-layer";
 
-    // Текстовий шар зверху: інакше .annotation-rect перехоплював би курсор
-    // і почати виділення поверх наявної помітки було б неможливо.
     pageDiv.replaceChildren(canvas, annotationLayer, textLayerDiv);
     drawPage(pageNumber);
   }
@@ -668,13 +586,10 @@ if (viewer) {
     }
   }
 
-  // ---------- події ----------
-
   viewer.addEventListener("reader:page", (event) => {
     pageDivs.get(event.detail.page)?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  // Фільтр і навігація доступні всім, хто бачить мітки, — не лише авторам.
   filterChips?.addEventListener("click", (event) => {
     const chip = event.target.closest("[data-filter-color]");
     if (!chip) {
@@ -689,8 +604,6 @@ if (viewer) {
     refresh();
   });
 
-  // Подвійний клік — «лише цей колір». Перший клік із пари вже спрацював вище,
-  // тому просто перезаписуємо стан цілком.
   filterChips?.addEventListener("dblclick", (event) => {
     const chip = event.target.closest("[data-filter-color]");
     if (!chip) {
@@ -735,9 +648,6 @@ if (viewer) {
       }
       const selection = readSelection();
 
-      // Клік без виділення — можливо, по наявній помітці. Шукаємо її через стек
-      // елементів у точці: текстовий шар лежить зверху, тому event.target завжди
-      // буде спаном тексту, а не прямокутником помітки.
       if (!selection) {
         const mark = document
           .elementsFromPoint(event.clientX, event.clientY)
@@ -782,7 +692,6 @@ if (viewer) {
       }
     });
 
-    // Коментар зберігається при втраті фокуса — без кнопки "зберегти".
     popover?.querySelector("[data-note]")?.addEventListener("blur", (event) => {
       const annotation = annotations.get(activeId);
       if (annotation && event.target.value !== (annotation.note || "")) {
@@ -798,16 +707,12 @@ if (viewer) {
     });
   }
 
-  // ---------- старт ----------
-
   try {
-    // pdf.js 6 не приймає голий рядок — лише {url} / {data} / {range}.
+
     pdf = await pdfjsLib.getDocument({ url: viewer.dataset.fileUrl }).promise;
     await reflow();
     refresh();
 
-    // Перехід із «Моїх нотаток»: ?page=N&annotation=ID. Номер сторінки в тулбарі
-    // ставить окремий IIFE у шаблоні — тут відповідаємо лише за скрол.
     const params = new URLSearchParams(location.search);
     const targetId = Number(params.get("annotation"));
     const targetPage = Number(params.get("page"));

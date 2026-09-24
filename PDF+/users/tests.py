@@ -8,7 +8,6 @@ class RegistrationTests(TestCase):
     def test_register_page_renders_crispy_form(self):
         response = self.client.get(reverse("accounts:register"))
         self.assertEqual(response.status_code, 200)
-        # crispy bootstrap5 обгортає поля у .mb-3 і додає form-control
         self.assertContains(response, "form-control")
         self.assertContains(response, 'name="username"')
         self.assertContains(response, 'name="role"')

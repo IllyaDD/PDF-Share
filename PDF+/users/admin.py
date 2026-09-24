@@ -6,8 +6,6 @@ from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationFo
 
 from .models import User
 
-# Django-вські групи прав не використовуються (адмінка лише для суперюзера)
-# і плутаються з sharing.Group у меню.
 admin.site.unregister(AuthGroup)
 
 

@@ -11,9 +11,6 @@ from .forms import GroupAccessForm, GroupForm, MembershipForm, ShareLinkForm
 from .models import Group, GroupAccess, GroupMembership, ShareLink
 
 
-# Групи
-
-
 @login_required
 def group_list_view(request):
     return render(
@@ -70,8 +67,9 @@ def group_create_view(request):
     if request.method == "POST" and form.is_valid():
         group = form.save(commit=False)
         group.owner = request.user
+        group.invite_token = secrets.token_urlsafe(32)
         group.save()
-        messages.success(request, "Групу створено.")
+        messages.success(request, "Групу створено. Поділіться посиланням для приєднання з учнями.")
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -118,6 +116,46 @@ def group_delete_view(request, pk):
 
 
 @login_required
+def group_invite_view(request, pk):
+    group = get_object_or_404(Group, pk=pk, owner=request.user)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "regenerate":
+            group.regenerate_invite_token()
+            messages.success(request, "Посилання для приєднання оновлено. Старе більше не діє.")
+        elif action == "disable":
+            group.invite_token = None
+            group.save(update_fields=["invite_token"])
+            messages.success(request, "Посилання для приєднання вимкнено.")
+    return redirect("sharing:group_detail", pk=group.pk)
+
+
+def group_join_view(request, token):
+    group = Group.objects.filter(invite_token=token).select_related("owner").first()
+
+    if group is None:
+        return render(request, "sharing/group_join.html", {"group": None}, status=404)
+
+    if not request.user.is_authenticated:
+        return render(request, "sharing/group_join.html", {"group": group})
+
+    if group.owner_id == request.user.pk:
+        messages.info(request, "Ви власник цієї групи.")
+        return redirect("sharing:group_detail", pk=group.pk)
+
+    if GroupMembership.objects.filter(group=group, user=request.user).exists():
+        messages.info(request, f"Ви вже в групі «{group.name}».")
+        return redirect("sharing:group_detail", pk=group.pk)
+
+    if request.method == "POST":
+        GroupMembership.objects.create(group=group, user=request.user)
+        messages.success(request, f"Ви приєдналися до групи «{group.name}».")
+        return redirect("sharing:group_detail", pk=group.pk)
+
+    return render(request, "sharing/group_join.html", {"group": group})
+
+
+@login_required
 def membership_remove_view(request, pk):
     membership = get_object_or_404(GroupMembership, pk=pk, group__owner=request.user)
     group_pk = membership.group_id
@@ -125,9 +163,6 @@ def membership_remove_view(request, pk):
         membership.delete()
         messages.success(request, "Учасника видалено з групи.")
     return redirect("sharing:group_detail", pk=group_pk)
-
-
-# Доступ груп до матеріалів
 
 
 @login_required
@@ -168,9 +203,6 @@ def access_delete_view(request, pk):
         access.delete()
         messages.success(request, "Доступ відкликано.")
     return redirect("sharing:group_detail", pk=group_pk)
-
-
-# Посилання
 
 
 @login_required
@@ -225,7 +257,6 @@ def link_delete_view(request, pk):
 
 
 def share_view(request, token):
-    """Публічна точка входу за токеном. Доступна без автентифікації."""
     link = ShareLink.objects.filter(token=token).select_related("book", "folder").first()
 
     error = None
@@ -234,7 +265,6 @@ def share_view(request, token):
     elif link.is_expired:
         error = "Термін дії посилання минув."
     else:
-        # Токен лишається в сесії — інакше кнопка "Відкрити книгу" веде в 404.
         remember_share_token(request.session, token)
 
     return render(request, "sharing/share_view.html", {"link": link, "error": error})

@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from book_sharing_settings.oauth import oauth
@@ -18,14 +19,10 @@ MODEL_BACKEND = "django.contrib.auth.backends.ModelBackend"
 
 
 def _unique_username(base):
-    """Підбирає вільний username на основі base."""
     username = base
     while User.objects.filter(username=username).exists():
         username = f"{base}{randint(1, 9999)}"
     return username
-
-
-# Класична реєстрація
 
 
 def register_view(request):
@@ -34,7 +31,13 @@ def register_view(request):
         user = form.save()
         login(request, user, backend=MODEL_BACKEND)
 
-        response = redirect("book_library:home")
+        next_url = request.GET.get("next", "")
+        if not url_has_allowed_host_and_scheme(
+            next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            next_url = reverse("book_library:home")
+
+        response = redirect(next_url)
         response.set_cookie(
             key="registration_success",
             value="1",
@@ -49,9 +52,6 @@ def register_view(request):
     return render(request, "users/register.html", {"form": form})
 
 
-# Вхід / вихід
-
-
 class UserLoginView(LoginView):
     template_name = "users/login.html"
     authentication_form = LoginForm
@@ -63,9 +63,6 @@ def logout_view(request):
         logout(request)
         messages.success(request, "Ви вийшли з акаунта.")
     return redirect("book_library:home")
-
-
-# Вхід через Google
 
 
 class GoogleLoginView(View):
@@ -97,7 +94,6 @@ class GoogleCallbackView(View):
             },
         )
         if created:
-            # Пароля в такого акаунта немає — вхід тільки через Google.
             user.set_unusable_password()
             user.save(update_fields=["password"])
 
@@ -117,9 +113,6 @@ class GoogleCallbackView(View):
             "Реєстрація успішна!" if created else "Вітаємо знову!",
         )
         return response
-
-
-# Профіль
 
 
 @login_required

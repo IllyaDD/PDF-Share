@@ -1,3 +1,5 @@
+import secrets
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -6,7 +8,6 @@ from book_library.models import Book, Folder
 
 
 class ShareLink(models.Model):
-    """Посилання на книгу або теку за токеном."""
 
     book = models.ForeignKey(
         Book,
@@ -43,7 +44,6 @@ class ShareLink(models.Model):
 
 
 class Group(models.Model):
-    """Група користувачів (клас), якою володіє вчитель."""
 
     name = models.CharField(max_length=255)
     owner = models.ForeignKey(
@@ -52,6 +52,7 @@ class Group(models.Model):
         related_name="owned_groups",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    invite_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
 
     class Meta:
         db_table = "sharing_group"
@@ -60,9 +61,12 @@ class Group(models.Model):
     def __str__(self):
         return self.name
 
+    def regenerate_invite_token(self):
+        self.invite_token = secrets.token_urlsafe(32)
+        self.save(update_fields=["invite_token"])
+
 
 class GroupMembership(models.Model):
-    """Членство користувача в групі."""
 
     group = models.ForeignKey(
         Group,
@@ -90,7 +94,6 @@ class GroupMembership(models.Model):
 
 
 class GroupAccess(models.Model):
-    """Доступ групи до книги або теки."""
 
     class Permission(models.TextChoices):
         VIEW = "view", "Перегляд"
@@ -130,8 +133,6 @@ class GroupAccess(models.Model):
     class Meta:
         db_table = "sharing_groupaccess"
         constraints = [
-            # NULL-и в Postgres не конфліктують між собою, тому рядок про теку
-            # (book IS NULL) не заважає іншим рядкам про теки в тій самій групі.
             models.UniqueConstraint(
                 fields=["group", "book"],
                 name="unique_access_per_group_book",

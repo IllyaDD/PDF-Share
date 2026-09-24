@@ -10,7 +10,6 @@ from .models import Book, Folder
 
 
 class LayerInline(TabularInline):
-    """Шари анотацій книги — лише для перегляду, створюються з читалки."""
 
     model = Layer
     extra = 0
@@ -29,8 +28,8 @@ class LayerInline(TabularInline):
 
 @admin.register(Folder)
 class FolderAdmin(ModelAdmin):
-    list_display = ("name", "owner", "parent", "created_at")
-    list_filter = ("created_at",)
+    list_display = ("name", "owner", "parent", "is_catalog", "created_at")
+    list_filter = ("is_catalog", "created_at")
     search_fields = ("name", "owner__username", "owner__email")
     autocomplete_fields = ("owner", "parent")
     date_hierarchy = "created_at"

@@ -1,16 +1,3 @@
-"""
-Правила доступу до тек і книг.
-
-Три джерела права на перегляд:
-  1. власність — owner=user;
-  2. GroupAccess — матеріал виданий групі, у якій користувач є учасником;
-  3. ShareLink — користувач відкривав токен-посилання, і токен лежить у його сесії.
-
-Право на зміну (перейменувати, видалити, замінити файл) має лише власник.
-GroupAccess.EDIT поки що не розширює права на сам матеріал: власні шари анотацій
-доступні будь-кому, хто бачить книгу, і чужу книгу вони не змінюють.
-"""
-
 from django.db.models import Q
 
 from .models import Book, Folder
@@ -19,7 +6,6 @@ SESSION_TOKENS_KEY = "share_tokens"
 
 
 def remember_share_token(session, token):
-    """Кладе токен у сесію, щоб подальші сторінки бачили відкритий матеріал."""
     tokens = session.get(SESSION_TOKENS_KEY, [])
     if token not in tokens:
         session[SESSION_TOKENS_KEY] = tokens + [token]
@@ -37,7 +23,6 @@ def _live_share_links(session):
 
 
 def _with_descendants(folder_ids):
-    """Доступ до теки поширюється на все дерево під нею."""
     known = set(folder_ids)
     frontier = list(known)
     while frontier:
@@ -54,12 +39,34 @@ def _with_descendants(folder_ids):
 
 
 def folder_subtree_ids(folder_id):
-    """Тека разом з усіма вкладеними — для пошуку та підрахунків у межах теки."""
     return _with_descendants({folder_id})
 
 
+def folders_subtree_ids(folder_ids):
+    folder_ids = set(folder_ids)
+    return _with_descendants(folder_ids) if folder_ids else set()
+
+
+def catalog_folder_ids():
+    roots = set(Folder.objects.filter(is_catalog=True).values_list("pk", flat=True))
+    return _with_descendants(roots) if roots else set()
+
+
+def catalog_root_folders():
+    ids = catalog_folder_ids()
+    return Folder.objects.filter(is_catalog=True).exclude(parent_id__in=ids)
+
+
+def is_catalog_folder(folder):
+    node = folder
+    while node is not None:
+        if node.is_catalog:
+            return True
+        node = node.parent
+    return False
+
+
 def shared_folder_ids(user, session=None):
-    """Теки, відкриті через групу або посилання, разом із вкладеними."""
     roots = set()
 
     if user is not None and user.is_authenticated:
@@ -75,7 +82,6 @@ def shared_folder_ids(user, session=None):
 
 
 def shared_book_ids(user, session=None):
-    """Книги, відкриті напряму — через GroupAccess на книгу або посилання на книгу."""
     ids = set()
 
     if user is not None and user.is_authenticated:
@@ -99,6 +105,9 @@ def visible_books(user, session=None):
 
     if user is not None and user.is_authenticated:
         condition |= Q(owner=user)
+        catalog_ids = catalog_folder_ids()
+        if catalog_ids:
+            condition |= Q(folder_id__in=catalog_ids)
 
     return Book.objects.filter(condition).distinct()
 
@@ -107,6 +116,6 @@ def visible_folders(user, session=None):
     condition = Q(pk__in=shared_folder_ids(user, session))
 
     if user is not None and user.is_authenticated:
-        condition |= Q(owner=user)
+        condition |= Q(owner=user) | Q(pk__in=catalog_folder_ids())
 
     return Folder.objects.filter(condition).distinct()

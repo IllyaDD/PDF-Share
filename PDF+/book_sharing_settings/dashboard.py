@@ -1,5 +1,3 @@
-"""Колбеки для Unfold: бейдж середовища та дані для головної адмінки."""
-
 import json
 from datetime import timedelta
 
@@ -15,8 +13,6 @@ from users.models import User
 
 CHART_DAYS = 30
 
-# (назва, queryset, поле дати, колір). Кольори — hex, не CSS-змінні Unfold:
-# три серії мають читатись окремо, а палітра primary дає лише відтінки одного.
 ACTIVITY_SERIES = (
     ("Users", User.objects, "date_joined", "#9333ea"),
     ("Books", Book.objects, "uploaded_at", "#0ea5e9"),
@@ -51,7 +47,6 @@ def _stats():
 
 
 def _daily_counts(queryset, field, days):
-    """Кількість записів по днях за останні `days` днів — один запит на модель."""
     rows = (
         queryset.filter(**{f"{field}__date__gte": days[0]})
         .annotate(day=TruncDate(field))
@@ -83,8 +78,6 @@ def _activity_chart():
 
 
 def _activity_legend():
-    # Unfold ховає легенду Chart.js, а передати свої options — значить втратити
-    # всі його дефолти. Тому легенда малюється в шаблоні.
     return [{"label": label, "color": color} for label, _, _, color in ACTIVITY_SERIES]
 
 

@@ -53,6 +53,44 @@
   </div>
 
   <div class="col-lg-5">
+    {% if is_owner %}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+          <h2 class="h6 mb-2">Посилання для приєднання</h2>
+          {% if group.invite_token %}
+            <p class="small text-body-secondary mb-2">
+              Хто відкриє це посилання, зможе самостійно вступити в групу.
+            </p>
+            <div class="input-group input-group-sm mb-3">
+              <input type="text" class="form-control font-monospace" readonly
+                     value="{{ request.scheme }}://{{ request.get_host }}{% url 'sharing:group_join' group.invite_token %}"
+                     aria-label="URL для приєднання">
+              <button class="btn btn-outline-secondary" type="button" data-copy-input title="Скопіювати">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </div>
+            <form method="post" action="{% url 'sharing:group_invite' group.pk %}" class="d-flex gap-2">
+              {% csrf_token %}
+              <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-repeat me-1"></i>Оновити
+              </button>
+              <button type="submit" name="action" value="disable" class="btn btn-sm btn-outline-danger">
+                Вимкнути
+              </button>
+            </form>
+          {% else %}
+            <p class="small text-body-secondary mb-3">Посилання вимкнене. Учні можуть вступити лише вручну.</p>
+            <form method="post" action="{% url 'sharing:group_invite' group.pk %}">
+              {% csrf_token %}
+              <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-link-45deg me-1"></i>Створити посилання
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
     {% if is_owner and membership_form %}
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
@@ -99,4 +137,23 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-copy-input]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const input = button.closest('.input-group').querySelector('input');
+      try {
+        await navigator.clipboard.writeText(input.value);
+      } catch {
+        input.select();
+        return;
+      }
+      const icon = button.querySelector('i');
+      icon.className = 'bi bi-check-lg';
+      setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
+    });
+  });
+</script>
 {% endblock %}

@@ -1,19 +1,17 @@
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
-from django.urls import reverse
-
-from book_library.models import Book
-from users.models import User
-
-from .models import Annotation, Layer
-
-
 import shutil
 import tempfile
 
-from django.test import override_settings
+from book_library.models import Book
+from book_sharing_settings.testing import FILESYSTEM_STORAGES
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
+from users.models import User
 
-# Тести не мають писати в робочу media/ — FileField кладе файли у MEDIA_ROOT.
+from .models import Annotation, Layer
+from .validators import merge_rects, parse_coords
+
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
 
 
@@ -21,7 +19,7 @@ def tearDownModule():
     shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class AnnotationPageTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -68,8 +66,6 @@ class AnnotationPageTests(TestCase):
         self.assertContains(response, 'id="annotations-data"')
 
     def test_go_to_book_link_carries_page_and_annotation(self):
-        # Без annotation= читалка вміла б відкрити лише потрібну сторінку,
-        # а не саму мітку — саме через це посилання раніше вело на першу сторінку.
         response = self.client.get(reverse("annotations:book_annotations", args=[self.book.pk]))
         reader_url = reverse("book_library:book_reader", args=[self.book.pk])
         self.assertContains(
@@ -94,7 +90,7 @@ class AnnotationPageTests(TestCase):
         self.assertFalse(Annotation.objects.filter(pk=self.annotation.pk).exists())
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class AnnotationApiTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -204,7 +200,6 @@ class AnnotationApiTests(TestCase):
         self.client.force_login(student)
         self.assertEqual(self.post().status_code, 201)
 
-        # Шар учня окремий від шару вчителя.
         self.assertTrue(Layer.objects.filter(book=self.book, owner=student).exists())
         self.assertFalse(Layer.objects.filter(book=self.book, owner=self.user).exists())
 
@@ -222,7 +217,7 @@ class AnnotationApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class AnnotationApiUpdateTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -295,13 +290,8 @@ class AnnotationApiUpdateTests(TestCase):
                                          content_type="application/json").status_code, 405)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class CoordinateRoundTripTests(TestCase):
-    """Координати мають доживати до бази без втрати точності.
-
-    Клієнт рахує їх у пунктах PDF з дробовою частиною; заокруглення тут
-    зсунуло б виділення на екрані.
-    """
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -339,7 +329,7 @@ class CoordinateRoundTripTests(TestCase):
         self.assertEqual(Annotation.objects.get().coords, coords)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class ReaderPaletteTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -380,7 +370,6 @@ class ReaderPaletteTests(TestCase):
         self.assertContains(response, "data-annotation-prev")
         self.assertContains(response, "data-annotation-next")
 
-        # Назви кольорів потрібні reader.js для підписів чіпів.
         self.assertContains(response, 'id="palette-data"')
         for _value, label in Annotation.PALETTE:
             with self.subTest(label=label):
@@ -396,3 +385,149 @@ class ReaderPaletteTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'id="highlightPalette"')
         self.assertNotContains(response, "data-can-annotate")
+
+
+class RectMergeTests(SimpleTestCase):
+
+    def test_overlapping_rects_on_one_line_merge(self):
+        merged = parse_coords([
+            {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0},
+            {"x0": 170.0, "y0": 100.0, "x1": 330.0, "y1": 116.0},
+        ])
+        self.assertEqual(
+            merged,
+            [{"x0": 20.0, "y0": 100.0, "x1": 330.0, "y1": 116.0}],
+        )
+
+    def test_touching_rects_merge(self):
+        merged = parse_coords([
+            {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0},
+            {"x0": 180.0, "y0": 100.0, "x1": 240.0, "y1": 116.0},
+        ])
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["x1"], 240.0)
+
+    def test_word_gap_is_preserved(self):
+        rects = [
+            {"x0": 10.5, "y0": 10.0, "x1": 19.5, "y1": 26.0},
+            {"x0": 21.0, "y0": 10.0, "x1": 30.0, "y1": 26.0},
+        ]
+        self.assertEqual(parse_coords(rects), rects)
+
+    def test_different_lines_do_not_merge(self):
+        rects = [
+            {"x0": 20.0, "y0": 120.0, "x1": 200.0, "y1": 136.0},
+            {"x0": 20.0, "y0": 100.0, "x1": 200.0, "y1": 116.0},
+        ]
+        self.assertEqual(parse_coords(rects), rects)
+
+    def test_subpixel_jitter_counts_as_one_line(self):
+        merged = parse_coords([
+            {"x0": 71.99, "y0": 658.17, "x1": 192.65, "y1": 674.17},
+            {"x0": 190.12, "y0": 658.21, "x1": 240.00, "y1": 674.19},
+        ])
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["x0"], 71.99)
+        self.assertEqual(merged[0]["x1"], 240.00)
+
+    def test_duplicate_rects_collapse(self):
+        rect = {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0}
+        self.assertEqual(parse_coords([rect, dict(rect), dict(rect)]), [rect])
+
+    def test_output_sorted_top_down_then_left_to_right(self):
+        merged = parse_coords([
+            {"x0": 50.0, "y0": 100.0, "x1": 90.0, "y1": 116.0},
+            {"x0": 10.0, "y0": 200.0, "x1": 40.0, "y1": 216.0},
+            {"x0": 10.0, "y0": 100.0, "x1": 40.0, "y1": 116.0},
+        ])
+        self.assertEqual(
+            [(r["y0"], r["x0"]) for r in merged],
+            [(200.0, 10.0), (100.0, 10.0), (100.0, 50.0)],
+        )
+
+    def test_superscript_does_not_swallow_the_line(self):
+        body = {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0}
+        superscript = {"x0": 178.0, "y0": 112.0, "x1": 184.0, "y1": 120.0}
+        merged = parse_coords([body, superscript])
+        self.assertEqual(len(merged), 2)
+        self.assertIn(body, merged)
+        self.assertIn(superscript, merged)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class RectMergeStorageTests(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="zlyttia", email="zl@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.user)
+        self.book = Book.objects.create(
+            owner=self.user, title="Перекриття", page_count=4,
+            file=SimpleUploadedFile("p.pdf", b"%PDF-1.4\n%%EOF\n", "application/pdf"),
+        )
+
+    def test_api_stores_merged_coords(self):
+        response = self.client.post(
+            reverse("annotations:api_book_annotations", args=[self.book.pk]),
+            data={
+                "page_number": 1,
+                "color": "#FFEB3B",
+                "coords": [
+                    {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0},
+                    {"x0": 170.0, "y0": 100.0, "x1": 330.0, "y1": 116.0},
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            Annotation.objects.get().coords,
+            [{"x0": 20.0, "y0": 100.0, "x1": 330.0, "y1": 116.0}],
+        )
+
+    def _legacy_annotation(self):
+        layer = Layer.objects.create(book=self.book, owner=self.user)
+        return Annotation.objects.create(
+            layer=layer,
+            page_number=1,
+            color="#FFEB3B",
+            coords=[
+                {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0},
+                {"x0": 170.0, "y0": 100.0, "x1": 330.0, "y1": 116.0},
+            ],
+        )
+
+    def test_command_merges_existing_rows(self):
+        annotation = self._legacy_annotation()
+        call_command("merge_annotation_rects", verbosity=0)
+        annotation.refresh_from_db()
+        self.assertEqual(
+            annotation.coords,
+            [{"x0": 20.0, "y0": 100.0, "x1": 330.0, "y1": 116.0}],
+        )
+
+    def test_command_dry_run_writes_nothing(self):
+        annotation = self._legacy_annotation()
+        before = list(annotation.coords)
+        call_command("merge_annotation_rects", "--dry-run", verbosity=0)
+        annotation.refresh_from_db()
+        self.assertEqual(annotation.coords, before)
+
+    def test_command_is_idempotent(self):
+        annotation = self._legacy_annotation()
+        call_command("merge_annotation_rects", verbosity=0)
+        annotation.refresh_from_db()
+        once = list(annotation.coords)
+        call_command("merge_annotation_rects", verbosity=0)
+        annotation.refresh_from_db()
+        self.assertEqual(annotation.coords, once)
+
+    def test_merge_is_stable_under_reapplication(self):
+        rects = [
+            {"x0": 20.0, "y0": 100.0, "x1": 180.0, "y1": 116.0},
+            {"x0": 170.0, "y0": 100.0, "x1": 330.0, "y1": 116.0},
+            {"x0": 20.0, "y0": 80.0, "x1": 90.0, "y1": 96.0},
+        ]
+        once = merge_rects(rects)
+        self.assertEqual(merge_rects(once), once)

@@ -5,7 +5,6 @@ from book_library.models import Book
 
 
 class Layer(models.Model):
-    """Шар анотацій: один користувач — одна книга."""
 
     book = models.ForeignKey(
         Book,
@@ -33,10 +32,7 @@ class Layer(models.Model):
 
 
 class Annotation(models.Model):
-    """Виділення тексту на сторінці PDF."""
 
-    # Палітра читалки. Живе тут, щоб шаблон і валідатор брали її з одного місця.
-    # Кольори світлі — під mix-blend-mode: multiply текст крізь них лишається читним.
     PALETTE = [
         ("#FFEB3B", "Жовтий"),
         ("#A5D6A7", "Зелений"),

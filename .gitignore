@@ -15,6 +15,6 @@ wheels/
 .omc
 .claude
 .env.bak
-
+.ruff_cache
 # Playwright MCP screenshots
 .playwright-mcp/

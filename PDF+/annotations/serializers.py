@@ -1,6 +1,3 @@
-"""Одна форма подання анотації для API і для початкових даних читалки."""
-
-
 def serialize_annotation(annotation):
     return {
         "id": annotation.pk,

@@ -10,29 +10,39 @@ from annotations.models import Annotation, Layer
 from annotations.serializers import serialize_annotation
 from sharing.models import GroupAccess, ShareLink
 
-from .access import folder_subtree_ids, visible_books, visible_folders
+from .access import (
+    catalog_folder_ids,
+    catalog_root_folders,
+    folder_subtree_ids,
+    is_catalog_folder,
+    visible_books,
+    visible_folders,
+)
 from .forms import BookForm, FolderForm
 from .models import Book, Folder
 
 
 def _folder_crumbs(folder):
-    crumbs = [{"url": reverse("book_library:library"), "label": "Бібліотека"}]
     chain = []
     node = folder
     while node is not None:
         chain.append(node)
         node = node.parent
+
+    if any(node.is_catalog for node in chain):
+        crumbs = [{"url": reverse("book_library:catalog"), "label": "Каталог"}]
+    else:
+        crumbs = [{"url": reverse("book_library:library"), "label": "Бібліотека"}]
+
     for node in reversed(chain):
         crumbs.append({"url": reverse("book_library:folder", args=[node.pk]), "label": node.name})
     return crumbs
 
 
 def _folder_choices(user):
-    """Власні теки з повним шляхом, відсортовані як дерево — для селекта «Перемістити»."""
     folders = list(Folder.objects.filter(owner=user).select_related("parent"))
     by_pk = {f.pk: f for f in folders}
     for folder in folders:
-        # Батько вже в пам'яті — path_label не піде в базу за кожним рівнем.
         if folder.parent_id and folder.parent_id in by_pk:
             folder.parent = by_pk[folder.parent_id]
     return sorted(
@@ -42,13 +52,6 @@ def _folder_choices(user):
 
 
 def _search_titles(queryset, query):
-    """
-    Пошук за назвою без урахування регістру.
-
-    Робиться в Python, а не через icontains: база створена з локаллю "C",
-    і там UPPER()/ILIKE не складають кирилицю. Обсяг завжди обмежений
-    книгами одного користувача, тож це дешево.
-    """
     needle = query.casefold()
     return [book for book in queryset if needle in book.title.casefold()]
 
@@ -66,9 +69,6 @@ def home_view(request):
     return render(request, "book_library/home.html")
 
 
-# Бібліотека
-
-
 @login_required
 def library_view(request, pk=None):
     folder = None
@@ -80,12 +80,10 @@ def library_view(request, pk=None):
         is_owner = folder.owner_id == request.user.pk
         folders = visible_folders(request.user, request.session).filter(parent=folder)
         books = visible_books(request.user, request.session).filter(folder=folder)
-        # Пошук іде по всьому дереву під текою, а не лише по її прямому вмісту.
         search_scope = visible_books(request.user, request.session).filter(
             folder_id__in=folder_subtree_ids(folder.pk)
         )
     else:
-        # Корінь — тільки своє. Чуже живе на окремій сторінці "Поділилися зі мною".
         folders = Folder.objects.filter(owner=request.user, parent=None)
         books = Book.objects.filter(owner=request.user, folder=None)
         search_scope = Book.objects.filter(owner=request.user)
@@ -105,6 +103,7 @@ def library_view(request, pk=None):
             "books": books,
             "query": query,
             "is_owner": is_owner,
+            "in_catalog": is_catalog_folder(folder) if folder else False,
             "crumbs": _folder_crumbs(folder) if folder else None,
             "page_title": folder.name if folder else "Моя бібліотека",
             "upload_url": reverse("book_library:book_upload"),
@@ -118,23 +117,50 @@ def library_view(request, pk=None):
 
 @login_required
 def shared_with_me_view(request):
-    """Чужі матеріали, відкриті користувачу через групу або посилання."""
+    catalog_ids = catalog_folder_ids()
+    shared_books = visible_books(request.user, request.session).exclude(owner=request.user)
+    shared_folders = visible_folders(request.user, request.session).exclude(owner=request.user)
+    if catalog_ids:
+        shared_books = shared_books.exclude(folder_id__in=catalog_ids)
+        shared_folders = shared_folders.exclude(pk__in=catalog_ids)
+
     return render(
         request,
         "book_library/shared_with_me.html",
         {
-            "shared_books": visible_books(request.user, request.session).exclude(
-                owner=request.user
-            ),
-            "shared_folders": visible_folders(request.user, request.session).exclude(
-                owner=request.user
-            ),
+            "shared_books": shared_books,
+            "shared_folders": shared_folders,
             "page_title": "Поділилися зі мною",
         },
     )
 
 
-# Теки
+@login_required
+def catalog_view(request):
+    query = request.GET.get("q", "").strip()
+    folders = catalog_root_folders()
+    books = []
+
+    if query:
+        folders = Folder.objects.none()
+        books = _search_titles(
+            Book.objects.filter(folder_id__in=catalog_folder_ids())
+            .select_related("folder__parent__parent")
+            .order_by("title"),
+            query,
+        )
+
+    return render(
+        request,
+        "book_library/catalog.html",
+        {
+            "folders": folders,
+            "books": books,
+            "query": query,
+            "page_title": "Каталог",
+            "page_subtitle": "Матеріали, доступні всім користувачам",
+        },
+    )
 
 
 @login_required
@@ -200,7 +226,6 @@ def folder_delete_view(request, pk):
 
 @login_required
 def folder_add_books_view(request, pk):
-    """Список власних книг поза текою — щоб покласти їх сюди без форми редагування."""
     folder = get_object_or_404(Folder, pk=pk, owner=request.user)
     query = request.GET.get("q", "").strip()
 
@@ -224,9 +249,6 @@ def folder_add_books_view(request, pk):
             "page_title": f"Додати книги до «{folder.name}»",
         },
     )
-
-
-# Книги
 
 
 def book_detail_view(request, pk):
@@ -351,7 +373,6 @@ def book_delete_view(request, pk):
 @login_required
 @require_POST
 def book_move_view(request, pk):
-    """Перекласти книгу в іншу теку або (порожній folder) у корінь бібліотеки."""
     book = get_object_or_404(Book, pk=pk, owner=request.user)
 
     raw_folder = request.POST.get("folder", "").strip()
@@ -362,7 +383,7 @@ def book_move_view(request, pk):
         folder = get_object_or_404(Folder, pk=int(raw_folder), owner=request.user)
 
     book.folder = folder
-    book.save(update_fields=["folder"])
+    book.save(update_fields=["folder", "updated_at"])
 
     if folder:
         messages.success(request, f"«{book.title}» перенесено до теки «{folder.name}».")

@@ -1,9 +1,3 @@
-"""Розбір і перевірка payload'у анотацій.
-
-Клієнт надсилає coords як довільний JSON, а поле в базі — JSONField. Без
-перевірки туди ляже будь-яка структура, тому кожне значення звіряється тут.
-"""
-
 import re
 
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -12,10 +6,12 @@ MAX_RECTS = 200
 MAX_NOTE_LENGTH = 2000
 MAX_SELECTED_TEXT_LENGTH = 5000
 RECT_KEYS = ("x0", "y0", "x1", "y1")
+LINE_TOLERANCE = 1.0
+JOIN_TOLERANCE = 0.25
 
 
 class PayloadError(ValueError):
-    """Некоректні дані від клієнта. В'юха перетворює на 400."""
+    pass
 
 
 def _number(value, field):
@@ -24,6 +20,36 @@ def _number(value, field):
     if value != value or value in (float("inf"), float("-inf")):
         raise PayloadError(f"{field}: некоректне число")
     return float(value)
+
+
+
+def _line_groups(rects):
+    groups = []
+    for rect in sorted(rects, key=lambda r: (-r["y0"], r["x0"])):
+        for anchor, members in groups:
+            if (abs(anchor[0] - rect["y0"]) <= LINE_TOLERANCE
+                    and abs(anchor[1] - rect["y1"]) <= LINE_TOLERANCE):
+                members.append(rect)
+                break
+        else:
+            groups.append(((rect["y0"], rect["y1"]), [rect]))
+    return groups
+
+
+def merge_rects(rects):
+    merged = []
+    for _, members in _line_groups(rects):
+        current = None
+        for rect in sorted(members, key=lambda r: r["x0"]):
+            if current is not None and rect["x0"] - current["x1"] <= JOIN_TOLERANCE:
+                current["x0"] = min(current["x0"], rect["x0"])
+                current["x1"] = max(current["x1"], rect["x1"])
+                current["y0"] = min(current["y0"], rect["y0"])
+                current["y1"] = max(current["y1"], rect["y1"])
+                continue
+            current = dict(rect)
+            merged.append(current)
+    return sorted(merged, key=lambda r: (-r["y0"], r["x0"]))
 
 
 def parse_coords(raw):
@@ -44,7 +70,7 @@ def parse_coords(raw):
             raise PayloadError(f"coords[{index}]: порожній прямокутник")
         rects.append(rect)
 
-    return rects
+    return merge_rects(rects)
 
 
 def parse_color(raw):
@@ -56,7 +82,6 @@ def parse_color(raw):
 def parse_page_number(raw, page_count):
     if isinstance(raw, bool) or not isinstance(raw, int):
         raise PayloadError("page_number: очікується ціле число")
-    # page_count==0 трапляється у старих записів — тоді верхню межу не перевіряємо.
     if raw < 1 or (page_count and raw > page_count):
         raise PayloadError(f"page_number: поза межами документа (1..{page_count})")
     return raw
@@ -88,7 +113,6 @@ def parse_new_annotation(payload, page_count):
 
 
 def parse_annotation_update(payload):
-    """Часткове оновлення: приймаються лише color і note_text."""
     if not isinstance(payload, dict):
         raise PayloadError("очікується JSON-об'єкт")
 

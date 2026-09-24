@@ -24,6 +24,7 @@ class GroupAdmin(ModelAdmin):
     list_display = ("name", "owner", "member_count", "created_at")
     search_fields = ("name", "owner__username", "owner__email")
     autocomplete_fields = ("owner",)
+    readonly_fields = ("invite_token", "created_at")
     inlines = (GroupMembershipInline, GroupAccessInline)
 
     @display(description="Members")

@@ -2,6 +2,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit
 from django import forms
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from book_library.models import Book, Folder
 
@@ -27,19 +28,18 @@ class GroupForm(forms.ModelForm):
 
 
 class MembershipForm(forms.Form):
-    """Додавання учасника за username."""
 
     username = forms.CharField(label="Username учасника", max_length=150)
 
     def __init__(self, *args, group=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.group = group
+        add_button = Submit("add_member", "Додати")
+        add_button.field_classes = "btn btn-outline-primary mt-2"
+
         self.helper = FormHelper()
         self.helper.form_method = "post"
-        self.helper.layout = Layout(
-            "username",
-            Submit("add_member", "Додати", css_class="btn btn-outline-primary mt-2"),
-        )
+        self.helper.layout = Layout("username", add_button)
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -56,7 +56,6 @@ class MembershipForm(forms.Form):
 
 
 class ShareLinkForm(forms.ModelForm):
-    """Посилання веде або на книгу, або на теку — рівно на одне з двох."""
 
     class Meta:
         model = ShareLink
@@ -76,6 +75,7 @@ class ShareLinkForm(forms.ModelForm):
         )
         self.fields["book"].empty_label = "— не обрано —"
         self.fields["folder"].empty_label = "— не обрано —"
+        self.fields["expires_at"].widget.attrs["min"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
         self.helper = FormHelper()
         self.helper.form_method = "post"
@@ -86,6 +86,12 @@ class ShareLinkForm(forms.ModelForm):
             Submit("submit", "Створити посилання", css_class="btn btn-primary mt-3"),
         )
 
+    def clean_expires_at(self):
+        expires_at = self.cleaned_data.get("expires_at")
+        if expires_at is not None and expires_at <= timezone.now():
+            raise forms.ValidationError("Дата завершення не може бути в минулому.")
+        return expires_at
+
     def clean(self):
         cleaned = super().clean()
         book, folder = cleaned.get("book"), cleaned.get("folder")
@@ -95,7 +101,6 @@ class ShareLinkForm(forms.ModelForm):
 
 
 class GroupAccessForm(forms.ModelForm):
-    """Видача групі доступу до книги або теки. Роздавати можна лише своє."""
 
     class Meta:
         model = GroupAccess
@@ -141,8 +146,6 @@ class GroupAccessForm(forms.ModelForm):
         if bool(book) == bool(folder):
             raise forms.ValidationError("Оберіть рівно одне: книгу або теку.")
 
-        # Констрейнт у БД спрацював би і сам, але IntegrityError — не те, що має
-        # побачити користувач. Тому дубль ловимо тут і показуємо як помилку форми.
         if group:
             duplicate = GroupAccess.objects.filter(group=group, book=book, folder=folder)
             if self.instance.pk:

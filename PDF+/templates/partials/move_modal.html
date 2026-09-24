@@ -1,9 +1,3 @@
-{% comment %}
-  Модалка «Перемістити в теку». Одна на сторінку; підключається там, де є
-  картки власних книг. Кнопка-тригер задає: data-action (URL book_move),
-  data-title (назва книги), data-folder (pk поточної теки або порожньо).
-  Очікує: move_folders — список {pk, label}; request — для next.
-{% endcomment %}
 <div class="modal fade" id="moveModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <form method="post" class="modal-content" data-move-form>

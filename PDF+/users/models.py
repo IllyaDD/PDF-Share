@@ -3,13 +3,11 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Користувач системи. Розширює AbstractUser полем role."""
 
     class Role(models.TextChoices):
         TEACHER = "teacher", "Вчитель"
         STUDENT = "student", "Учень"
 
-    # Унікальний, бо вхід через Google зіставляє акаунти саме за email.
     email = models.EmailField("email address", unique=True)
 
     role = models.CharField(

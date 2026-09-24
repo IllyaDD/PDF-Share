@@ -1,9 +1,10 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 
 
 class Folder(models.Model):
-    """Тека бібліотеки. Може вкладатись у іншу теку (self-FK)."""
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -18,7 +19,12 @@ class Folder(models.Model):
         related_name="children",
     )
     name = models.CharField(max_length=255)
+    is_catalog = models.BooleanField(
+        default=False,
+        help_text="Тека каталогу: разом з усім вкладеним доступна кожному користувачу.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "library_folder"
@@ -29,7 +35,6 @@ class Folder(models.Model):
 
     @property
     def path_label(self):
-        """«Батько / Дитина / Онук» — щоб відрізняти однойменні теки у списках."""
         names = []
         node = self
         while node is not None:
@@ -38,8 +43,15 @@ class Folder(models.Model):
         return " / ".join(reversed(names))
 
 
+def book_upload_path(instance, filename):
+    return f"books/{uuid.uuid4().hex}.pdf"
+
+
+def cover_upload_path(instance, filename):
+    return f"covers/{uuid.uuid4().hex}.jpg"
+
+
 class Book(models.Model):
-    """PDF-книга. Сам файл лежить у MinIO, у БД — метадані."""
 
     folder = models.ForeignKey(
         Folder,
@@ -54,11 +66,13 @@ class Book(models.Model):
         related_name="books",
     )
     title = models.CharField(max_length=255)
-    file = models.FileField(upload_to="books/")
+    file = models.FileField(upload_to=book_upload_path)
+    cover = models.FileField(upload_to=cover_upload_path, blank=True)
     page_count = models.PositiveIntegerField(default=0)
     file_size = models.PositiveIntegerField(default=0, help_text="Розмір файлу в байтах")
     extracted_text = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "library_book"

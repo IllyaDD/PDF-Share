@@ -1,21 +1,27 @@
-"""Тести адмінки: реєстрація моделей, шлях з .env, тема Unfold, dashboard."""
-
 import json
+import shutil
+import tempfile
 from datetime import timedelta
-
-from django.conf import settings
-from django.contrib import admin
-from django.contrib.auth.models import Group as AuthGroup
-from django.test import RequestFactory, TestCase
-from django.urls import reverse
-from django.utils import timezone
 
 from annotations.models import Annotation, Layer
 from book_library.models import Book, Folder
+from django.conf import settings
+from django.contrib import admin
+from django.contrib.auth.models import Group as AuthGroup
+from django.test import RequestFactory, TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
 from sharing.models import Group, GroupAccess, GroupMembership, ShareLink
 from users.models import User
 
 from .dashboard import dashboard_callback
+from .testing import FILESYSTEM_STORAGES
+
+TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
+
+
+def tearDownModule():
+    shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
 
 
 class AdminRegistrationTests(TestCase):
@@ -74,8 +80,8 @@ class AdminPagesTests(TestCase):
         self.assertIn(reverse("admin:login"), response["Location"])
 
 
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class DashboardTests(TestCase):
-    """Статистика і графік активності на головній адмінки."""
 
     def setUp(self):
         from book_library.tests import make_pdf
@@ -141,7 +147,6 @@ class DashboardTests(TestCase):
 
 
 class AdminLoginRedirectTests(TestCase):
-    """Логін через адмінку веде в адмінку, а не на LOGIN_REDIRECT_URL сайту."""
 
     def setUp(self):
         User.objects.create_superuser(

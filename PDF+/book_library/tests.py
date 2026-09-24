@@ -2,14 +2,12 @@ import pymupdf
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
-
 from users.models import User
 
 from .models import Book, Folder
 
 
 def build_pdf_bytes(pages=1, title=""):
-    """Справжній PDF — форма перевіряє структуру, заглушка з байтів не пройде."""
     document = pymupdf.open()
     for _ in range(pages):
         document.new_page()
@@ -31,9 +29,9 @@ def make_pdf(name="test.pdf", pages=1, title=""):
 import shutil
 import tempfile
 
+from book_sharing_settings.testing import FILESYSTEM_STORAGES
 from django.test import override_settings
 
-# Тести не мають писати в робочу media/ — FileField кладе файли у MEDIA_ROOT.
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
 
 
@@ -41,7 +39,7 @@ def tearDownModule():
     shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class LibraryPageTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -98,7 +96,7 @@ class LibraryPageTests(TestCase):
                 self.assertContains(response, "form-control")
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class OwnershipTests(TestCase):
     def setUp(self):
         self.owner = User.objects.create_user(
@@ -120,7 +118,7 @@ class OwnershipTests(TestCase):
         self.assertIn(reverse("accounts:login"), response.url)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class MutationTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -156,7 +154,7 @@ class MutationTests(TestCase):
         self.assertFalse(Book.objects.filter(pk=book.pk).exists())
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class UploadValidationTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -182,7 +180,6 @@ class UploadValidationTests(TestCase):
         self.assertFalse(Book.objects.exists())
 
     def test_truncated_pdf_rejected(self):
-        # Правильна сигнатура, але тіло обрізане — сигнатури мало.
         broken = build_pdf_bytes(3)[:40]
         response = self._post(SimpleUploadedFile("bytyi.pdf", broken, "application/pdf"))
         self.assertContains(response, "пошкоджений")
@@ -239,6 +236,21 @@ class UploadValidationTests(TestCase):
         book.refresh_from_db()
         self.assertEqual(book.page_count, 9)
 
+    def test_stored_key_is_uuid_not_user_filename(self):
+        self._post(make_pdf("Moya Taemna Knyga.pdf"), title="Таємна")
+        book = Book.objects.get(title="Таємна")
+
+        self.assertRegex(book.file.name, r"^books/[0-9a-f]{32}\.pdf$")
+        self.assertNotIn("Taemna", book.file.name)
+
+    def test_same_filename_twice_gets_distinct_keys(self):
+        self._post(make_pdf("same.pdf"), title="Перша")
+        self._post(make_pdf("same.pdf"), title="Друга")
+        first = Book.objects.get(title="Перша")
+        second = Book.objects.get(title="Друга")
+
+        self.assertNotEqual(first.file.name, second.file.name)
+
     def test_upload_page_renders_dropzone(self):
         response = self.client.get(self.url)
         self.assertContains(response, "data-dropzone")
@@ -246,7 +258,6 @@ class UploadValidationTests(TestCase):
         self.assertContains(response, 'accept=".pdf,application/pdf"')
 
     def test_saved_file_is_intact_on_disk(self):
-        """clean_file() читає потік цілком — без seek(0) на диск ліг би обрізок."""
         self._post(make_pdf("cilyi.pdf", pages=6), title="Цілий")
         book = Book.objects.get(title="Цілий")
 
@@ -255,7 +266,7 @@ class UploadValidationTests(TestCase):
         self.assertEqual(book.file.size, book.file_size)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class TextLayerDetectionTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -311,7 +322,7 @@ class TextLayerDetectionTests(TestCase):
         self.assertNotContains(response, "нема текстового шару")
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class GroupAccessVisibilityTests(TestCase):
     def setUp(self):
         from sharing.models import Group, GroupAccess, GroupMembership
@@ -438,7 +449,7 @@ class GroupAccessVisibilityTests(TestCase):
         )
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class ShareLinkVisibilityTests(TestCase):
     def setUp(self):
         from sharing.models import ShareLink
@@ -454,7 +465,6 @@ class ShareLinkVisibilityTests(TestCase):
             book=self.book, token="dobryi-token", created_by=self.owner
         )
 
-        # Без відкритого посилання — двері зачинені.
         self.assertEqual(
             self.client.get(reverse("book_library:book_reader", args=[self.book.pk])).status_code,
             404,
@@ -523,7 +533,7 @@ class ShareLinkVisibilityTests(TestCase):
         self.assertEqual(list(response.context["annotations"]), [])
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class ReaderWiringTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -543,7 +553,6 @@ class ReaderWiringTests(TestCase):
         self.assertContains(self.response, "/static/vendor/pdfjs/text_layer.css")
 
     def test_reader_module_loaded_as_esm(self):
-        # pdf.js 6 постачається тільки як ESM — без type="module" імпорт не виконається.
         self.assertContains(self.response, 'type="module"')
         self.assertContains(self.response, "/static/js/reader.js")
 
@@ -566,7 +575,6 @@ class ReaderWiringTests(TestCase):
                 self.assertIsNotNone(finders.find(path), f"{path} не знайдено")
 
     def test_library_and_worker_versions_match(self):
-        """Розбіжність версій бібліотеки і воркера — типова причина мовчазної поломки."""
         import re
 
         from django.contrib.staticfiles import finders
@@ -581,7 +589,6 @@ class ReaderWiringTests(TestCase):
 
 
 class InspectPdfTests(TestCase):
-    """inspect_pdf — спільна перевірка PDF для форми на сайті та адмінки."""
 
     def _inspect(self, uploaded):
         from .pdf import inspect_pdf
@@ -640,9 +647,8 @@ class InspectPdfTests(TestCase):
             self._inspect(make_pdf())
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class BookAdminFormTests(TestCase):
-    """Адмін-форма книги рахує метадані так само, як форма на сайті."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -685,7 +691,7 @@ class BookAdminFormTests(TestCase):
         self.assertEqual(book.file_size, 123)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class BookAdminViewTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -725,7 +731,7 @@ class BookAdminViewTests(TestCase):
         self.assertEqual(self.book.page_count, 2)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class BookMoveTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -783,7 +789,7 @@ class BookMoveTests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class LibrarySearchTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -831,7 +837,7 @@ class LibrarySearchTests(TestCase):
         self.assertContains(response, "Нічого не знайдено")
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class FolderAddBooksTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -866,3 +872,377 @@ class FolderAddBooksTests(TestCase):
         self.client.force_login(self.stranger)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 404)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class CatalogTests(TestCase):
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="admin", email="admin@example.com", password="parol-parol-42",
+            is_staff=True,
+        )
+        self.reader = User.objects.create_user(
+            username="chytach", email="ch@example.com", password="parol-parol-42"
+        )
+
+        self.catalog = Folder.objects.create(owner=self.admin, name="Шкільна програма", is_catalog=True)
+        self.nested = Folder.objects.create(owner=self.admin, name="10 клас", parent=self.catalog)
+        self.book = Book.objects.create(
+            owner=self.admin, folder=self.catalog, title="Біологія", file=make_pdf()
+        )
+        self.nested_book = Book.objects.create(
+            owner=self.admin, folder=self.nested, title="Хімія", file=make_pdf()
+        )
+        self.private = Folder.objects.create(owner=self.admin, name="Чернетки")
+        self.private_book = Book.objects.create(
+            owner=self.admin, folder=self.private, title="Приватна", file=make_pdf()
+        )
+
+    def test_catalog_page_lists_catalog_folders_only(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:catalog"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Шкільна програма")
+        self.assertNotContains(response, "10 клас")
+        self.assertNotContains(response, "Чернетки")
+
+    def test_catalog_page_requires_login(self):
+        response = self.client.get(reverse("book_library:catalog"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response.url)
+
+    def test_reader_opens_catalog_folder_and_nested_book(self):
+        self.client.force_login(self.reader)
+
+        response = self.client.get(reverse("book_library:folder", args=[self.catalog.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Біологія")
+        self.assertContains(response, "10 клас")
+
+        for url in [
+            reverse("book_library:folder", args=[self.nested.pk]),
+            reverse("book_library:book_detail", args=[self.nested_book.pk]),
+            reverse("book_library:book_reader", args=[self.nested_book.pk]),
+            reverse("annotations:book_annotations", args=[self.nested_book.pk]),
+        ]:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_private_admin_material_stays_hidden(self):
+        self.client.force_login(self.reader)
+        self.assertEqual(
+            self.client.get(reverse("book_library:folder", args=[self.private.pk])).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("book_library:book_reader", args=[self.private_book.pk])
+            ).status_code,
+            404,
+        )
+
+    def test_anonymous_cannot_read_catalog_book(self):
+        response = self.client.get(reverse("book_library:book_reader", args=[self.book.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_catalog_folder_shows_catalog_badge_and_crumbs(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:folder", args=[self.nested.pk]))
+        self.assertContains(response, "Каталог")
+        self.assertNotContains(response, "Спільна тека")
+        self.assertNotContains(response, "Завантажити PDF</a>")
+        self.assertContains(response, f'href="{reverse("book_library:catalog")}"')
+
+    def test_reader_cannot_modify_catalog(self):
+        self.client.force_login(self.reader)
+
+        self.assertEqual(
+            self.client.get(reverse("book_library:folder_edit", args=[self.catalog.pk])).status_code,
+            404,
+        )
+        self.client.post(reverse("book_library:folder_delete", args=[self.catalog.pk]))
+        self.assertTrue(Folder.objects.filter(pk=self.catalog.pk).exists())
+
+        own = Book.objects.create(owner=self.reader, title="Моя", file=make_pdf())
+        self.client.post(
+            reverse("book_library:book_move", args=[own.pk]), {"folder": self.catalog.pk}
+        )
+        own.refresh_from_db()
+        self.assertIsNone(own.folder)
+
+    def test_catalog_not_listed_as_shared_with_me(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:shared_with_me"))
+        self.assertNotContains(response, "Шкільна програма")
+        self.assertNotContains(response, "Біологія")
+
+    def test_catalog_search_covers_whole_tree(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:catalog"), {"q": "хім"})
+        self.assertContains(response, "Хімія")
+        self.assertNotContains(response, "Біологія")
+        self.assertNotContains(response, "Приватна")
+
+    def test_only_staff_sees_catalog_checkbox_in_folder_form(self):
+        self.client.force_login(self.reader)
+        self.assertNotContains(
+            self.client.get(reverse("book_library:folder_create")), 'name="is_catalog"'
+        )
+
+        self.client.force_login(self.admin)
+        self.assertContains(
+            self.client.get(reverse("book_library:folder_create")), 'name="is_catalog"'
+        )
+
+    def test_non_staff_cannot_flag_folder_as_catalog(self):
+        self.client.force_login(self.reader)
+        self.client.post(
+            reverse("book_library:folder_create"), {"name": "Хитра", "is_catalog": "on"}
+        )
+        folder = Folder.objects.get(name="Хитра")
+        self.assertFalse(folder.is_catalog)
+
+    def test_staff_creates_catalog_folder_from_site(self):
+        self.client.force_login(self.admin)
+        self.client.post(
+            reverse("book_library:folder_create"), {"name": "Нова секція", "is_catalog": "on"}
+        )
+        self.assertTrue(Folder.objects.get(name="Нова секція").is_catalog)
+
+    def test_sidebar_links_to_catalog(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:library"))
+        self.assertContains(response, reverse("book_library:catalog"))
+
+    def test_empty_catalog_shows_empty_state(self):
+        Folder.objects.filter(is_catalog=True).update(is_catalog=False)
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:catalog"))
+        self.assertContains(response, "Каталог порожній")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class StorageCleanupTests(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="prybyralnyk", email="prybyralnyk@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.user)
+        self.book = Book.objects.create(owner=self.user, title="Книга", file=make_pdf())
+        self.storage = self.book.file.storage
+        self.assertTrue(self.storage.exists(self.book.file.name))
+
+    def test_delete_removes_file_from_storage(self):
+        name = self.book.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("book_library:book_delete", args=[self.book.pk]))
+        self.assertFalse(Book.objects.filter(pk=self.book.pk).exists())
+        self.assertFalse(self.storage.exists(name))
+
+    def test_queryset_delete_removes_files(self):
+        other = Book.objects.create(owner=self.user, title="Ще одна", file=make_pdf())
+        names = [self.book.file.name, other.file.name]
+        with self.captureOnCommitCallbacks(execute=True):
+            Book.objects.filter(owner=self.user).delete()
+        for name in names:
+            self.assertFalse(self.storage.exists(name))
+
+    def test_cascade_from_user_removes_file(self):
+        name = self.book.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.user.delete()
+        self.assertFalse(self.storage.exists(name))
+
+    def test_replacing_file_removes_old_one(self):
+        old_name = self.book.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("book_library:book_edit", args=[self.book.pk]),
+                {"title": "Книга", "file": make_pdf("novyi.pdf", pages=2)},
+            )
+        self.book.refresh_from_db()
+        self.assertNotEqual(self.book.file.name, old_name)
+        self.assertFalse(self.storage.exists(old_name))
+        self.assertTrue(self.storage.exists(self.book.file.name))
+
+    def test_editing_title_keeps_file(self):
+        name = self.book.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("book_library:book_edit", args=[self.book.pk]),
+                {"title": "Перейменована"},
+            )
+        self.book.refresh_from_db()
+        self.assertEqual(self.book.title, "Перейменована")
+        self.assertEqual(self.book.file.name, name)
+        self.assertTrue(self.storage.exists(name))
+
+    def test_file_survives_rolled_back_delete(self):
+        from django.db import transaction
+
+        pk, name = self.book.pk, self.book.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            try:
+                with transaction.atomic():
+                    self.book.delete()
+                    raise RuntimeError("відкат")
+            except RuntimeError:
+                pass
+        self.assertTrue(Book.objects.filter(pk=pk).exists())
+        self.assertTrue(self.storage.exists(name))
+
+    def test_storage_error_does_not_break_delete(self):
+        from unittest.mock import patch
+
+        from django.core.files.storage import FileSystemStorage
+
+        pk = self.book.pk
+        with self.assertLogs("book_library.signals", level="ERROR"), patch.object(
+            FileSystemStorage, "delete", side_effect=OSError("R2 down")
+        ), self.captureOnCommitCallbacks(execute=True):
+            self.book.delete()
+        self.assertFalse(Book.objects.filter(pk=pk).exists())
+
+
+JPEG_MAGIC = b"\xff\xd8\xff"
+
+
+class CoverRenderTests(TestCase):
+
+    def test_inspect_pdf_renders_cover_jpeg(self):
+        from .pdf import inspect_pdf
+
+        info = inspect_pdf(make_pdf(pages=3))
+        self.assertTrue(info.cover.startswith(JPEG_MAGIC))
+
+    def test_cover_width_is_bounded(self):
+        from .pdf import COVER_WIDTH, inspect_pdf
+
+        info = inspect_pdf(make_pdf())
+        pixmap = pymupdf.Pixmap(info.cover)
+        self.assertEqual(pixmap.width, COVER_WIDTH)
+
+    def test_render_failure_leaves_cover_empty(self):
+        from unittest.mock import patch
+
+        from .pdf import inspect_pdf
+
+        with (
+            patch("book_library.pdf.render_cover", side_effect=RuntimeError("boom")),
+            self.assertLogs("book_library.pdf", "ERROR"),
+        ):
+            info = inspect_pdf(make_pdf())
+        self.assertEqual(info.cover, b"")
+        self.assertEqual(info.page_count, 1)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class CoverStorageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="obkladynka",
+            email="obkladynka@example.com",
+            password="parol-parol-42",
+        )
+        self.client.force_login(self.user)
+
+    def _upload(self, **extra):
+        self.client.post(
+            reverse("book_library:book_upload"),
+            {"title": "З обкладинкою", "file": make_pdf(**extra)},
+        )
+        return Book.objects.get(title="З обкладинкою")
+
+    def test_upload_saves_cover_to_storage(self):
+        book = self._upload()
+        self.assertTrue(book.cover.name.startswith("covers/"))
+        self.assertTrue(book.cover.name.endswith(".jpg"))
+        self.assertTrue(book.cover.storage.exists(book.cover.name))
+        with book.cover.open("rb") as handle:
+            self.assertTrue(handle.read(3).startswith(JPEG_MAGIC))
+
+    def test_admin_form_saves_cover(self):
+        from .forms import BookAdminForm
+
+        form = BookAdminForm(
+            data={"title": "Адмінська", "owner": self.user.pk},
+            files={"file": make_pdf()},
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        book = form.save()
+        self.assertTrue(book.cover.name)
+        self.assertTrue(book.cover.storage.exists(book.cover.name))
+
+    def test_delete_removes_cover_from_storage(self):
+        book = self._upload()
+        cover_name = book.cover.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("book_library:book_delete", args=[book.pk]))
+        self.assertFalse(book.cover.storage.exists(cover_name))
+
+    def test_replacing_file_rerenders_and_removes_old_cover(self):
+        book = self._upload()
+        old_cover = book.cover.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("book_library:book_edit", args=[book.pk]),
+                {"title": "З обкладинкою", "file": make_pdf("novyi.pdf", pages=2)},
+            )
+        book.refresh_from_db()
+        self.assertNotEqual(book.cover.name, old_cover)
+        self.assertFalse(book.cover.storage.exists(old_cover))
+        self.assertTrue(book.cover.storage.exists(book.cover.name))
+
+    def test_editing_title_keeps_cover(self):
+        book = self._upload()
+        cover_name = book.cover.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("book_library:book_edit", args=[book.pk]),
+                {"title": "Перейменована"},
+            )
+        book.refresh_from_db()
+        self.assertEqual(book.cover.name, cover_name)
+        self.assertTrue(book.cover.storage.exists(cover_name))
+
+    def test_book_card_shows_cover_image(self):
+        book = self._upload()
+        response = self.client.get(reverse("book_library:library"))
+        self.assertContains(response, f'src="{book.cover.url}"')
+
+    def test_book_card_without_cover_shows_icon(self):
+        Book.objects.create(owner=self.user, title="Стара книга", file=make_pdf())
+        response = self.client.get(reverse("book_library:library"))
+        self.assertContains(response, "bi-file-earmark-pdf")
+        self.assertNotContains(response, "book-cover-img")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class RenderCoversCommandTests(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="bekfil", email="bekfil@example.com", password="parol-parol-42"
+        )
+
+    def test_command_renders_missing_covers_only(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        without = Book.objects.create(owner=self.user, title="Без", file=make_pdf())
+        self.assertFalse(without.cover.name)
+
+        out = StringIO()
+        call_command("render_covers", stdout=out)
+
+        without.refresh_from_db()
+        self.assertTrue(without.cover.name)
+        self.assertTrue(without.cover.storage.exists(without.cover.name))
+
+        first_name = without.cover.name
+        call_command("render_covers", stdout=out)
+        without.refresh_from_db()
+        self.assertEqual(without.cover.name, first_name)

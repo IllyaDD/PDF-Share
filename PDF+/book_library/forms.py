@@ -1,7 +1,8 @@
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Field, Layout, Submit
+from crispy_forms.layout import HTML, Field, Layout, Submit
 from django import forms
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from django.template.defaultfilters import filesizeformat
 
@@ -9,20 +10,48 @@ from .models import Book, Folder
 from .pdf import inspect_pdf
 
 
+def apply_pdf_info(book, info, uploaded):
+    book.page_count = info.page_count
+    book.file_size = uploaded.size
+    book.extracted_text = info.has_text_layer
+    if info.cover:
+        book.cover.save("cover.jpg", ContentFile(info.cover), save=False)
+    else:
+        book.cover = ""
+
+
+UPLOAD_PROGRESS_HTML = """
+<div class="upload-progress mt-3 d-none" data-upload-progress>
+  <div class="progress" style="height: .5rem;" role="progressbar"
+       aria-label="Поступ завантаження" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <div class="progress-bar" style="width: 0%" data-upload-bar></div>
+  </div>
+  <p class="small text-body-secondary mt-2 mb-0" data-upload-status>Завантаження…</p>
+</div>
+"""
+
+
 class FolderForm(forms.ModelForm):
-    """Створення/перейменування теки. Вибір батьківської теки обмежений власними."""
 
     class Meta:
         model = Folder
-        fields = ("name", "parent")
-        labels = {"name": "Назва теки", "parent": "Батьківська тека"}
+        fields = ("name", "parent", "is_catalog")
+        labels = {
+            "name": "Назва теки",
+            "parent": "Батьківська тека",
+            "is_catalog": "Показувати в каталозі",
+        }
+        help_texts = {"is_catalog": "Теку разом з усім вкладеним побачить кожен користувач."}
 
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        can_manage_catalog = owner is not None and owner.is_staff
+        if not can_manage_catalog:
+            del self.fields["is_catalog"]
+
         queryset = Folder.objects.none() if owner is None else Folder.objects.filter(owner=owner)
         if self.instance.pk:
-            # Тека не може стати власним батьком.
             queryset = queryset.exclude(pk=self.instance.pk)
         self.fields["parent"].queryset = queryset
         self.fields["parent"].required = False
@@ -33,18 +62,12 @@ class FolderForm(forms.ModelForm):
         self.helper.layout = Layout(
             "name",
             "parent",
+            *(["is_catalog"] if can_manage_catalog else []),
             Submit("submit", "Зберегти", css_class="btn btn-primary mt-3"),
         )
 
 
 class BookForm(forms.ModelForm):
-    """
-    Завантаження/редагування книги.
-
-    Файл перевіряється по-справжньому: сигнатура, розбір через pymupdf, відсів
-    захищених паролем. Кількість сторінок береться там само, під час валідації,
-    щоб не відкривати документ двічі.
-    """
 
     class Meta:
         model = Book
@@ -58,6 +81,7 @@ class BookForm(forms.ModelForm):
         self.page_count = None
         self.pdf_title = ""
         self.has_text_layer = False
+        self._pdf_info = None
 
         self.fields["folder"].queryset = (
             Folder.objects.none() if owner is None else Folder.objects.filter(owner=owner)
@@ -81,23 +105,23 @@ class BookForm(forms.ModelForm):
             "title",
             "folder",
             Submit("submit", "Зберегти", css_class="btn btn-primary mt-3"),
+            HTML(UPLOAD_PROGRESS_HTML),
         )
 
     def clean_file(self):
         uploaded = self.cleaned_data.get("file")
 
-        # При редагуванні без заміни файлу сюди приходить наявний FieldFile — не чіпаємо.
         if not isinstance(uploaded, UploadedFile):
             return uploaded
 
         info = inspect_pdf(uploaded)
+        self._pdf_info = info
         self.page_count = info.page_count
         self.pdf_title = info.title
         self.has_text_layer = info.has_text_layer
         return uploaded
 
     def clean_title(self):
-        # Порожня назва підставляється в clean(), коли вже відомі дані з файлу.
         return (self.cleaned_data.get("title") or "").strip()
 
     def clean(self):
@@ -119,11 +143,8 @@ class BookForm(forms.ModelForm):
     def save(self, commit=True):
         book = super().save(commit=False)
 
-        # page_count заповнений лише коли файл справді завантажували.
-        if self.page_count is not None:
-            book.page_count = self.page_count
-            book.file_size = self.cleaned_data["file"].size
-            book.extracted_text = self.has_text_layer
+        if self._pdf_info is not None:
+            apply_pdf_info(book, self._pdf_info, self.cleaned_data["file"])
 
         if commit:
             book.save()
@@ -131,11 +152,6 @@ class BookForm(forms.ModelForm):
 
 
 class BookAdminForm(forms.ModelForm):
-    """
-    Форма книги для адмінки. Без crispy і без обмеження тек по власнику —
-    адмін бачить усе. Файл проходить ту саму перевірку, що й на сайті,
-    інакше page_count / file_size / extracted_text розійшлися б із файлом.
-    """
 
     class Meta:
         model = Book
@@ -155,9 +171,7 @@ class BookAdminForm(forms.ModelForm):
         book = super().save(commit=False)
 
         if self._pdf_info is not None:
-            book.page_count = self._pdf_info.page_count
-            book.file_size = self.cleaned_data["file"].size
-            book.extracted_text = self._pdf_info.has_text_layer
+            apply_pdf_info(book, self._pdf_info, self.cleaned_data["file"])
 
         if commit:
             book.save()

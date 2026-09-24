@@ -34,7 +34,6 @@
 
     input.addEventListener('change', () => showFile(input.files[0]));
 
-    // dragover треба гасити, інакше браузер просто відкриє файл у вкладці.
     ['dragenter', 'dragover'].forEach((event) => {
       zone.addEventListener(event, (e) => {
         e.preventDefault();
@@ -53,12 +52,106 @@
       const file = e.dataTransfer.files[0];
       if (!file) return;
 
-      // input.files можна присвоїти лише FileList — будуємо його через DataTransfer.
       const transfer = new DataTransfer();
       transfer.items.add(file);
       input.files = transfer.files;
 
       showFile(file);
+    });
+  })();
+</script>
+<script>
+  (() => {
+    const zone = document.querySelector('[data-dropzone]');
+    const form = zone && zone.closest('form');
+    if (!form) return;
+
+    const submit = form.querySelector('[type="submit"]');
+    const box = form.querySelector('[data-upload-progress]');
+    const bar = form.querySelector('[data-upload-bar]');
+    const status = form.querySelector('[data-upload-status]');
+    const input = zone.querySelector('input[type="file"]');
+    const label = submit ? submit.value : '';
+
+    if (!submit || !box || !window.FormData || !('upload' in new XMLHttpRequest())) return;
+
+    let busy = false;
+
+    const setBar = (percent, extraClass) => {
+      bar.style.width = `${percent}%`;
+      bar.className = `progress-bar ${extraClass || ''}`.trim();
+      box.querySelector('.progress').setAttribute('aria-valuenow', Math.round(percent));
+    };
+
+    const lock = () => {
+      busy = true;
+      submit.disabled = true;
+      submit.value = 'Завантаження…';
+      input.disabled = true;
+      zone.classList.add('is-uploading');
+      box.classList.remove('d-none');
+      status.className = 'small text-body-secondary mt-2 mb-0';
+      status.textContent = 'Завантаження…';
+      setBar(0);
+    };
+
+    const unlock = (message) => {
+      busy = false;
+      submit.disabled = false;
+      submit.value = label;
+      input.disabled = false;
+      zone.classList.remove('is-uploading');
+      setBar(100, 'bg-danger');
+      status.className = 'small text-danger mt-2 mb-0';
+      status.textContent = message;
+    };
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      if (busy) return;
+
+      const data = new FormData(form);
+      const action = form.action || window.location.href;
+      lock();
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', action);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (!e.lengthComputable) return;
+        const percent = (e.loaded / e.total) * 100;
+        setBar(percent);
+        status.textContent = `Завантаження… ${Math.round(percent)}%`;
+      });
+
+      xhr.upload.addEventListener('load', () => {
+        setBar(100, 'progress-bar-striped progress-bar-animated');
+        status.textContent = 'Обробка файлу…';
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 400) {
+          unlock('Сервер відхилив завантаження. Спробуйте ще раз.');
+          return;
+        }
+
+        if (xhr.responseURL && xhr.responseURL.split('#')[0] !== action.split('#')[0]) {
+          window.location.assign(xhr.responseURL);
+          return;
+        }
+
+        document.open();
+        document.write(xhr.responseText);
+        document.close();
+      });
+
+      ['error', 'abort', 'timeout'].forEach((name) => {
+        xhr.addEventListener(name, () => unlock("Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз."));
+      });
+
+      xhr.send(data);
     });
   })();
 </script>

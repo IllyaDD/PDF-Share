@@ -1,5 +1,3 @@
-"""JSON-API читалки. Сесійна автентифікація, CSRF як у звичайних форм."""
-
 import json
 
 from django.contrib.auth.decorators import login_required
@@ -28,7 +26,6 @@ def _bad_request(error):
 @login_required
 @require_http_methods(["GET", "POST"])
 def book_annotations(request, book_pk):
-    # Анотувати можна будь-яку видиму книгу — шар у кожного свій і чужу книгу не змінює.
     book = get_object_or_404(visible_books(request.user, request.session), pk=book_pk)
 
     if request.method == "GET":
@@ -41,8 +38,6 @@ def book_annotations(request, book_pk):
     except PayloadError as error:
         return _bad_request(error)
 
-    # Шар створюється лінькувато, при першій помітці. Унікальний констрейнт
-    # (book, owner) робить гонку двох вкладок безпечною.
     layer, _ = Layer.objects.get_or_create(book=book, owner=request.user)
     annotation = Annotation.objects.create(layer=layer, **fields)
 

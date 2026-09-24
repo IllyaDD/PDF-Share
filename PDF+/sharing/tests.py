@@ -1,11 +1,10 @@
 from datetime import timedelta
 
+from book_library.models import Book, Folder
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-
-from book_library.models import Book, Folder
 from users.models import User
 
 from .models import Group, GroupAccess, GroupMembership, ShareLink
@@ -22,9 +21,9 @@ def make_book(owner, title="Книга"):
 import shutil
 import tempfile
 
+from book_sharing_settings.testing import FILESYSTEM_STORAGES
 from django.test import override_settings
 
-# Тести не мають писати в робочу media/ — FileField кладе файли у MEDIA_ROOT.
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
 
 
@@ -32,7 +31,7 @@ def tearDownModule():
     shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class GroupPageTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
@@ -63,6 +62,12 @@ class GroupPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "uchenytsia")
         self.assertContains(response, "Додати учасника")
+
+    def test_add_member_button_is_outline_only(self):
+        self.client.force_login(self.teacher)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertContains(response, 'class="btn btn-outline-primary mt-2"')
+        self.assertNotContains(response, "btn-primary btn btn-outline-primary")
 
     def test_member_sees_detail_without_member_form(self):
         self.client.force_login(self.student)
@@ -104,7 +109,130 @@ class GroupPageTests(TestCase):
         self.assertContains(response, "Спільна книга")
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class GroupInviteTests(TestCase):
+    def setUp(self):
+        self.teacher = User.objects.create_user(
+            username="vchytelka", email="v@example.com", password="parol-parol-42",
+            role=User.Role.TEACHER,
+        )
+        self.newcomer = User.objects.create_user(
+            username="novachok", email="n@example.com", password="parol-parol-42"
+        )
+        self.group = Group.objects.create(owner=self.teacher, name="10-А", invite_token="zaproshennia")
+        self.join_url = reverse("sharing:group_join", args=["zaproshennia"])
+
+    def test_group_create_generates_invite_token(self):
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("sharing:group_create"), {"name": "11-Б"})
+        group = Group.objects.get(name="11-Б")
+        self.assertTrue(group.invite_token)
+
+    def test_owner_sees_invite_url_on_detail(self):
+        self.client.force_login(self.teacher)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertContains(response, self.join_url)
+        self.assertContains(response, "Посилання для приєднання")
+
+    def test_member_does_not_see_invite_url(self):
+        GroupMembership.objects.create(group=self.group, user=self.newcomer)
+        self.client.force_login(self.newcomer)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertNotContains(response, self.join_url)
+
+    def test_join_get_shows_confirmation_without_joining(self):
+        self.client.force_login(self.newcomer)
+        response = self.client.get(self.join_url)
+        self.assertContains(response, "10-А")
+        self.assertContains(response, "Приєднатися до групи")
+        self.assertFalse(GroupMembership.objects.filter(group=self.group, user=self.newcomer).exists())
+
+    def test_join_post_creates_membership(self):
+        self.client.force_login(self.newcomer)
+        response = self.client.post(self.join_url)
+        self.assertRedirects(response, reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=self.newcomer).exists())
+
+    def test_join_twice_does_not_duplicate(self):
+        self.client.force_login(self.newcomer)
+        self.client.post(self.join_url)
+        self.client.post(self.join_url)
+        self.assertEqual(GroupMembership.objects.filter(group=self.group, user=self.newcomer).count(), 1)
+
+    def test_owner_cannot_join_own_group(self):
+        self.client.force_login(self.teacher)
+        self.client.post(self.join_url)
+        self.assertFalse(GroupMembership.objects.filter(group=self.group, user=self.teacher).exists())
+
+    def test_anonymous_sees_login_and_register_with_next(self):
+        response = self.client.get(self.join_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "10-А")
+        self.assertContains(response, f"{reverse('accounts:login')}?next={self.join_url}")
+        self.assertContains(response, f"{reverse('accounts:register')}?next={self.join_url}")
+
+    def test_unknown_token_404(self):
+        self.client.force_login(self.newcomer)
+        response = self.client.get(reverse("sharing:group_join", args=["nemaie"]))
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, "Посилання недоступне", status_code=404)
+
+    def test_regenerate_invalidates_old_token(self):
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("sharing:group_invite", args=[self.group.pk]), {"action": "regenerate"})
+        self.group.refresh_from_db()
+        self.assertTrue(self.group.invite_token)
+        self.assertNotEqual(self.group.invite_token, "zaproshennia")
+
+        self.client.force_login(self.newcomer)
+        response = self.client.post(self.join_url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_disable_removes_token(self):
+        self.client.force_login(self.teacher)
+        self.client.post(reverse("sharing:group_invite", args=[self.group.pk]), {"action": "disable"})
+        self.group.refresh_from_db()
+        self.assertIsNone(self.group.invite_token)
+
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertContains(response, "Створити посилання")
+
+    def test_non_owner_cannot_manage_invite(self):
+        self.client.force_login(self.newcomer)
+        response = self.client.post(
+            reverse("sharing:group_invite", args=[self.group.pk]), {"action": "disable"}
+        )
+        self.assertEqual(response.status_code, 404)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.invite_token, "zaproshennia")
+
+    def test_register_with_next_returns_to_join_page(self):
+        response = self.client.post(
+            f"{reverse('accounts:register')}?next={self.join_url}",
+            {
+                "username": "marichka",
+                "email": "marichka@example.com",
+                "role": User.Role.STUDENT,
+                "password1": "spravzhniy-parol-42",
+                "password2": "spravzhniy-parol-42",
+            },
+        )
+        self.assertRedirects(response, self.join_url)
+
+    def test_register_ignores_external_next(self):
+        response = self.client.post(
+            f"{reverse('accounts:register')}?next=https://evil.example/",
+            {
+                "username": "marichka",
+                "email": "marichka@example.com",
+                "role": User.Role.STUDENT,
+                "password1": "spravzhniy-parol-42",
+                "password2": "spravzhniy-parol-42",
+            },
+        )
+        self.assertRedirects(response, reverse("book_library:home"))
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class ShareLinkTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -129,6 +257,22 @@ class ShareLinkTests(TestCase):
         response = self.client.post(reverse("sharing:link_create"), {})
         self.assertContains(response, "рівно одне")
         self.assertFalse(ShareLink.objects.exists())
+
+    def test_link_rejects_past_expiry(self):
+        yesterday = (timezone.now() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        response = self.client.post(
+            reverse("sharing:link_create"), {"book": self.book.pk, "expires_at": yesterday}
+        )
+        self.assertContains(response, "не може бути в минулому")
+        self.assertFalse(ShareLink.objects.exists())
+
+    def test_link_accepts_future_expiry(self):
+        tomorrow = (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        response = self.client.post(
+            reverse("sharing:link_create"), {"book": self.book.pk, "expires_at": tomorrow}
+        )
+        self.assertRedirects(response, reverse("sharing:link_list"))
+        self.assertTrue(ShareLink.objects.filter(book=self.book).exists())
 
     def test_link_list_renders_full_url(self):
         ShareLink.objects.create(book=self.book, token="abc123", created_by=self.user)
@@ -168,7 +312,7 @@ class ShareLinkTests(TestCase):
         self.assertFalse(ShareLink.objects.filter(pk=link.pk).exists())
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class GroupAccessTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(

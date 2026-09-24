@@ -12,7 +12,6 @@ from .models import Annotation, Layer
 
 @login_required
 def book_annotations_view(request, book_pk):
-    """Усі виділення користувача в одній книзі, згруповані за сторінками."""
     book = get_object_or_404(visible_books(request.user, request.session), pk=book_pk)
     layer = Layer.objects.filter(book=book, owner=request.user).first()
 
@@ -21,7 +20,6 @@ def book_annotations_view(request, book_pk):
         if layer
         else Annotation.objects.none()
     )
-    # Queryset уже впорядкований за (page_number, created_at) через Meta.ordering.
     annotations_by_page = [
         (page_number, list(items))
         for page_number, items in groupby(annotations, key=lambda a: a.page_number)

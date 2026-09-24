@@ -7,7 +7,6 @@ from .models import User
 
 
 class RegistrationForm(UserCreationForm):
-    """Класична реєстрація: username + email + роль + пароль."""
 
     email = forms.EmailField(
         label="Email",
@@ -39,7 +38,6 @@ class RegistrationForm(UserCreationForm):
 
 
 class LoginForm(AuthenticationForm):
-    """Вхід за username. Логіка валідації — з AuthenticationForm."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,7 +51,6 @@ class LoginForm(AuthenticationForm):
 
 
 class ProfileForm(forms.ModelForm):
-    """Редагування профілю. Роль не редагується користувачем — тільки адміном."""
 
     class Meta:
         model = User

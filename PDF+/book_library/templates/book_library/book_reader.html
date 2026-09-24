@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="{% static 'vendor/pdfjs/text_layer.css' %}">
 {% endblock %}
 
-{# Читалка займає весь екран: без сайдбара і без контейнера. #}
 {% block layout %}
 <div class="reader-shell d-flex flex-column">
 
@@ -57,7 +56,7 @@
          data-annotations-url="{% url 'annotations:api_book_annotations' book.pk %}"
          data-annotation-url-template="{% url 'annotations:api_annotation_detail' 0 %}"
          {% if user.is_authenticated %}data-can-annotate="1"{% endif %}>
-      {# Вміст замінює reader.js. Лишається видимим, якщо модуль не завантажився. #}
+
       <div class="h-100 d-flex flex-column align-items-center justify-content-center text-body-secondary p-4 text-center">
         <div class="spinner-border mb-3" role="status"><span class="visually-hidden">Завантаження</span></div>
         <p class="mb-1">Готуємо документ…</p>
@@ -77,7 +76,6 @@
         {% endif %}
       </div>
 
-      {# Чіпи кольорів і навігацію по мітках наповнює reader.js. #}
       <div class="px-3 py-2 border-bottom d-none" id="annotationFilter">
         <div class="d-flex align-items-center gap-2 mb-2">
           <div class="btn-group btn-group-sm" role="group" aria-label="Навігація по мітках">
@@ -120,7 +118,7 @@
   </div>
 
   {% if user.is_authenticated %}
-    {# З'являється біля виділеного тексту. Позицію ставить reader.js. #}
+
     <div class="floating-panel highlight-palette" id="highlightPalette" hidden>
       {% for value, label in palette %}
         <button type="button" class="swatch" data-color="{{ value }}"
@@ -129,7 +127,6 @@
       {% endfor %}
     </div>
 
-    {# Відкривається кліком по наявному виділенню. #}
     <div class="floating-panel annotation-popover" id="annotationPopover" hidden>
       <div class="d-flex gap-1 mb-2">
         {% for value, label in palette %}
@@ -155,16 +152,13 @@
   {% endif %}
 </div>
 
-{# Початкові дані для рушія. #}
 {{ annotations_data|json_script:"annotations-data" }}
-{# Назви кольорів для чіпів фільтра — доступні й анонімним, на відміну від палітри вище. #}
+
 {{ palette|json_script:"palette-data" }}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  // Тулбар працює автономно від рушія: перемикає панель і тримає стан сторінки/масштабу
-  // в data-атрибутах #pdf-viewer, звідки їх забере рушій рендерингу, коли з'явиться.
   (() => {
     const viewer = document.getElementById('pdf-viewer');
     const panel = document.getElementById('readerPanel');
@@ -192,7 +186,6 @@
     document.querySelector('[data-reader-zoom-out]').addEventListener('click', () => setScale(scale - 0.25));
     document.querySelector('[data-reader-toggle-panel]').addEventListener('click', () => panel.classList.toggle('d-none'));
 
-    // ?page= із «Моїх нотаток». Скролом займається reader.js — тут лише поле тулбара.
     setPage(Number(new URLSearchParams(location.search).get('page')) || 1);
     setScale(1);
   })();
