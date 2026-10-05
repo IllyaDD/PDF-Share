@@ -3,6 +3,15 @@
     <span class="input-group-text bg-body"><i class="bi bi-search"></i></span>
     <input type="search" name="q" value="{{ query }}" class="form-control"
            placeholder="{{ placeholder|default:'Пошук за назвою…' }}" aria-label="Пошук">
+    {% if search_scopes %}
+      {# Зміна області одразу перезапускає пошук, якщо запит уже введено. #}
+      <select name="scope" class="form-select flex-grow-0 w-auto" aria-label="Де шукати"
+              onchange="if (this.form.q.value.trim()) this.form.requestSubmit()">
+        {% for value, label in search_scopes %}
+          <option value="{{ value }}"{% if value == search_scope %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
     {% if query %}
       <a href="{{ request.path }}" class="btn btn-outline-secondary" title="Скинути пошук">
         <i class="bi bi-x-lg"></i>

@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from annotations.models import Layer, NoteGroup
 from book_library.models import Book, Folder
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -253,6 +254,28 @@ class ShareLinkTests(TestCase):
         self.assertTrue(link.token)
         self.assertEqual(link.created_by, self.user)
 
+    def test_link_without_annotations_by_default(self):
+        self.client.post(reverse("sharing:link_create"), {"book": self.book.pk})
+        self.assertFalse(ShareLink.objects.get(book=self.book).include_annotations)
+
+    def test_create_link_with_annotations(self):
+        self.client.post(
+            reverse("sharing:link_create"), {"book": self.book.pk, "include_annotations": "True"}
+        )
+        link = ShareLink.objects.get(book=self.book)
+        self.assertTrue(link.include_annotations)
+
+        response = self.client.get(reverse("sharing:link_list"))
+        self.assertContains(response, "з нотатками")
+
+    def test_create_form_preselects_annotations_from_query(self):
+        url = reverse("sharing:link_create")
+        response = self.client.get(f"{url}?book={self.book.pk}&annotations=1")
+        self.assertTrue(response.context["form"].initial["include_annotations"])
+
+        response = self.client.get(f"{url}?book={self.book.pk}")
+        self.assertFalse(response.context["form"].initial["include_annotations"])
+
     def test_link_requires_exactly_one_target(self):
         response = self.client.post(reverse("sharing:link_create"), {})
         self.assertContains(response, "рівно одне")
@@ -419,3 +442,107 @@ class GroupAccessTests(TestCase):
     def test_book_detail_shows_grant_button(self):
         response = self.client.get(reverse("book_library:book_detail", args=[self.book.pk]))
         self.assertContains(response, "Надати групі")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class ShareLinkTopicFormTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="avtor-tem", email="at@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.user)
+        self.book = make_book(self.user, "Фізика")
+        self.other_book = make_book(self.user, "Хімія")
+        layer = Layer.objects.create(book=self.book, owner=self.user)
+        self.formulas = NoteGroup.objects.create(layer=layer, name="Формули")
+        self.answers = NoteGroup.objects.create(layer=layer, name="Відповіді")
+        other_layer = Layer.objects.create(book=self.other_book, owner=self.user)
+        self.other_topic = NoteGroup.objects.create(layer=other_layer, name="Реакції")
+        self.url = reverse("sharing:link_create")
+
+    def post(self, **data):
+        return self.client.post(self.url, {"book": self.book.pk, **data})
+
+    def test_selected_topics_saved_with_selected_scope(self):
+        response = self.post(include_annotations="True", note_groups=[self.formulas.pk])
+        self.assertRedirects(response, reverse("sharing:link_list"))
+        link = ShareLink.objects.get()
+        self.assertEqual(link.annotation_scope, ShareLink.AnnotationScope.SELECTED)
+        self.assertEqual(list(link.note_groups.all()), [self.formulas])
+
+    def test_no_topics_means_all(self):
+        self.post(include_annotations="True")
+        link = ShareLink.objects.get()
+        self.assertEqual(link.annotation_scope, ShareLink.AnnotationScope.ALL)
+        self.assertFalse(link.note_groups.exists())
+
+    def test_topic_of_other_book_rejected(self):
+        response = self.post(include_annotations="True", note_groups=[self.other_topic.pk])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Обрані теми мають належати обраній книзі.")
+        self.assertFalse(ShareLink.objects.exists())
+
+    def test_foreign_topic_rejected(self):
+        stranger = User.objects.create_user(
+            username="chuzhyi", email="c@example.com", password="parol-parol-42"
+        )
+        foreign_layer = Layer.objects.create(book=self.book, owner=stranger)
+        foreign = NoteGroup.objects.create(layer=foreign_layer, name="Чужа")
+        response = self.post(include_annotations="True", note_groups=[foreign.pk])
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ShareLink.objects.exists())
+
+    def test_topics_need_annotations_and_book(self):
+        response = self.post(note_groups=[self.formulas.pk])
+        self.assertContains(response, "Теми можна обрати лише для посилання на книгу з нотатками.")
+
+        folder = Folder.objects.create(owner=self.user, name="Тека")
+        response = self.client.post(
+            self.url,
+            {"folder": folder.pk, "include_annotations": "True", "note_groups": [self.formulas.pk]},
+        )
+        self.assertContains(response, "Теми можна обрати лише для посилання на книгу з нотатками.")
+        self.assertFalse(ShareLink.objects.exists())
+
+    def test_form_marks_topics_with_book(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, f'data-book="{self.book.pk}"')
+        self.assertContains(response, "Фізика — Формули")
+
+    def test_form_hides_topics_field_when_user_has_none(self):
+        NoteGroup.objects.all().delete()
+        response = self.client.get(self.url)
+        self.assertNotIn("note_groups", response.context["form"].fields)
+
+    def test_link_list_shows_topics(self):
+        self.post(include_annotations="True", note_groups=[self.formulas.pk, self.answers.pk])
+        response = self.client.get(reverse("sharing:link_list"))
+        self.assertContains(response, "Відповіді, Формули")
+
+        NoteGroup.objects.all().delete()
+        response = self.client.get(reverse("sharing:link_list"))
+        self.assertContains(response, "теми видалено")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class ShareLinkAdminTopicsTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="adminka", email="adm@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.admin)
+        book = make_book(self.admin, "Фізика")
+        layer = Layer.objects.create(book=book, owner=self.admin)
+        self.topic = NoteGroup.objects.create(layer=layer, name="Формули")
+        self.link = ShareLink.objects.create(
+            book=book, token="adm-tema", created_by=self.admin, include_annotations=True,
+            annotation_scope=ShareLink.AnnotationScope.SELECTED,
+        )
+        self.link.note_groups.set([self.topic])
+
+    def test_change_page_shows_topics_read_only(self):
+        response = self.client.get(reverse("admin:sharing_sharelink_change", args=[self.link.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Фізика — Формули")
+        self.assertNotContains(response, 'name="annotation_scope"')
+        self.assertNotContains(response, 'name="note_groups"')

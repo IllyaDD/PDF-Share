@@ -11,4 +11,6 @@ def record_deleted_annotation(sender, instance, **kwargs):
         Layer.objects.filter(pk=instance.layer_id).values_list("owner_id", flat=True).first()
     )
     if owner_id is not None:
-        DeletedAnnotation.objects.create(annotation_id=instance.pk, owner_id=owner_id)
+        DeletedAnnotation.objects.create(
+            annotation_id=instance.pk, owner_id=owner_id, layer_id=instance.layer_id
+        )

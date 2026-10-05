@@ -12,6 +12,10 @@
 
         {% crispy form %}
 
+        <p class="text-end small mt-2 mb-0">
+          <a href="{% url 'accounts:password_reset' %}">Забули пароль?</a>
+        </p>
+
         <div class="d-flex align-items-center my-3">
           <hr class="flex-grow-1"><span class="px-2 text-body-secondary small">або</span><hr class="flex-grow-1">
         </div>

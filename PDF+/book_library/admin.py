@@ -6,7 +6,7 @@ from unfold.decorators import display
 from annotations.models import Layer
 
 from .forms import BookAdminForm
-from .models import Book, Folder
+from .models import Book, Folder, ReadingProgress
 
 
 class LayerInline(TabularInline):
@@ -53,3 +53,14 @@ class BookAdmin(ModelAdmin):
     @display(description="Size", ordering="file_size")
     def size(self, book):
         return filesizeformat(book.file_size)
+
+
+@admin.register(ReadingProgress)
+class ReadingProgressAdmin(ModelAdmin):
+    list_display = ("user", "book", "last_page", "read_at")
+    search_fields = ("user__username", "book__title")
+    readonly_fields = ("user", "book", "last_page", "read_at", "updated_at")
+    date_hierarchy = "read_at"
+
+    def has_add_permission(self, request):
+        return False

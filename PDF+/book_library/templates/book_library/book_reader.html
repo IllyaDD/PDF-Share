@@ -55,7 +55,13 @@
          data-csrf-token="{{ csrf_token }}"
          data-annotations-url="{% url 'annotations:api_book_annotations' book.pk %}"
          data-annotation-url-template="{% url 'annotations:api_annotation_detail' 0 %}"
-         {% if user.is_authenticated %}data-can-annotate="1"{% endif %}>
+         {% if user.is_authenticated %}
+           data-can-annotate="1"
+           data-progress-url="{% url 'book_library:book_progress' book.pk %}"
+           data-book-id="{{ book.pk }}"
+           data-note-groups-url="{% url 'annotations:api_book_note_groups' book.pk %}"
+           data-last-page="{{ progress.last_page|default:'' }}"
+         {% endif %}>
 
       <div class="h-100 d-flex flex-column align-items-center justify-content-center text-body-secondary p-4 text-center">
         <div class="spinner-border mb-3" role="status"><span class="visually-hidden">Завантаження</span></div>
@@ -68,13 +74,66 @@
 
     <aside class="reader-side border-start bg-body d-none d-lg-block" id="readerPanel">
       <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-        <h2 class="h6 mb-0">Мої нотатки</h2>
+        <h2 class="h6 mb-0" data-layer-title>Мої нотатки</h2>
         {% if user.is_authenticated %}
-          <a href="{% url 'annotations:book_annotations' book.pk %}" class="small text-decoration-none">
+          <a href="{% url 'annotations:book_annotations' book.pk %}" class="small text-decoration-none" data-own-only>
             Усі
           </a>
         {% endif %}
       </div>
+
+      {% if shared_layers_data %}
+        <div class="px-3 py-2 border-bottom" id="layerSwitch">
+          <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Чиї нотатки показувати">
+            <button type="button" class="btn btn-outline-secondary active" data-layer="own" aria-pressed="true">
+              Мої
+            </button>
+            {% for layer in shared_layers_data %}
+              <button type="button" class="btn btn-outline-secondary" data-layer="{{ layer.id }}"
+                      aria-pressed="false" title="Нотатки вчителя — лише для читання">
+                <i class="bi bi-mortarboard me-1"></i>{{ layer.owner }}
+              </button>
+            {% endfor %}
+          </div>
+          <p class="small text-body-secondary mb-0 mt-2 d-none" data-layer-readonly>
+            <i class="bi bi-lock me-1"></i>Нотатки вчителя — лише для читання.
+          </p>
+        </div>
+      {% endif %}
+
+      {% if user.is_authenticated %}
+        <div class="px-3 py-2 border-bottom" id="topicSwitch" data-own-only>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-uppercase text-body-secondary fw-semibold">Теми</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-topic-add>
+              <i class="bi bi-plus-lg me-1"></i>Тема
+            </button>
+          </div>
+          <div class="d-flex flex-wrap gap-1" role="group" aria-label="Тема нотаток" data-topic-chips>
+            <button type="button" class="btn btn-sm rounded-pill topic-chip btn-primary"
+                    data-topic="all" aria-pressed="true">Усі</button>
+            <button type="button" class="btn btn-sm rounded-pill topic-chip btn-outline-secondary"
+                    data-topic="none" aria-pressed="false">Без групи</button>
+            {% for group in note_groups_data %}
+              <button type="button" class="btn btn-sm rounded-pill topic-chip btn-outline-secondary"
+                      data-topic="{{ group.id }}" aria-pressed="false">{{ group.name }}</button>
+            {% endfor %}
+          </div>
+          <form class="mt-2 d-none" data-topic-form>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" maxlength="100" required
+                     placeholder="Назва нової теми" aria-label="Назва нової теми" data-topic-name>
+              <button type="submit" class="btn btn-primary">Створити</button>
+              <button type="button" class="btn btn-outline-secondary" data-topic-cancel
+                      title="Скасувати" aria-label="Скасувати">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div class="small text-danger mt-1" data-topic-error></div>
+          </form>
+          <p class="small text-body-secondary mb-0 mt-2" data-topic-hint></p>
+        </div>
+      {% endif %}
 
       <div class="px-3 py-2 border-bottom d-none" id="annotationFilter">
         <div class="d-flex align-items-center gap-2 mb-2">
@@ -136,7 +195,19 @@
         {% endfor %}
       </div>
 
+      <div class="mb-2">
+        <div class="small text-body-secondary mb-1">Тема</div>
+        <div class="d-flex flex-wrap gap-1" role="group" aria-label="Тема нотатки"
+             data-popover-topic-chips></div>
+        <form class="input-group input-group-sm mt-1 d-none" data-popover-topic-form>
+          <input type="text" class="form-control" maxlength="100" required
+                 placeholder="Назва нової теми" aria-label="Назва нової теми" data-popover-topic-name>
+          <button type="submit" class="btn btn-primary">Створити</button>
+        </form>
+      </div>
+
       <textarea class="form-control form-control-sm mb-2" rows="3"
+                maxlength="{{ max_note_length }}"
                 data-note placeholder="Коментар до виділення…"></textarea>
 
       <div class="d-flex justify-content-between align-items-center gap-2">
@@ -153,6 +224,10 @@
 </div>
 
 {{ annotations_data|json_script:"annotations-data" }}
+
+{{ shared_layers_data|json_script:"shared-layers-data" }}
+
+{{ note_groups_data|json_script:"note-groups-data" }}
 
 {{ palette|json_script:"palette-data" }}
 {% endblock %}
@@ -185,6 +260,10 @@
     document.querySelector('[data-reader-zoom-in]').addEventListener('click', () => setScale(scale + 0.25));
     document.querySelector('[data-reader-zoom-out]').addEventListener('click', () => setScale(scale - 0.25));
     document.querySelector('[data-reader-toggle-panel]').addEventListener('click', () => panel.classList.toggle('d-none'));
+    viewer.addEventListener('reader:current', (event) => {
+      pageInput.value = event.detail.page;
+      viewer.dataset.currentPage = event.detail.page;
+    });
 
     setPage(Number(new URLSearchParams(location.search).get('page')) || 1);
     setScale(1);

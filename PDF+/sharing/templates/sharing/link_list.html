@@ -27,6 +27,16 @@
               <td>
                 <i class="bi {% if link.book %}bi-file-earmark-pdf text-danger{% else %}bi-folder-fill text-warning{% endif %} me-1"></i>
                 {% if link.book %}{{ link.book.title }}{% else %}{{ link.folder.name }}{% endif %}
+                {% if link.include_annotations %}
+                  <span class="badge text-bg-light border ms-1" title="Отримувач бачить ваші нотатки">
+                    <i class="bi bi-mortarboard me-1"></i>з нотатками
+                  </span>
+                {% endif %}
+                {% if link.annotation_scope == "selected" %}
+                  <span class="badge text-bg-light border ms-1" title="Отримувач бачить лише ці теми">
+                    <i class="bi bi-folder2-open me-1"></i>{% for group in link.note_groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% empty %}теми видалено{% endfor %}
+                  </span>
+                {% endif %}
               </td>
               <td>
                 <div class="input-group input-group-sm" style="max-width: 22rem;">

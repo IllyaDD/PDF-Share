@@ -10,6 +10,11 @@
         <div class="small text-body-secondary">
           {{ folder.books.count }} кн. · {{ folder.children.count }} тек
         </div>
+        {% if show_path %}
+          <div class="small text-body-secondary text-truncate mt-1" title="{{ folder.parent.path_label|default:'Корінь бібліотеки' }}">
+            <i class="bi bi-folder me-1"></i>{% if folder.parent %}{{ folder.parent.path_label }}{% else %}Корінь бібліотеки{% endif %}
+          </div>
+        {% endif %}
       </div>
 
       {% if folder.owner_id == user.pk %}

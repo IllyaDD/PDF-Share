@@ -16,4 +16,39 @@
     </div>
   {% endif %}
 </div>
+
+{% if continue_reading %}
+<section class="mb-5">
+  <h2 class="h5 mb-3">Продовжити читати</h2>
+  <div class="row g-3">
+    {% for progress in continue_reading %}
+      {% with book=progress.book %}
+      <div class="col-6 col-md-4 col-xl-2">
+        <a href="{% url 'book_library:book_reader' book.pk %}"
+           class="card entity-card h-100 border-0 shadow-sm text-decoration-none text-body">
+          <div class="book-thumb d-flex align-items-center justify-content-center rounded-top overflow-hidden">
+            {% if book.cover %}
+              <img src="{{ book.cover.url }}" class="book-cover-img" alt="" loading="lazy">
+            {% else %}
+              <i class="bi bi-file-earmark-pdf display-5 text-danger opacity-75"></i>
+            {% endif %}
+          </div>
+          <div class="progress rounded-0" style="height: .25rem;" role="progressbar"
+               aria-label="Прогрес читання" aria-valuenow="{{ progress.percent }}"
+               aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+          </div>
+          <div class="card-body p-2">
+            <div class="fw-medium small text-truncate" title="{{ book.title }}">{{ book.title }}</div>
+            <div class="small text-body-secondary">
+              с. {{ progress.last_page }} з {{ book.page_count }} · {{ progress.percent }}%
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endwith %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

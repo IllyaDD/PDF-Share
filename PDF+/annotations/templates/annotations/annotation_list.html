@@ -13,10 +13,43 @@
 {% block content %}
 <div class="row g-4">
   <div class="col-lg-8">
-    {% for page_number, page_annotations in annotations_by_page %}
-      <h2 class="h6 text-body-secondary text-uppercase mb-2 mt-4">Сторінка {{ page_number }}</h2>
-      {% for annotation in page_annotations %}
-        {% include "annotations/partials/annotation_item.html" %}
+    {% for section in sections %}
+      {% if show_group_headings %}
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-4 mb-2">
+          <h2 class="h5 mb-0">
+            <i class="bi {% if section.group %}bi-folder2-open{% else %}bi-folder2{% endif %} me-1"></i>
+            {% if section.group %}{{ section.group.name }}{% else %}Без групи{% endif %}
+          </h2>
+          <span class="badge text-bg-light border">{{ section.count }}</span>
+          {% if section.group %}
+            <form method="post" action="{% url 'annotations:note_group_rename' section.group.pk %}"
+                  class="d-flex gap-1 ms-auto">
+              {% csrf_token %}
+              <input type="text" name="name" value="{{ section.group.name }}" maxlength="100" required
+                     class="form-control form-control-sm" aria-label="Нова назва теми">
+              <button type="submit" class="btn btn-sm btn-outline-secondary" title="Перейменувати">
+                <i class="bi bi-pencil"></i>
+              </button>
+            </form>
+            <button type="button" class="btn btn-sm btn-outline-danger" title="Видалити тему"
+                    data-bs-toggle="modal" data-bs-target="#confirmModal"
+                    data-action="{% url 'annotations:note_group_delete' section.group.pk %}"
+                    data-title="Видалити тему «{{ section.group.name }}»?"
+                    data-text="Нотатки не зникнуть — вони перейдуть у «Без групи»."
+                    data-confirm="Видалити тему">
+              <i class="bi bi-trash"></i>
+            </button>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% for page_number, page_annotations in section.pages %}
+        <h3 class="h6 text-body-secondary text-uppercase mb-2 mt-3">Сторінка {{ page_number }}</h3>
+        {% for annotation in page_annotations %}
+          {% include "annotations/partials/annotation_item.html" %}
+        {% endfor %}
+      {% empty %}
+        <p class="small text-body-secondary mb-0">У темі поки нема нотаток.</p>
       {% endfor %}
     {% empty %}
       {% include "partials/empty_state.html" with icon="bi-highlighter" title="Нотаток немає" text="Виділення, зроблені в читалці, з'являться тут." action_url=reader_url action_label="Відкрити книгу" %}

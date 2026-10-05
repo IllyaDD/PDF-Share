@@ -4,15 +4,30 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import (
+    LoginView,
+    PasswordChangeView,
+    PasswordResetCompleteView,
+    PasswordResetConfirmView,
+    PasswordResetDoneView,
+    PasswordResetView,
+)
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 
 from book_sharing_settings.oauth import oauth
 
-from .forms import LoginForm, ProfileForm, RegistrationForm
+from .forms import (
+    ChangePasswordForm,
+    LoginForm,
+    ProfileForm,
+    RegistrationForm,
+    ResetRequestForm,
+    ResetSetPasswordForm,
+)
 from .models import User
 
 MODEL_BACKEND = "django.contrib.auth.backends.ModelBackend"
@@ -56,6 +71,40 @@ class UserLoginView(LoginView):
     template_name = "users/login.html"
     authentication_form = LoginForm
     redirect_authenticated_user = True
+
+
+# Вбудовані в'юхи Django редиректять на URL без неймспейсу ("password_reset_done"),
+# а наші живуть під "accounts:", тому success_url перевизначено в кожній.
+class ResetRequestView(PasswordResetView):
+    template_name = "users/password_reset_form.html"
+    form_class = ResetRequestForm
+    email_template_name = "users/emails/password_reset.txt"
+    subject_template_name = "users/emails/password_reset_subject.txt"
+    success_url = reverse_lazy("accounts:password_reset_done")
+
+
+class ResetDoneView(PasswordResetDoneView):
+    template_name = "users/password_reset_done.html"
+
+
+class ResetConfirmView(PasswordResetConfirmView):
+    template_name = "users/password_reset_confirm.html"
+    form_class = ResetSetPasswordForm
+    success_url = reverse_lazy("accounts:password_reset_complete")
+
+
+class ResetCompleteView(PasswordResetCompleteView):
+    template_name = "users/password_reset_complete.html"
+
+
+class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):
+    template_name = "users/password_change_form.html"
+    form_class = ChangePasswordForm
+    success_url = reverse_lazy("accounts:profile")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Пароль змінено.")
+        return super().form_valid(form)
 
 
 def logout_view(request):

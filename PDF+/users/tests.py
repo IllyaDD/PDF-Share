@@ -1,3 +1,6 @@
+import re
+
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
@@ -123,3 +126,145 @@ class ProfileTests(TestCase):
 
         self.client.post(reverse("accounts:delete_profile"))
         self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+
+
+class PasswordResetTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="oksana", email="oksana@example.com", password="staryi-parol-42"
+        )
+
+    def _request_reset(self, email):
+        return self.client.post(reverse("accounts:password_reset"), {"email": email})
+
+    def _reset_path_from_mail(self):
+        match = re.search(r"https?://[^/\s]+(/\S+)", mail.outbox[0].body)
+        return match.group(1)
+
+    def test_login_page_links_to_reset(self):
+        response = self.client.get(reverse("accounts:login"))
+        self.assertContains(response, reverse("accounts:password_reset"))
+
+    def test_reset_page_renders_crispy_form(self):
+        response = self.client.get(reverse("accounts:password_reset"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="email"')
+
+    def test_known_email_sends_mail_with_link(self):
+        response = self._request_reset("oksana@example.com")
+        self.assertRedirects(response, reverse("accounts:password_reset_done"))
+
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["oksana@example.com"])
+        self.assertIn("PDF+", message.subject)
+        self.assertIn("/accounts/password/reset/", message.body)
+
+    def test_unknown_email_gives_same_response_without_mail(self):
+        response = self._request_reset("nikhto@example.com")
+        self.assertRedirects(response, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_google_user_without_password_gets_no_mail(self):
+        google_user = User.objects.create_user(
+            username="google", email="google@example.com"
+        )
+        google_user.set_unusable_password()
+        google_user.save()
+
+        self._request_reset("google@example.com")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_full_reset_flow(self):
+        self._request_reset("oksana@example.com")
+        reset_path = self._reset_path_from_mail()
+
+        # Токен з листа кладеться в сесію, URL підміняється на set-password.
+        response = self.client.get(reset_path)
+        self.assertEqual(response.status_code, 302)
+        set_password_path = response.url
+        self.assertIn("set-password", set_password_path)
+
+        response = self.client.get(set_password_path)
+        self.assertTrue(response.context["validlink"])
+
+        response = self.client.post(
+            set_password_path,
+            {"new_password1": "novyi-parol-2026", "new_password2": "novyi-parol-2026"},
+        )
+        self.assertRedirects(response, reverse("accounts:password_reset_complete"))
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("novyi-parol-2026"))
+
+        # Повторно посилання не спрацьовує: хеш пароля змінився, токен недійсний.
+        response = self.client.get(reset_path)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["validlink"])
+
+    def test_invalid_token_shows_error_page(self):
+        response = self.client.get(
+            reverse(
+                "accounts:password_reset_confirm",
+                kwargs={"uidb64": "MQ", "token": "nevirnyi-token"},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["validlink"])
+        self.assertContains(response, reverse("accounts:password_reset"))
+
+
+class PasswordChangeTests(TestCase):
+    def setUp(self):
+        self.password = "staryi-parol-42"
+        self.user = User.objects.create_user(
+            username="bohdan", email="bohdan@example.com", password=self.password
+        )
+
+    def test_requires_login(self):
+        url = reverse("accounts:password_change")
+        response = self.client.get(url)
+        self.assertRedirects(response, f"{reverse('accounts:login')}?next={url}")
+
+    def test_wrong_old_password_keeps_password(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": "ne-toi-parol",
+                "new_password1": "novyi-parol-2026",
+                "new_password2": "novyi-parol-2026",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.password))
+
+    def test_change_password_keeps_session(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("accounts:password_change"),
+            {
+                "old_password": self.password,
+                "new_password1": "novyi-parol-2026",
+                "new_password2": "novyi-parol-2026",
+            },
+        )
+        self.assertRedirects(response, reverse("accounts:profile"))
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("novyi-parol-2026"))
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.user.pk))
+
+    def test_profile_hides_change_button_for_google_user(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("accounts:profile"))
+        self.assertNotContains(response, reverse("accounts:password_change"))
+
+    def test_profile_shows_change_button(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("accounts:profile"))
+        self.assertContains(response, reverse("accounts:password_change"))
