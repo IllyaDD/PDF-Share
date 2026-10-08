@@ -1,14 +1,24 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404
+from django.db.models import Count
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from annotations.access import publishable_groups, shared_annotations, shared_layers
+from annotations.forms import LayerPublishForm
 from annotations.models import Annotation, Layer
-from annotations.serializers import serialize_annotation
-from sharing.models import GroupAccess, ShareLink
+from annotations.serializers import (
+    serialize_annotation,
+    serialize_note_group,
+    serialize_shared_layers,
+)
+from annotations.validators import MAX_NOTE_LENGTH, PayloadError, parse_page_number
+from sharing.models import Group, GroupAccess, ShareLink
 
 from .access import (
     catalog_folder_ids,
@@ -19,7 +29,8 @@ from .access import (
     visible_folders,
 )
 from .forms import BookForm, FolderForm
-from .models import Book, Folder
+from .models import Book, Folder, ReadingProgress
+from .progress import record_progress, visible_progress
 
 
 def _folder_crumbs(folder):
@@ -51,9 +62,13 @@ def _folder_choices(user):
     )
 
 
-def _search_titles(queryset, query):
+def _search_titles(queryset, query, field="title"):
     needle = query.casefold()
-    return [book for book in queryset if needle in book.title.casefold()]
+    return [obj for obj in queryset if needle in getattr(obj, field).casefold()]
+
+
+# Де шукати в «Моїй бібліотеці»: значення параметра ?scope= і підпис у селекті.
+SEARCH_SCOPES = [("all", "Усюди"), ("folders", "Теки"), ("books", "Книги")]
 
 
 def _safe_next(request, fallback):
@@ -66,7 +81,14 @@ def _safe_next(request, fallback):
 
 
 def home_view(request):
-    return render(request, "book_library/home.html")
+    continue_reading = []
+    if request.user.is_authenticated:
+        continue_reading = (
+            visible_progress(request.user, request.session)
+            .select_related("book")
+            .order_by("-read_at")[:6]
+        )
+    return render(request, "book_library/home.html", {"continue_reading": continue_reading})
 
 
 @login_required
@@ -74,25 +96,38 @@ def library_view(request, pk=None):
     folder = None
     is_owner = True
     query = request.GET.get("q", "").strip()
+    scope = request.GET.get("scope", "all")
+    if scope not in dict(SEARCH_SCOPES):
+        scope = "all"
 
     if pk is not None:
         folder = get_object_or_404(visible_folders(request.user, request.session), pk=pk)
         is_owner = folder.owner_id == request.user.pk
         folders = visible_folders(request.user, request.session).filter(parent=folder)
         books = visible_books(request.user, request.session).filter(folder=folder)
-        search_scope = visible_books(request.user, request.session).filter(
-            folder_id__in=folder_subtree_ids(folder.pk)
+        subtree_ids = folder_subtree_ids(folder.pk)
+        book_pool = visible_books(request.user, request.session).filter(folder_id__in=subtree_ids)
+        # Сама тека — не результат пошуку в ній, лише вкладені.
+        folder_pool = visible_folders(request.user, request.session).filter(
+            pk__in=subtree_ids - {folder.pk}
         )
     else:
         folders = Folder.objects.filter(owner=request.user, parent=None)
         books = Book.objects.filter(owner=request.user, folder=None)
-        search_scope = Book.objects.filter(owner=request.user)
+        book_pool = Book.objects.filter(owner=request.user)
+        folder_pool = Folder.objects.filter(owner=request.user)
 
     if query:
-        folders = Folder.objects.none()
-        books = _search_titles(
-            search_scope.select_related("folder__parent__parent").order_by("title"), query
-        )
+        folders = []
+        books = []
+        if scope in ("all", "folders"):
+            folders = _search_titles(
+                folder_pool.select_related("parent__parent").order_by("name"), query, "name"
+            )
+        if scope in ("all", "books"):
+            books = _search_titles(
+                book_pool.select_related("folder__parent__parent").order_by("title"), query
+            )
 
     return render(
         request,
@@ -102,6 +137,9 @@ def library_view(request, pk=None):
             "folders": folders,
             "books": books,
             "query": query,
+            "search_scope": scope,
+            "search_scopes": SEARCH_SCOPES,
+            "result_count": len(folders) + len(books) if query else 0,
             "is_owner": is_owner,
             "in_catalog": is_catalog_folder(folder) if folder else False,
             "crumbs": _folder_crumbs(folder) if folder else None,
@@ -251,12 +289,42 @@ def folder_add_books_view(request, pk):
     )
 
 
+def _publish_form(user, book, layer):
+    if not user.is_authenticated or not Group.objects.filter(owner=user).exists():
+        return None
+    published = list(layer.shared_with_groups.values_list("pk", flat=True)) if layer else []
+    return LayerPublishForm(groups=publishable_groups(user, book), initial={"groups": published})
+
+
 def book_detail_view(request, pk):
     book = get_object_or_404(visible_books(request.user, request.session), pk=pk)
 
     is_owner = request.user.is_authenticated and book.owner_id == request.user.pk
     layer = (
         Layer.objects.filter(book=book, owner=request.user).first()
+        if request.user.is_authenticated
+        else None
+    )
+    # Лічильник — лише з нотаток, які читач бачить (посилання може відкривати не всі теми).
+    shared = shared_annotations(request.user, request.session).filter(layer__book=book)
+    shared_counts = dict(
+        Annotation.objects.filter(pk__in=shared.values("pk"))
+        .values("layer_id")
+        .annotate(count=Count("pk"))
+        .values_list("layer_id", "count")
+    )
+    teacher_layers = list(
+        Layer.objects.filter(
+            pk__in=shared_layers(request.user, request.session).filter(book=book).values("pk")
+        )
+        .select_related("owner")
+        .order_by("owner__username")
+    )
+    for teacher_layer in teacher_layers:
+        teacher_layer.annotation_count = shared_counts.get(teacher_layer.pk, 0)
+
+    progress = (
+        ReadingProgress.objects.filter(book=book, user=request.user).first()
         if request.user.is_authenticated
         else None
     )
@@ -267,7 +335,10 @@ def book_detail_view(request, pk):
         {
             "book": book,
             "is_owner": is_owner,
+            "progress": progress,
             "annotation_count": Annotation.objects.filter(layer=layer).count() if layer else 0,
+            "teacher_layers": teacher_layers,
+            "publish_form": _publish_form(request.user, book, layer),
             "share_links": ShareLink.objects.filter(book=book, created_by=request.user)
             if is_owner
             else ShareLink.objects.none(),
@@ -294,18 +365,49 @@ def book_reader_view(request, pk):
         if layer
         else Annotation.objects.none()
     )
+    note_groups = list(layer.note_groups.all()) if layer else []
+    progress = (
+        ReadingProgress.objects.filter(book=book, user=request.user).first()
+        if request.user.is_authenticated
+        else None
+    )
 
     return render(
         request,
         "book_library/book_reader.html",
         {
             "book": book,
+            "progress": progress,
             "annotations": annotations,
             "login_url": reverse("accounts:login"),
             "palette": Annotation.PALETTE,
+            "max_note_length": MAX_NOTE_LENGTH,
             "annotations_data": [serialize_annotation(a) for a in annotations],
+            "note_groups_data": [serialize_note_group(group) for group in note_groups],
+            "shared_layers_data": serialize_shared_layers(
+                shared_layers(request.user, request.session).filter(book=book),
+                shared_annotations(request.user, request.session).filter(layer__book=book),
+            ),
         },
     )
+
+
+@login_required
+@require_POST
+def book_progress_view(request, pk):
+    book = get_object_or_404(visible_books(request.user, request.session), pk=pk)
+    try:
+        payload = json.loads(request.body or b"{}")
+        if not isinstance(payload, dict):
+            raise PayloadError("очікується JSON-об'єкт")
+        page = parse_page_number(payload.get("page"), book.page_count, field="page")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "тіло запиту не є коректним JSON"}, status=400)
+    except PayloadError as error:
+        return JsonResponse({"error": str(error)}, status=400)
+
+    record_progress(request.user, book, page)
+    return HttpResponse(status=204)
 
 
 @login_required

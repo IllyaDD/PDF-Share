@@ -3,8 +3,9 @@ import re
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 MAX_RECTS = 200
-MAX_NOTE_LENGTH = 2000
+MAX_NOTE_LENGTH = 1000
 MAX_SELECTED_TEXT_LENGTH = 5000
+MAX_GROUP_NAME_LENGTH = 100
 RECT_KEYS = ("x0", "y0", "x1", "y1")
 LINE_TOLERANCE = 1.0
 JOIN_TOLERANCE = 0.25
@@ -79,11 +80,11 @@ def parse_color(raw):
     return raw.upper()
 
 
-def parse_page_number(raw, page_count):
+def parse_page_number(raw, page_count, field="page_number"):
     if isinstance(raw, bool) or not isinstance(raw, int):
-        raise PayloadError("page_number: очікується ціле число")
+        raise PayloadError(f"{field}: очікується ціле число")
     if raw < 1 or (page_count and raw > page_count):
-        raise PayloadError(f"page_number: поза межами документа (1..{page_count})")
+        raise PayloadError(f"{field}: поза межами документа (1..{page_count})")
     return raw
 
 
@@ -94,6 +95,25 @@ def parse_text(raw, field, limit):
         raise PayloadError(f"{field}: очікується рядок")
     if len(raw) > limit:
         raise PayloadError(f"{field}: задовгий текст (максимум {limit})")
+    return raw
+
+
+def parse_group_name(raw):
+    if not isinstance(raw, str):
+        raise PayloadError("name: очікується рядок")
+    name = raw.strip()
+    if not name:
+        raise PayloadError("name: назва теми не може бути порожньою")
+    if len(name) > MAX_GROUP_NAME_LENGTH:
+        raise PayloadError(f"name: задовга назва (максимум {MAX_GROUP_NAME_LENGTH})")
+    return name
+
+
+def parse_group_id(raw):
+    if raw is None:
+        return None
+    if isinstance(raw, bool) or not isinstance(raw, int) or raw < 1:
+        raise PayloadError("group: очікується id теми або null")
     return raw
 
 
@@ -116,7 +136,8 @@ def parse_annotation_update(payload):
     if not isinstance(payload, dict):
         raise PayloadError("очікується JSON-об'єкт")
 
-    allowed = {"color", "note_text"}
+    # group перевіряє groups.group_fields(): для неї потрібні книга й власник.
+    allowed = {"color", "note_text", "group"}
     unknown = set(payload) - allowed
     if unknown:
         raise PayloadError(f"поля не можна змінювати: {', '.join(sorted(unknown))}")

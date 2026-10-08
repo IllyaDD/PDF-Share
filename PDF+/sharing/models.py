@@ -30,6 +30,24 @@ class ShareLink(models.Model):
         related_name="share_links",
     )
     expires_at = models.DateTimeField(null=True, blank=True)
+    # Отримувач бачить шар нотаток автора посилання — лише для читання.
+    include_annotations = models.BooleanField("з нотатками", default=False)
+
+    class AnnotationScope(models.TextChoices):
+        ALL = "all", "Усі нотатки"
+        SELECTED = "selected", "Лише обрані теми"
+
+    # Явний режим, а не «порожній note_groups = усі»: якщо автор видалить усі обрані
+    # теми, посилання має показувати нічого, а не весь шар.
+    annotation_scope = models.CharField(
+        "які нотатки", max_length=8, choices=AnnotationScope.choices, default=AnnotationScope.ALL
+    )
+    note_groups = models.ManyToManyField(
+        "annotations.NoteGroup",
+        blank=True,
+        related_name="share_links",
+        verbose_name="теми",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

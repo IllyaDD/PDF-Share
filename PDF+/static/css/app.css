@@ -76,6 +76,12 @@
   border-radius: 2px;
 }
 
+/* Чужий шар (нотатки вчителя) — лише для читання, позначаємо підкресленням. */
+.annotation-rect.is-readonly {
+  cursor: default;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .35);
+}
+
 .reader-side {
   width: 340px;
   overflow-y: auto;
@@ -213,4 +219,12 @@
   .annotation-rect.is-target {
     animation: none;
   }
+}
+
+/* Чипи тем нотаток: довга назва обрізається, а не розпирає панель. */
+.topic-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

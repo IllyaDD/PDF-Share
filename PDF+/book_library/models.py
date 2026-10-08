@@ -80,3 +80,44 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ReadingProgress(models.Model):
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reading_progress",
+    )
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name="reading_progress",
+    )
+    last_page = models.PositiveIntegerField()
+    read_at = models.DateTimeField(
+        help_text="Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "library_readingprogress"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"],
+                name="unique_progress_per_user_book",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "-read_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} — {self.book}: с.{self.last_page}"
+
+    @property
+    def percent(self):
+        page_count = self.book.page_count
+        if not page_count:
+            return 0
+        return min(self.last_page * 100 // page_count, 100)

@@ -11,7 +11,7 @@ def remember_share_token(session, token):
         session[SESSION_TOKENS_KEY] = tokens + [token]
 
 
-def _live_share_links(session):
+def live_share_links(session):
     from sharing.models import ShareLink
 
     tokens = session.get(SESSION_TOKENS_KEY, []) if session is not None else []
@@ -76,7 +76,7 @@ def shared_folder_ids(user, session=None):
             ).values_list("pk", flat=True)
         )
 
-    roots.update(link.folder_id for link in _live_share_links(session) if link.folder_id)
+    roots.update(link.folder_id for link in live_share_links(session) if link.folder_id)
 
     return _with_descendants(roots) if roots else set()
 
@@ -91,7 +91,7 @@ def shared_book_ids(user, session=None):
             ).values_list("pk", flat=True)
         )
 
-    ids.update(link.book_id for link in _live_share_links(session) if link.book_id)
+    ids.update(link.book_id for link in live_share_links(session) if link.book_id)
 
     return ids
 

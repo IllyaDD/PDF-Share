@@ -6,9 +6,13 @@ if (viewer) {
 
   const MIN_SCALE = 0.5;
   const MAX_SCALE = 3;
+  // Сторінка вважається поточною, щойно її верх підійшов до верху в'юера ближче за цей відступ.
+  const PAGE_ANCHOR_OFFSET = 40;
+  const PROGRESS_SAVE_DELAY = 1500;
 
   const canAnnotate = viewer.dataset.canAnnotate === "1";
   const csrfToken = viewer.dataset.csrfToken;
+  const progressUrl = viewer.dataset.progressUrl;
   const palette = document.getElementById("highlightPalette");
   const popover = document.getElementById("annotationPopover");
   const sidebar = document.getElementById("annotationList");
@@ -17,13 +21,32 @@ if (viewer) {
   const filterChips = filterBar?.querySelector("[data-filter-chips]");
   const filterSummary = filterBar?.querySelector("[data-filter-summary]");
   const filterReset = filterBar?.querySelector("[data-filter-reset]");
+  const layerSwitch = document.getElementById("layerSwitch");
+  const layerTitle = document.querySelector("[data-layer-title]");
+  const topicSwitch = document.getElementById("topicSwitch");
+  const topicChips = topicSwitch?.querySelector("[data-topic-chips]");
+  const topicAdd = topicSwitch?.querySelector("[data-topic-add]");
+  const topicForm = topicSwitch?.querySelector("[data-topic-form]");
+  const topicHint = topicSwitch?.querySelector("[data-topic-hint]");
+  const topicError = topicSwitch?.querySelector("[data-topic-error]");
+  const popoverTopicChips = popover?.querySelector("[data-popover-topic-chips]");
+  const popoverTopicForm = popover?.querySelector("[data-popover-topic-form]");
+  const TOPIC_STORAGE_KEY = `pdfplus:topic:${viewer.dataset.bookId}`;
 
+  // Власний шар: лише його змінюють палітра, попап і запити до API.
   const annotations = new Map();
+  // Шари вчителів — з публікації для групи читача або з посилання «з нотатками»: лише для читання.
+  const sharedLayers = new Map();
   const pageViewports = new Map();
   const pageDivs = new Map();
 
   const hiddenColors = new Set();
   const chipNodes = new Map();
+
+  // Теми власного шару. activeTopic — "all" | "none" | id теми рядком:
+  // і куди йдуть нові виділення, і що показується.
+  const noteGroups = new Map();
+  let activeTopic = "all";
 
   let pdf = null;
   let scale = 1;
@@ -32,12 +55,42 @@ if (viewer) {
   let navId = null;
   let flashTimer = null;
 
+  // До стартового позиціювання й під час reflow в'юер стоїть на верху документа —
+  // без цього прапорця трекер записав би с. 1 поверх збереженого прогресу.
+  let tracking = false;
+  let currentPage = 0;
+  let savedPage = Number(viewer.dataset.lastPage) || 0;
+  let saveTimer = null;
+  let trackFrame = 0;
+
   const dataNode = document.getElementById("annotations-data");
   if (dataNode) {
     for (const item of JSON.parse(dataNode.textContent)) {
       annotations.set(item.id, item);
     }
   }
+
+  const sharedNode = document.getElementById("shared-layers-data");
+  if (sharedNode) {
+    for (const layer of JSON.parse(sharedNode.textContent)) {
+      sharedLayers.set(layer.id, {
+        id: layer.id,
+        owner: layer.owner,
+        annotations: new Map(layer.annotations.map((item) => [item.id, item])),
+      });
+    }
+  }
+
+  const groupsNode = document.getElementById("note-groups-data");
+  if (groupsNode) {
+    for (const group of JSON.parse(groupsNode.textContent)) {
+      noteGroups.set(group.id, group);
+    }
+  }
+
+  // Шар, що зараз на сторінках, у панелі та у фільтрах.
+  let shown = annotations;
+  const ownShown = () => shown === annotations;
 
   const paletteLabels = new Map();
   const paletteNode = document.getElementById("palette-data");
@@ -47,18 +100,33 @@ if (viewer) {
     }
   }
 
-  const isVisible = (annotation) => !hiddenColors.has(annotation.color);
+  // Теми — лише у власному шарі; на чужих шарах фільтр тем не діє.
+  function matchesTopic(annotation) {
+    if (!ownShown() || activeTopic === "all") {
+      return true;
+    }
+    if (activeTopic === "none") {
+      return annotation.group === null;
+    }
+    return annotation.group === Number(activeTopic);
+  }
+
+  const isVisible = (annotation) =>
+    !hiddenColors.has(annotation.color) && matchesTopic(annotation);
+
+  const topicScoped = () => [...shown.values()].filter(matchesTopic);
 
   const byPageThenId = (a, b) => a.page - b.page || a.id - b.id;
 
   function visibleSorted() {
-    return [...annotations.values()].filter(isVisible).sort(byPageThenId);
+    return [...shown.values()].filter(isVisible).sort(byPageThenId);
   }
 
-  async function request(url, method, body) {
+  async function request(url, method, body, { keepalive = false } = {}) {
     const response = await fetch(url, {
       method,
       credentials: "same-origin",
+      keepalive,
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
@@ -113,8 +181,9 @@ if (viewer) {
     }
 
     layer.replaceChildren();
+    const readonly = !ownShown();
 
-    for (const annotation of annotations.values()) {
+    for (const annotation of shown.values()) {
       if (annotation.page !== pageNumber || !isVisible(annotation)) {
         continue;
       }
@@ -122,7 +191,7 @@ if (viewer) {
       for (const coords of annotation.coords || []) {
         const rect = toViewportRect(coords, viewport);
         const mark = document.createElement("div");
-        mark.className = "annotation-rect";
+        mark.className = readonly ? "annotation-rect is-readonly" : "annotation-rect";
         mark.dataset.annotationId = String(annotation.id);
         mark.style.left = `${rect.left}px`;
         mark.style.top = `${rect.top}px`;
@@ -188,28 +257,30 @@ if (viewer) {
   function renderSidebar() {
     const sorted = visibleSorted();
 
+    const total = topicScoped().length;
     if (counter) {
-
-      counter.textContent = hiddenColors.size
-        ? `${sorted.length}/${annotations.size}`
-        : String(annotations.size);
+      counter.textContent = hiddenColors.size ? `${sorted.length}/${total}` : String(total);
     }
     if (!sidebar) {
       return;
     }
 
     if (!sorted.length) {
-
-      if (sidebar.dataset.jsOwned !== "1" && !hiddenColors.size) {
+      const topicFiltered = ownShown() && activeTopic !== "all";
+      if (sidebar.dataset.jsOwned !== "1" && !hiddenColors.size && !topicFiltered) {
         return;
       }
 
       sidebar.dataset.jsOwned = "1";
       const empty = document.createElement("p");
       empty.className = "text-body-secondary small text-center py-4 mb-0";
-      empty.textContent = hiddenColors.size
-        ? "Усі мітки сховані фільтром."
-        : "Нотаток ще немає.";
+      if (hiddenColors.size) {
+        empty.textContent = "Усі мітки сховані фільтром.";
+      } else if (topicFiltered) {
+        empty.textContent = "У цій темі нотаток ще немає.";
+      } else {
+        empty.textContent = ownShown() ? "Нотаток ще немає." : "У цьому шарі нотаток немає.";
+      }
       sidebar.replaceChildren(empty);
       return;
     }
@@ -251,7 +322,7 @@ if (viewer) {
 
   function colorCounts() {
     const counts = new Map();
-    for (const annotation of annotations.values()) {
+    for (const annotation of topicScoped()) {
       counts.set(annotation.color, (counts.get(annotation.color) || 0) + 1);
     }
     return counts;
@@ -303,9 +374,10 @@ if (viewer) {
     }
 
     if (filterSummary) {
+      const total = topicScoped().length;
       filterSummary.textContent = hiddenColors.size
-        ? `${visibleSorted().length} з ${annotations.size}`
-        : `${annotations.size} міток`;
+        ? `${visibleSorted().length} з ${total}`
+        : `${total} міток`;
     }
     filterReset?.classList.toggle("d-none", hiddenColors.size === 0);
   }
@@ -324,8 +396,116 @@ if (viewer) {
     renderFilters(counts);
   }
 
+  function sortedGroups() {
+    return [...noteGroups.values()].sort((a, b) => a.name.localeCompare(b.name, "uk"));
+  }
+
+  function buildTopicChip(value, label, active) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `btn btn-sm rounded-pill topic-chip ${active ? "btn-primary" : "btn-outline-secondary"}`;
+    chip.dataset.topic = value;
+    chip.setAttribute("aria-pressed", String(active));
+    chip.textContent = label;
+    return chip;
+  }
+
+  function renderTopics() {
+    if (topicChips) {
+      topicChips.replaceChildren(
+        buildTopicChip("all", "Усі", activeTopic === "all"),
+        buildTopicChip("none", "Без групи", activeTopic === "none"),
+        ...sortedGroups().map((group) =>
+          buildTopicChip(String(group.id), group.name, activeTopic === String(group.id)),
+        ),
+      );
+    }
+    if (topicHint) {
+      const group = noteGroups.get(Number(activeTopic));
+      topicHint.textContent = group
+        ? `Нові виділення потрапляють у тему «${group.name}».`
+        : "Нові виділення потрапляють у «Без групи».";
+    }
+  }
+
+  // Чипи тем у поповері: поточна тема нотатки + «+ Нова» з інлайн-полем.
+  function renderPopoverTopics(annotation) {
+    if (!popoverTopicChips || !annotation) {
+      return;
+    }
+    const current = annotation.group === null ? "none" : String(annotation.group);
+    const add = buildTopicChip("new", "+ Нова", false);
+    add.classList.replace("btn-outline-secondary", "btn-outline-primary");
+    popoverTopicChips.replaceChildren(
+      buildTopicChip("none", "Без групи", current === "none"),
+      ...sortedGroups().map((group) =>
+        buildTopicChip(String(group.id), group.name, current === String(group.id)),
+      ),
+      add,
+    );
+  }
+
+  function hidePopoverTopicForm() {
+    if (popoverTopicForm) {
+      popoverTopicForm.classList.add("d-none");
+      popoverTopicForm.querySelector("[data-popover-topic-name]").value = "";
+    }
+  }
+
+  function setTopic(key) {
+    activeTopic = key === "none" || noteGroups.has(Number(key)) ? String(key) : "all";
+    try {
+      localStorage.setItem(TOPIC_STORAGE_KEY, activeTopic);
+    } catch {
+      // Сховище недоступне (приватний режим) — тема просто не запам'ятається.
+    }
+    navId = null;
+    renderTopics();
+    refresh();
+  }
+
+  const newHighlightGroup = () =>
+    noteGroups.has(Number(activeTopic)) ? Number(activeTopic) : null;
+
+  async function createTopic(name) {
+    const group = await request(viewer.dataset.noteGroupsUrl, "POST", { name });
+    noteGroups.set(group.id, group);
+    return group;
+  }
+
+  function showLayer(key) {
+    const layer = key === "own" ? null : sharedLayers.get(Number(key));
+    if (key !== "own" && !layer) {
+      return;
+    }
+
+    shown = layer ? layer.annotations : annotations;
+    hiddenColors.clear();
+    navId = null;
+    hidePopover();
+    if (sidebar) {
+      sidebar.dataset.jsOwned = "1";
+    }
+
+    const activeKey = layer ? String(layer.id) : "own";
+    layerSwitch?.querySelectorAll("[data-layer]").forEach((button) => {
+      const active = button.dataset.layer === activeKey;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    layerSwitch?.querySelector("[data-layer-readonly]")?.classList.toggle("d-none", !layer);
+    document
+      .querySelectorAll("[data-own-only]")
+      .forEach((node) => node.classList.toggle("d-none", Boolean(layer)));
+    if (layerTitle) {
+      layerTitle.textContent = layer ? `Нотатки: ${layer.owner}` : "Мої нотатки";
+    }
+
+    refresh();
+  }
+
   async function focusAnnotation(id, behavior = "smooth") {
-    const annotation = annotations.get(id);
+    const annotation = shown.get(id);
     if (!annotation) {
       return;
     }
@@ -442,11 +622,17 @@ if (viewer) {
       const created = await request(viewer.dataset.annotationsUrl, "POST", {
         ...payload,
         color,
+        group: newHighlightGroup(),
       });
       annotations.set(created.id, created);
 
-      hiddenColors.delete(created.color);
-      refresh();
+      if (ownShown()) {
+        hiddenColors.delete(created.color);
+        refresh();
+      } else {
+        // Нове виділення завжди потрапляє у власний шар — показуємо саме його.
+        showLayer("own");
+      }
       window.getSelection()?.removeAllRanges();
     } catch (error) {
       alert(`Не вдалося зберегти виділення: ${error.message}`);
@@ -464,6 +650,8 @@ if (viewer) {
     activeId = id;
     popover.querySelector("[data-note]").value = annotation.note || "";
     popover.querySelector("[data-status]").textContent = "";
+    hidePopoverTopicForm();
+    renderPopoverTopics(annotation);
     popover.querySelectorAll(".swatch").forEach((swatch) => {
       swatch.classList.toggle("is-active", swatch.dataset.color === annotation.color);
     });
@@ -554,6 +742,71 @@ if (viewer) {
     drawPage(pageNumber);
   }
 
+  function pageAtTop() {
+    const total = pageDivs.size;
+    if (!total) {
+      return 0;
+    }
+    if (
+      viewer.scrollTop > 0 &&
+      viewer.scrollTop + viewer.clientHeight >= viewer.scrollHeight - 2
+    ) {
+      return total;
+    }
+
+    const anchor = viewer.getBoundingClientRect().top + PAGE_ANCHOR_OFFSET;
+    let low = 1;
+    let high = total;
+    let found = 1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if (pageDivs.get(middle).getBoundingClientRect().top <= anchor) {
+        found = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return found;
+  }
+
+  function saveProgress({ keepalive = false } = {}) {
+    clearTimeout(saveTimer);
+    const page = currentPage;
+    if (!progressUrl || !page || page === savedPage) {
+      return;
+    }
+    savedPage = page;
+    request(progressUrl, "POST", { page }, { keepalive }).catch(() => {
+      // Наступна зміна сторінки чи закриття вкладки спробує ще раз.
+      if (savedPage === page) {
+        savedPage = 0;
+      }
+    });
+  }
+
+  function trackCurrentPage() {
+    if (!tracking) {
+      return;
+    }
+    const page = pageAtTop();
+    if (!page || page === currentPage) {
+      return;
+    }
+    currentPage = page;
+    viewer.dispatchEvent(new CustomEvent("reader:current", { detail: { page } }));
+
+    if (progressUrl) {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveProgress, PROGRESS_SAVE_DELAY);
+    }
+  }
+
+  async function goToPage(pageNumber) {
+    await renderPage(pageNumber);
+    pageDivs.get(pageNumber)?.scrollIntoView({ block: "start" });
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -586,6 +839,28 @@ if (viewer) {
     }
   }
 
+  viewer.addEventListener(
+    "scroll",
+    () => {
+      if (!trackFrame) {
+        trackFrame = requestAnimationFrame(() => {
+          trackFrame = 0;
+          trackCurrentPage();
+        });
+      }
+    },
+    { passive: true },
+  );
+
+  if (progressUrl) {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        saveProgress({ keepalive: true });
+      }
+    });
+    window.addEventListener("pagehide", () => saveProgress({ keepalive: true }));
+  }
+
   viewer.addEventListener("reader:page", (event) => {
     pageDivs.get(event.detail.page)?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
@@ -610,12 +885,19 @@ if (viewer) {
       return;
     }
     hiddenColors.clear();
-    for (const annotation of annotations.values()) {
+    for (const annotation of shown.values()) {
       if (annotation.color !== chip.dataset.filterColor) {
         hiddenColors.add(annotation.color);
       }
     }
     refresh();
+  });
+
+  layerSwitch?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-layer]");
+    if (button) {
+      showLayer(button.dataset.layer);
+    }
   });
 
   filterReset?.addEventListener("click", () => {
@@ -638,7 +920,15 @@ if (viewer) {
     scale = next;
     hidePalette();
     hidePopover();
+
+    const keepPage = currentPage;
+    tracking = false;
     await reflow();
+    if (keepPage) {
+      await goToPage(keepPage);
+    }
+    tracking = true;
+    trackCurrentPage();
   });
 
   if (canAnnotate) {
@@ -654,7 +944,8 @@ if (viewer) {
           .find((node) => node.classList?.contains("annotation-rect"));
 
         hidePalette();
-        if (mark) {
+        // Чужі мітки без попапу редагування: коментар видно в підказці й у панелі.
+        if (mark && ownShown()) {
           openPopover(Number(mark.dataset.annotationId), event.clientX, event.clientY);
         } else {
           hidePopover();
@@ -699,6 +990,84 @@ if (viewer) {
       }
     });
 
+    topicChips?.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-topic]");
+      if (chip) {
+        setTopic(chip.dataset.topic);
+      }
+    });
+
+    topicAdd?.addEventListener("click", () => {
+      topicForm?.classList.remove("d-none");
+      topicForm?.querySelector("[data-topic-name]")?.focus();
+    });
+
+    topicForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = topicForm.querySelector('[type="submit"]');
+      // Подвійний Enter інакше шле два POST: другий отримає «тема вже є».
+      if (submit.disabled) {
+        return;
+      }
+      submit.disabled = true;
+      const input = topicForm.querySelector("[data-topic-name]");
+      try {
+        const group = await createTopic(input.value);
+        input.value = "";
+        topicError.textContent = "";
+        topicForm.classList.add("d-none");
+        setTopic(String(group.id));
+      } catch (error) {
+        topicError.textContent = error.message;
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    topicForm?.querySelector("[data-topic-cancel]")?.addEventListener("click", () => {
+      topicForm.classList.add("d-none");
+      topicError.textContent = "";
+    });
+
+    async function moveActiveTo(groupId) {
+      await patchActive({ group: groupId }, "Тему змінено");
+      // Нотатка, що вийшла з показаної теми, зникає, а поповер закривається в refresh().
+      renderPopoverTopics(annotations.get(activeId));
+    }
+
+    popoverTopicChips?.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-topic]");
+      if (!chip) {
+        return;
+      }
+      if (chip.dataset.topic === "new") {
+        popoverTopicForm?.classList.remove("d-none");
+        popoverTopicForm?.querySelector("[data-popover-topic-name]")?.focus();
+        return;
+      }
+      moveActiveTo(chip.dataset.topic === "none" ? null : Number(chip.dataset.topic));
+    });
+
+    popoverTopicForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = popoverTopicForm.querySelector('[type="submit"]');
+      if (submit.disabled) {
+        return;
+      }
+      submit.disabled = true;
+      const input = popoverTopicForm.querySelector("[data-popover-topic-name]");
+      try {
+        const group = await createTopic(input.value);
+        hidePopoverTopicForm();
+        renderTopics();
+        await moveActiveTo(group.id);
+      } catch (error) {
+        popover.querySelector("[data-status]").textContent = error.message;
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         hidePalette();
@@ -707,22 +1076,56 @@ if (viewer) {
     });
   }
 
+  let storedTopic = null;
+  try {
+    storedTopic = localStorage.getItem(TOPIC_STORAGE_KEY);
+  } catch {
+    // Сховище недоступне — стартуємо з «Усі теми».
+  }
+  if (storedTopic === "none" || noteGroups.has(Number(storedTopic))) {
+    activeTopic = storedTopic;
+  }
+  renderTopics();
+
   try {
 
     pdf = await pdfjsLib.getDocument({ url: viewer.dataset.fileUrl }).promise;
     await reflow();
-    refresh();
 
     const params = new URLSearchParams(location.search);
     const targetId = Number(params.get("annotation"));
     const targetPage = Number(params.get("page"));
+    const lastPage = Number(viewer.dataset.lastPage);
 
-    if (targetId && annotations.has(targetId)) {
+    // ?annotation= на власну нотатку з іншої теми: показуємо всі теми, інакше мітки не буде.
+    const ownTarget = annotations.get(targetId);
+    if (ownTarget && !matchesTopic(ownTarget)) {
+      activeTopic = "all";
+      renderTopics();
+    }
+
+    // ?annotation= з чужого шару відкриває той шар; інакше — шар із ?layer=.
+    const holder =
+      targetId && !annotations.has(targetId)
+        ? [...sharedLayers.values()].find((layer) => layer.annotations.has(targetId))
+        : null;
+    const initialLayer = holder?.id ?? Number(params.get("layer"));
+    if (sharedLayers.has(initialLayer)) {
+      showLayer(initialLayer);
+    } else {
+      refresh();
+    }
+
+    if (targetId && shown.has(targetId)) {
       await focusAnnotation(targetId, "auto");
     } else if (targetPage >= 1 && targetPage <= pdf.numPages) {
-      await renderPage(targetPage);
-      pageDivs.get(targetPage)?.scrollIntoView({ block: "start" });
+      await goToPage(targetPage);
+    } else if (lastPage > 1 && lastPage <= pdf.numPages) {
+      await goToPage(lastPage);
     }
+
+    tracking = true;
+    trackCurrentPage();
   } catch (error) {
     viewer.replaceChildren();
     const message = document.createElement("div");

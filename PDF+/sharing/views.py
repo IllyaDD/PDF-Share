@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from annotations.models import Layer
 from book_library.access import remember_share_token
 
 from .forms import GroupAccessForm, GroupForm, MembershipForm, ShareLinkForm
@@ -211,7 +212,9 @@ def link_list_view(request):
         request,
         "sharing/link_list.html",
         {
-            "links": ShareLink.objects.filter(created_by=request.user).select_related("book", "folder"),
+            "links": ShareLink.objects.filter(created_by=request.user)
+            .select_related("book", "folder")
+            .prefetch_related("note_groups"),
             "create_url": reverse("sharing:link_create"),
             "page_title": "Посилання",
         },
@@ -225,12 +228,14 @@ def link_create_view(request):
         for field in ("book", "folder"):
             if request.GET.get(field):
                 form.initial[field] = request.GET[field]
+        form.initial["include_annotations"] = request.GET.get("annotations") == "1"
 
     if request.method == "POST" and form.is_valid():
         link = form.save(commit=False)
         link.created_by = request.user
         link.token = secrets.token_urlsafe(32)
         link.save()
+        form.save_m2m()
         messages.success(request, "Посилання створено.")
         return redirect("sharing:link_list")
 
@@ -260,11 +265,16 @@ def share_view(request, token):
     link = ShareLink.objects.filter(token=token).select_related("book", "folder").first()
 
     error = None
+    layer = None
     if link is None:
         error = "Посилання не існує або було відкликане."
     elif link.is_expired:
         error = "Термін дії посилання минув."
     else:
         remember_share_token(request.session, token)
+        if link.include_annotations and link.book_id:
+            layer = Layer.objects.filter(book_id=link.book_id, owner_id=link.created_by_id).first()
 
-    return render(request, "sharing/share_view.html", {"link": link, "error": error})
+    return render(
+        request, "sharing/share_view.html", {"link": link, "layer": layer, "error": error}
+    )

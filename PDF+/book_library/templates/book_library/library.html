@@ -35,13 +35,21 @@
 
   {% if query %}
     <h2 class="h6 text-body-secondary text-uppercase mb-3">
-      Знайдено за «{{ query }}»: {{ books|length }}
+      Знайдено за «{{ query }}»: {{ result_count }}
     </h2>
+    {% if folders %}
+      <h3 class="h6 text-body-secondary mb-2">Теки</h3>
+      <div class="row g-3 mb-4">
+        {% for folder in folders %}{% include "partials/folder_card.html" with show_path=True %}{% endfor %}
+      </div>
+    {% endif %}
     {% if books %}
+      {% if folders %}<h3 class="h6 text-body-secondary mb-2">Книги</h3>{% endif %}
       <div class="row g-3">
         {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
       </div>
-    {% else %}
+    {% endif %}
+    {% if not result_count %}
       {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Спробуйте іншу назву або скиньте пошук." action_url=request.path action_label="Скинути пошук" %}
     {% endif %}
   {% else %}

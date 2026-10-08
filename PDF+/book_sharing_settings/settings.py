@@ -100,7 +100,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'uk'
 
 TIME_ZONE = 'UTC'
 
@@ -160,11 +160,36 @@ GOOGLE_OAUTH_CLIENT_ID = config('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_OAUTH_CLIENT_SECRET = config('GOOGLE_OAUTH_CLIENT_SECRET', default='')
 
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Django 6.1 налаштовує пошту через MAILERS; старі EMAIL_HOST/EMAIL_* застарілі,
+# тому змінні оточення названі SMTP_*, а не EMAIL_*.
+# Порожній SMTP_HOST = листи друкуються в консоль (локальна розробка).
+SMTP_HOST = config('SMTP_HOST', default='')
+
+if SMTP_HOST:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': SMTP_HOST,
+                'port': config('SMTP_PORT', default=587, cast=int),
+                'username': config('SMTP_USER', default=''),
+                'password': config('SMTP_PASSWORD', default=''),
+                'use_tls': config('SMTP_USE_TLS', default=True, cast=bool),
+                'timeout': 10,
+            },
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
+
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PDF+ <noreply@localhost>')
+
+# Посилання для скидання пароля діє добу (дефолт Django — три).
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
 
 ADMIN_URL = config("ADMIN_SITE_URL", default="admin").strip("/") or "admin"

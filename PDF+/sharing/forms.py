@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from annotations.models import NoteGroup
 from book_library.models import Book, Folder
 
 from .models import Group, GroupAccess, GroupMembership, ShareLink
@@ -55,14 +56,41 @@ class MembershipForm(forms.Form):
         return username
 
 
+class NoteGroupCheckboxes(forms.CheckboxSelectMultiple):
+    """Чекбокси тем із data-book: скрипт форми лишає видимими теми обраної книги."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        instance = getattr(value, "instance", None)
+        if instance is not None:
+            option["attrs"]["data-book"] = instance.layer.book_id
+        return option
+
+
 class ShareLinkForm(forms.ModelForm):
 
     class Meta:
         model = ShareLink
-        fields = ("book", "folder", "expires_at")
-        labels = {"book": "Книга", "folder": "Тека", "expires_at": "Діє до"}
-        widgets = {"expires_at": forms.DateTimeInput(attrs={"type": "datetime-local"})}
-        help_texts = {"expires_at": "Порожньо — посилання безстрокове."}
+        fields = ("book", "folder", "include_annotations", "note_groups", "expires_at")
+        labels = {
+            "book": "Книга",
+            "folder": "Тека",
+            "include_annotations": "Що побачить отримувач",
+            "note_groups": "Які теми показати",
+            "expires_at": "Діє до",
+        }
+        widgets = {
+            "include_annotations": forms.RadioSelect(
+                choices=[(False, "Лише книгу"), (True, "Книгу з моїми нотатками")]
+            ),
+            "note_groups": NoteGroupCheckboxes,
+            "expires_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        }
+        help_texts = {
+            "include_annotations": "Нотатки відкриються окремим шаром, лише для читання.",
+            "note_groups": "Нічого не обрано — усі нотатки книги. Лише для посилання на книгу.",
+            "expires_at": "Порожньо — посилання безстрокове.",
+        }
 
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -77,11 +105,28 @@ class ShareLinkForm(forms.ModelForm):
         self.fields["folder"].empty_label = "— не обрано —"
         self.fields["expires_at"].widget.attrs["min"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
+        groups = (
+            NoteGroup.objects.none()
+            if owner is None
+            else NoteGroup.objects.filter(layer__owner=owner)
+            .select_related("layer__book")
+            .order_by("layer__book__title", "name")
+        )
+        if groups.exists():
+            self.fields["note_groups"].queryset = groups
+            self.fields["note_groups"].label_from_instance = (
+                lambda group: f"{group.layer.book.title} — {group.name}"
+            )
+        else:
+            del self.fields["note_groups"]
+
         self.helper = FormHelper()
         self.helper.form_method = "post"
         self.helper.layout = Layout(
             "book",
             "folder",
+            "include_annotations",
+            *(["note_groups"] if "note_groups" in self.fields else []),
             "expires_at",
             Submit("submit", "Створити посилання", css_class="btn btn-primary mt-3"),
         )
@@ -97,7 +142,28 @@ class ShareLinkForm(forms.ModelForm):
         book, folder = cleaned.get("book"), cleaned.get("folder")
         if bool(book) == bool(folder):
             raise forms.ValidationError("Оберіть рівно одне: книгу або теку.")
+
+        groups = cleaned.get("note_groups")
+        if groups:
+            if not book or not cleaned.get("include_annotations"):
+                raise forms.ValidationError(
+                    "Теми можна обрати лише для посилання на книгу з нотатками."
+                )
+            if any(group.layer.book_id != book.pk for group in groups):
+                self.add_error("note_groups", "Обрані теми мають належати обраній книзі.")
         return cleaned
+
+    def save(self, commit=True):
+        link = super().save(commit=False)
+        link.annotation_scope = (
+            ShareLink.AnnotationScope.SELECTED
+            if self.cleaned_data.get("note_groups")
+            else ShareLink.AnnotationScope.ALL
+        )
+        if commit:
+            link.save()
+            self.save_m2m()
+        return link
 
 
 class GroupAccessForm(forms.ModelForm):

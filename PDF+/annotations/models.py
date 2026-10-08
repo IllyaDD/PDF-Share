@@ -17,6 +17,12 @@ class Layer(models.Model):
         related_name="layers",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    shared_with_groups = models.ManyToManyField(
+        "sharing.Group",
+        through="LayerPublication",
+        related_name="shared_layers",
+        blank=True,
+    )
 
     class Meta:
         db_table = "annotations_layer"
@@ -29,6 +35,64 @@ class Layer(models.Model):
 
     def __str__(self):
         return f"Шар {self.owner} — {self.book}"
+
+
+class LayerPublication(models.Model):
+    """Шар, відкритий учасникам групи для читання. Публікує лише власник групи."""
+
+    layer = models.ForeignKey(
+        Layer,
+        on_delete=models.CASCADE,
+        related_name="publications",
+    )
+    group = models.ForeignKey(
+        "sharing.Group",
+        on_delete=models.CASCADE,
+        related_name="layer_publications",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "annotations_layerpublication"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["layer", "group"],
+                name="unique_publication_per_layer_group",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.layer} → {self.group}"
+
+
+class NoteGroup(models.Model):
+    """Тема нотаток у межах шару: одна книга, один власник.
+
+    Видаляти лише через annotations.groups.delete_note_group() — інакше SET_NULL
+    не оновить updated_at нотаток, і дельта синку їх не побачить.
+    """
+
+    layer = models.ForeignKey(
+        Layer,
+        on_delete=models.CASCADE,
+        related_name="note_groups",
+    )
+    name = models.CharField("назва", max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "annotations_notegroup"
+        ordering = ["name", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["layer", "name"],
+                name="unique_note_group_per_layer",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
 
 
 class Annotation(models.Model):
@@ -61,6 +125,14 @@ class Annotation(models.Model):
     selected_text = models.TextField(blank=True)
     note_text = models.TextField(blank=True)
     color = models.CharField(max_length=7, default="#FFEB3B")
+    # Тема нотатки; null — «Без групи».
+    group = models.ForeignKey(
+        NoteGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="annotations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -34,11 +34,23 @@ class GroupAdmin(ModelAdmin):
 
 @admin.register(ShareLink)
 class ShareLinkAdmin(ModelAdmin):
-    list_display = ("token", "book", "folder", "created_by", "expires_at", "status", "created_at")
-    list_filter = ("expires_at", "created_at")
+    list_display = (
+        "token",
+        "book",
+        "folder",
+        "created_by",
+        "include_annotations",
+        "expires_at",
+        "status",
+        "created_at",
+    )
+    list_filter = ("include_annotations", "expires_at", "created_at")
     search_fields = ("token", "book__title", "folder__name", "created_by__username")
     autocomplete_fields = ("book", "folder", "created_by")
-    readonly_fields = ("token", "created_at")
+    # Теми й режим задає лише форма посилання (вона перевіряє книгу й власника тем);
+    # в адмінці — тільки перегляд, щоб не зібрати SELECTED-посилання з чужими темами.
+    exclude = ("note_groups",)
+    readonly_fields = ("token", "annotation_scope", "topics", "created_at")
     date_hierarchy = "created_at"
 
     @display(
@@ -47,3 +59,8 @@ class ShareLinkAdmin(ModelAdmin):
     )
     def status(self, link):
         return "Expired" if link.is_expired else "Active"
+
+    @display(description="Topics")
+    def topics(self, link):
+        groups = link.note_groups.select_related("layer__book")
+        return ", ".join(f"{group.layer.book.title} — {group.name}" for group in groups) or "—"

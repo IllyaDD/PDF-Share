@@ -25,7 +25,13 @@
               {{ link.book.page_count }} с. · {{ link.book.file_size|filesizeformat }}
               · від {{ link.created_by.username }}
             </p>
-            <a href="{% url 'book_library:book_reader' link.book.pk %}" class="btn btn-primary">
+            {% if layer %}
+              <p class="small mb-3">
+                <i class="bi bi-mortarboard me-1"></i>З нотатками автора — лише для читання.
+              </p>
+            {% endif %}
+            <a href="{% url 'book_library:book_reader' link.book.pk %}{% if layer %}?layer={{ layer.pk }}{% endif %}"
+               class="btn btn-primary">
               Відкрити книгу
             </a>
 
@@ -35,6 +41,11 @@
             <p class="text-body-secondary small mb-4">
               {{ link.folder.books.count }} книг · від {{ link.created_by.username }}
             </p>
+            {% if link.include_annotations %}
+              <p class="small mb-3">
+                <i class="bi bi-mortarboard me-1"></i>З нотатками автора — лише для читання.
+              </p>
+            {% endif %}
             <a href="{% url 'book_library:folder' link.folder.pk %}" class="btn btn-primary">
               Відкрити теку
             </a>

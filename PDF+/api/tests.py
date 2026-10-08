@@ -1,8 +1,13 @@
 import shutil
 import tempfile
+from datetime import timedelta
 
-from annotations.models import Annotation, Layer
-from book_library.models import Book, Folder
+from unittest.mock import patch
+
+from annotations.groups import create_note_group
+from annotations.models import Annotation, Layer, LayerPublication, NoteGroup
+from book_library.models import Book, Folder, ReadingProgress
+from book_library.progress import record_progress
 from book_sharing_settings.testing import FILESYSTEM_STORAGES
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -216,6 +221,81 @@ class SyncPullTests(ApiTestCase):
         self.assertEqual(naive.status_code, 400)
 
 
+class ProgressSyncTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Моя", page_count=20)
+        self.foreign_book = make_book(self.teacher, "Чужа", page_count=20)
+
+    def push(self, items):
+        response = self.client.post(
+            reverse("api:sync"), {"reading_progress": items}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def pull(self, since=None):
+        params = {"since": since.isoformat()} if since else {}
+        response = self.client.get(reverse("api:sync"), params)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()["reading_progress"]
+
+    def test_pull_full_and_delta(self):
+        record_progress(self.user, self.book, 4)
+        self.assertEqual([(p["book"], p["last_page"]) for p in self.pull()], [(self.book.pk, 4)])
+
+        since = timezone.now()
+        self.assertEqual(self.pull(since), [])
+        record_progress(self.user, self.book, 9)
+        self.assertEqual([p["last_page"] for p in self.pull(since)], [9])
+
+    def test_pull_hides_progress_for_revoked_book(self):
+        group = Group.objects.create(name="11-Г", owner=self.teacher)
+        GroupMembership.objects.create(group=group, user=self.user)
+        access = GroupAccess.objects.create(
+            group=group, book=self.foreign_book, granted_by=self.teacher
+        )
+        record_progress(self.user, self.foreign_book, 3)
+        self.assertEqual([p["book"] for p in self.pull()], [self.foreign_book.pk])
+
+        access.delete()
+        self.assertEqual(self.pull(), [])
+
+    def test_push_creates_progress(self):
+        read_at = timezone.now() - timedelta(minutes=5)
+        data = self.push([{"book": self.book.pk, "last_page": 12, "read_at": read_at.isoformat()}])
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(data["reading_progress"][0]["last_page"], 12)
+        progress = ReadingProgress.objects.get(user=self.user, book=self.book)
+        self.assertEqual(progress.last_page, 12)
+        self.assertEqual(progress.read_at, read_at)
+
+    def test_push_older_position_loses(self):
+        record_progress(self.user, self.book, 15)
+        stale = (timezone.now() - timedelta(days=1)).isoformat()
+        data = self.push([{"book": self.book.pk, "last_page": 2, "read_at": stale}])
+        self.assertEqual(data["reading_progress"][0]["last_page"], 15)
+        self.assertEqual(ReadingProgress.objects.get(user=self.user, book=self.book).last_page, 15)
+
+    def test_push_errors_are_per_item(self):
+        now = timezone.now().isoformat()
+        data = self.push(
+            [
+                {"book": self.foreign_book.pk, "last_page": 1, "read_at": now},
+                {"book": self.book.pk, "last_page": 99, "read_at": now},
+                {"book": self.book.pk, "last_page": 3, "read_at": "2026-09-18T10:00:00"},
+                {"book": self.book.pk, "last_page": 3, "read_at": now},
+            ]
+        )
+        self.assertEqual(len(data["errors"]), 3)
+        self.assertTrue(all(e["op"] == "progress" for e in data["errors"]))
+        self.assertEqual([p["last_page"] for p in data["reading_progress"]], [3])
+
+    def test_malformed_section_is_400(self):
+        response = self.client.post(reverse("api:sync"), {"reading_progress": {}}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+
 class SyncPushTests(ApiTestCase):
     def setUp(self):
         super().setUp()
@@ -300,6 +380,7 @@ class TombstoneTests(TestCase):
         self.client.delete(reverse("annotations:api_annotation_detail", args=[annotation.pk]))
         tombstone = DeletedAnnotation.objects.get(annotation_id=annotation.pk)
         self.assertEqual(tombstone.owner, user)
+        self.assertEqual(tombstone.layer_id, layer.pk)
 
     def test_book_delete_cascade_does_not_crash(self):
         user = User.objects.create_user(username="u", email="u@example.com", password="parol-parol-42")
@@ -308,3 +389,303 @@ class TombstoneTests(TestCase):
         Annotation.objects.create(layer=layer, page_number=1, coords=RECT)
         book.delete()
         self.assertFalse(Annotation.objects.exists())
+
+
+class SharedLayerSyncTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.group = Group.objects.create(name="9-А", owner=self.teacher)
+        self.membership = GroupMembership.objects.create(group=self.group, user=self.user)
+        self.book = make_book(self.teacher, "Географія")
+        GroupAccess.objects.create(group=self.group, book=self.book, granted_by=self.teacher)
+        self.old = self.annotate(self.book, owner=self.teacher, note_text="давня")
+        self.layer = self.old.layer
+
+    def publish(self):
+        return LayerPublication.objects.create(layer=self.layer, group=self.group)
+
+    def pull(self, since=None):
+        params = {"since": since.isoformat()} if since else {}
+        response = self.client.get(reverse("api:sync"), params)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def test_full_pull_includes_published_layer(self):
+        self.publish()
+        data = self.pull()
+        self.assertEqual(
+            data["shared_layers"],
+            [{"id": self.layer.pk, "book": self.book.pk, "owner": self.teacher.pk,
+              "owner_username": "vchytel"}],
+        )
+        self.assertEqual([a["id"] for a in data["shared_annotations"]], [self.old.pk])
+        self.assertEqual(data["shared_annotations"][0]["layer"], self.layer.pk)
+        # Власні анотації окремо: чужі туди не домішуються.
+        self.assertEqual(data["annotations"], [])
+
+    def test_unpublished_layer_is_not_sent(self):
+        data = self.pull()
+        self.assertEqual(data["shared_layers"], [])
+        self.assertEqual(data["shared_annotations"], [])
+
+    def test_delta_sends_only_changed_annotations(self):
+        self.publish()
+        since = timezone.now()
+        fresh = self.annotate(self.book, owner=self.teacher, note_text="нова")
+        data = self.pull(since)
+        self.assertEqual([a["id"] for a in data["shared_annotations"]], [fresh.pk])
+
+    def test_delta_after_publication_sends_whole_layer(self):
+        since = timezone.now()
+        self.publish()
+        data = self.pull(since)
+        self.assertEqual([a["id"] for a in data["shared_annotations"]], [self.old.pk])
+
+    def test_delta_after_joining_group_sends_whole_layer(self):
+        self.publish()
+        self.membership.delete()
+        since = timezone.now()
+        GroupMembership.objects.create(group=self.group, user=self.user)
+        data = self.pull(since)
+        self.assertEqual([a["id"] for a in data["shared_annotations"]], [self.old.pk])
+
+    def test_delta_reports_teacher_deletions_in_shared_layer_only(self):
+        self.publish()
+        private_book = make_book(self.teacher, "Особиста")
+        private = self.annotate(private_book, owner=self.teacher)
+        since = timezone.now()
+        old_pk, private_pk = self.old.pk, private.pk
+        self.old.delete()
+        private.delete()
+
+        data = self.pull(since)
+        self.assertEqual(data["deleted_annotation_ids"], [old_pk])
+        self.assertNotIn(private_pk, data["deleted_annotation_ids"])
+
+    def test_unpublishing_drops_layer_from_list(self):
+        publication = self.publish()
+        self.assertEqual(len(self.pull()["shared_layers"]), 1)
+        publication.delete()
+        self.assertEqual(self.pull()["shared_layers"], [])
+
+    def test_push_cannot_touch_teacher_annotation(self):
+        self.publish()
+        response = self.client.post(
+            reverse("api:sync"), {"annotations": {"delete": [self.old.pk]}}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Annotation.objects.filter(pk=self.old.pk).exists())
+
+
+class NoteGroupSyncTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Моя", page_count=5)
+        self.other_book = make_book(self.user, "Друга", page_count=5)
+        self.group = create_note_group(self.book, self.user, "Формули")
+        self.note = self.annotate(self.book, group=self.group)
+
+    def pull(self, since=None):
+        params = {"since": since.isoformat()} if since else {}
+        response = self.client.get(reverse("api:sync"), params)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def push(self, payload):
+        response = self.client.post(reverse("api:sync"), payload, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def test_pull_lists_groups_and_annotation_group(self):
+        data = self.pull()
+        self.assertEqual(
+            [(g["id"], g["book"], g["name"]) for g in data["note_groups"]],
+            [(self.group.pk, self.book.pk, "Формули")],
+        )
+        self.assertEqual(data["annotations"][0]["group"], self.group.pk)
+
+    def test_pull_lists_groups_fully_even_in_delta(self):
+        data = self.pull(timezone.now())
+        self.assertEqual([g["id"] for g in data["note_groups"]], [self.group.pk])
+
+    def test_shared_annotations_have_no_group(self):
+        group = Group.objects.create(name="9-А", owner=self.teacher)
+        GroupMembership.objects.create(group=group, user=self.user)
+        book = make_book(self.teacher, "Вчительська")
+        GroupAccess.objects.create(group=group, book=book, granted_by=self.teacher)
+        teacher_group = create_note_group(book, self.teacher, "Відповіді")
+        shared = self.annotate(book, owner=self.teacher, group=teacher_group)
+        LayerPublication.objects.create(layer=shared.layer, group=group)
+
+        notes = self.pull()["shared_annotations"]
+        self.assertEqual([n["id"] for n in notes], [shared.pk])
+        self.assertNotIn("group", notes[0])
+
+    def test_push_creates_group_and_annotation_into_it(self):
+        data = self.push(
+            {
+                "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": "Офлайн"}]},
+                "annotations": {
+                    "create": [
+                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                         "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
+                    ]
+                },
+            }
+        )
+        self.assertEqual(data["errors"], [])
+        created_group = data["note_groups"]["created"][0]
+        self.assertEqual(created_group["client_id"], "t1")
+        annotation = Annotation.objects.get(pk=data["created"][0]["id"])
+        self.assertEqual(annotation.group_id, created_group["id"])
+
+    def test_push_create_existing_name_reuses_topic(self):
+        # Та сама тема, створена офлайн на іншому пристрої (або повторений пуш):
+        # нотатки мають потрапити в наявну тему, а не загубитися в errors.
+        data = self.push(
+            {
+                "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": " Формули "}]},
+                "annotations": {
+                    "create": [
+                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                         "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
+                    ]
+                },
+            }
+        )
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(data["note_groups"]["created"][0]["id"], self.group.pk)
+        self.assertEqual(data["note_groups"]["created"][0]["client_id"], "t1")
+        self.assertEqual(NoteGroup.objects.filter(name="Формули").count(), 1)
+        annotation = Annotation.objects.get(pk=data["created"][0]["id"])
+        self.assertEqual(annotation.group, self.group)
+
+    def new_note_into(self, client_id):
+        return {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                "coords": RECT, "color": "#FFEB3B", "group_client_id": client_id}
+
+    def test_push_rename_then_create_same_name(self):
+        # Офлайн: «Формули» → «Старі формули», потім нова «Формули» з новою нотаткою.
+        data = self.push(
+            {
+                "note_groups": {
+                    "update": [{"id": self.group.pk, "name": "Старі формули"}],
+                    "create": [{"client_id": "t1", "book": self.book.pk, "name": "Формули"}],
+                },
+                "annotations": {"create": [self.new_note_into("t1")]},
+            }
+        )
+        self.assertEqual(data["errors"], [])
+        new_id = data["note_groups"]["created"][0]["id"]
+        self.assertNotEqual(new_id, self.group.pk)
+        self.assertEqual(Annotation.objects.get(pk=data["created"][0]["id"]).group_id, new_id)
+        self.group.refresh_from_db()
+        self.assertEqual(self.group.name, "Старі формули")
+
+    def test_push_delete_then_recreate_same_name(self):
+        data = self.push(
+            {
+                "note_groups": {
+                    "delete": [self.group.pk],
+                    "create": [{"client_id": "t1", "book": self.book.pk, "name": "Формули"}],
+                },
+                "annotations": {"create": [self.new_note_into("t1")]},
+            }
+        )
+        self.assertEqual(data["errors"], [])
+        new_group = NoteGroup.objects.get(name="Формули")
+        self.assertNotEqual(new_group.pk, self.group.pk)
+        self.assertEqual(Annotation.objects.get(pk=data["created"][0]["id"]).group, new_group)
+        self.note.refresh_from_db()
+        self.assertIsNone(self.note.group)
+
+    def test_push_update_into_group_deleted_in_same_push_keeps_other_fields(self):
+        # Клієнт переніс нотатку в тему, а потім видалив тему: текст не має загубитися.
+        data = self.push(
+            {
+                "note_groups": {"delete": [self.group.pk]},
+                "annotations": {
+                    "update": [{"id": self.note.pk, "group": self.group.pk, "note_text": "збережено"}]
+                },
+            }
+        )
+        self.assertEqual(data["errors"], [])
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.note_text, "збережено")
+        self.assertIsNone(self.note.group)
+
+    def test_push_group_client_id_of_other_book_or_unknown_is_error(self):
+        data = self.push(
+            {
+                "note_groups": {"create": [{"client_id": "t1", "book": self.other_book.pk, "name": "Інша"}]},
+                "annotations": {
+                    "create": [
+                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                         "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"},
+                        {"client_id": "a2", "book": self.book.pk, "page_number": 1,
+                         "coords": RECT, "color": "#FFEB3B", "group_client_id": "nema"},
+                    ]
+                },
+            }
+        )
+        self.assertEqual([e["client_id"] for e in data["errors"]], ["a1", "a2"])
+        self.assertEqual(Annotation.objects.count(), 1)  # лише self.note
+
+    def test_push_update_annotation_group(self):
+        second = create_note_group(self.book, self.user, "Задачі")
+        foreign = create_note_group(self.book, self.teacher, "Чужа")
+        data = self.push(
+            {"annotations": {"update": [{"id": self.note.pk, "group": second.pk}]}}
+        )
+        self.assertEqual(data["updated"][0]["group"], second.pk)
+
+        data = self.push(
+            {"annotations": {"update": [{"id": self.note.pk, "group": foreign.pk}]}}
+        )
+        self.assertEqual(data["errors"][0]["op"], "update")
+        self.note.refresh_from_db()
+        self.assertEqual(self.note.group, second)
+
+    def test_push_rename_duplicate_is_error_not_500(self):
+        create_note_group(self.book, self.user, "Задачі")
+        data = self.push(
+            {
+                "note_groups": {
+                    "update": [{"id": self.group.pk, "name": "Задачі"}],
+                    "create": [{"client_id": "t1", "book": self.book.pk, "name": "Нова"}],
+                }
+            }
+        )
+        self.assertEqual([e["op"] for e in data["errors"]], ["group_update"])
+        self.assertTrue(NoteGroup.objects.filter(name="Нова").exists())
+
+    def test_push_delete_group_frees_annotations_in_delta(self):
+        since = timezone.now()
+        data = self.push({"note_groups": {"delete": [self.group.pk]}})
+        self.assertEqual(data["note_groups"]["deleted"], [self.group.pk])
+
+        pulled = self.pull(since)
+        self.assertEqual(pulled["note_groups"], [])
+        self.assertEqual([(a["id"], a["group"]) for a in pulled["annotations"]], [(self.note.pk, None)])
+
+    def test_push_cannot_touch_foreign_group(self):
+        foreign = create_note_group(self.book, self.teacher, "Чужа")
+        data = self.push(
+            {"note_groups": {"update": [{"id": foreign.pk, "name": "Зламано"}], "delete": [foreign.pk]}}
+        )
+        self.assertEqual([e["op"] for e in data["errors"]], ["group_update"])
+        self.assertTrue(NoteGroup.objects.filter(pk=foreign.pk, name="Чужа").exists())
+
+    def test_group_ops_count_toward_batch_limit(self):
+        with patch("api.sync.MAX_BATCH_OPS", 1):
+            response = self.client.post(
+                reverse("api:sync"),
+                {"note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": "А"},
+                                            {"client_id": "t2", "book": self.book.pk, "name": "Б"}]}},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 400)
+
+    def test_bad_note_groups_section_is_400(self):
+        response = self.client.post(reverse("api:sync"), {"note_groups": []}, format="json")
+        self.assertEqual(response.status_code, 400)

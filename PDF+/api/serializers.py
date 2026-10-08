@@ -1,5 +1,5 @@
-from annotations.models import Annotation
-from book_library.models import Book, Folder
+from annotations.models import Annotation, Layer, NoteGroup
+from book_library.models import Book, Folder, ReadingProgress
 from rest_framework import serializers
 
 
@@ -50,6 +50,35 @@ class AnnotationSerializer(serializers.ModelSerializer):
             "selected_text",
             "note_text",
             "color",
+            "group",
             "created_at",
             "updated_at",
         ]
+
+
+class NoteGroupSerializer(serializers.ModelSerializer):
+    book = serializers.IntegerField(source="layer.book_id", read_only=True)
+
+    class Meta:
+        model = NoteGroup
+        fields = ["id", "book", "name", "created_at", "updated_at"]
+
+
+class SharedLayerSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(source="owner.username", read_only=True)
+
+    class Meta:
+        model = Layer
+        fields = ["id", "book", "owner", "owner_username"]
+
+
+class SharedAnnotationSerializer(AnnotationSerializer):
+    # Без group: учні бачать нотатки вчителя без його тем.
+    class Meta(AnnotationSerializer.Meta):
+        fields = [f for f in AnnotationSerializer.Meta.fields if f != "group"] + ["layer"]
+
+
+class ReadingProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReadingProgress
+        fields = ["book", "last_page", "read_at", "updated_at"]

@@ -832,6 +832,54 @@ class LibrarySearchTests(TestCase):
         response = self.client.get(reverse("book_library:library"), {"q": "алгебра"})
         self.assertNotContains(response, 'href="/library/folder/%d/"' % self.other.pk)
 
+    def _folder_link(self, folder):
+        return 'href="%s"' % reverse("book_library:folder", args=[folder.pk])
+
+    def test_default_scope_finds_folders_and_books(self):
+        Book.objects.create(owner=self.user, title="Історія України", file=make_pdf())
+        response = self.client.get(reverse("book_library:library"), {"q": "історі"})
+        self.assertContains(response, self._folder_link(self.other))
+        self.assertContains(response, "Історія України")
+        self.assertContains(response, "Алгебра історії")
+        self.assertEqual(response.context["result_count"], 3)
+
+    def test_folders_scope_skips_books(self):
+        response = self.client.get(
+            reverse("book_library:library"), {"q": "історі", "scope": "folders"}
+        )
+        self.assertContains(response, self._folder_link(self.other))
+        self.assertNotContains(response, "Алгебра історії")
+
+    def test_books_scope_skips_folders(self):
+        response = self.client.get(
+            reverse("book_library:library"), {"q": "історі", "scope": "books"}
+        )
+        self.assertNotContains(response, self._folder_link(self.other))
+        self.assertContains(response, "Алгебра історії")
+
+    def test_folder_search_covers_nested_folders_but_not_itself(self):
+        url = reverse("book_library:folder", args=[self.folder.pk])
+        response = self.client.get(url, {"q": "метрія", "scope": "folders"})
+        self.assertEqual(response.context["folders"], [self.subfolder])
+
+        response = self.client.get(url, {"q": "математика", "scope": "folders"})
+        self.assertEqual(response.context["folders"], [])
+
+    def test_folder_search_ignores_foreign_folders(self):
+        stranger = User.objects.create_user(
+            username="chuzhyi", email="ch@example.com", password="parol-parol-42"
+        )
+        Folder.objects.create(owner=stranger, name="Історія чужа")
+        response = self.client.get(reverse("book_library:library"), {"q": "історія чужа"})
+        self.assertEqual(response.context["folders"], [])
+
+    def test_unknown_scope_falls_back_to_all(self):
+        response = self.client.get(
+            reverse("book_library:library"), {"q": "історі", "scope": "garbage"}
+        )
+        self.assertEqual(response.context["search_scope"], "all")
+        self.assertContains(response, self._folder_link(self.other))
+
     def test_empty_result_message(self):
         response = self.client.get(reverse("book_library:library"), {"q": "хімія"})
         self.assertContains(response, "Нічого не знайдено")
@@ -1246,3 +1294,144 @@ class RenderCoversCommandTests(TestCase):
         call_command("render_covers", stdout=out)
         without.refresh_from_db()
         self.assertEqual(without.cover.name, first_name)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class ReadingProgressTests(TestCase):
+    def setUp(self):
+        from sharing.models import ShareLink
+
+        self.ShareLink = ShareLink
+        self.user = User.objects.create_user(
+            username="chytach", email="ch@example.com", password="parol-parol-42"
+        )
+        self.stranger = User.objects.create_user(
+            username="chuzhyi", email="chuzh@example.com", password="parol-parol-42"
+        )
+        self.book = Book.objects.create(
+            owner=self.user, title="Роман", file=make_pdf(), page_count=10
+        )
+        self.foreign_book = Book.objects.create(
+            owner=self.stranger, title="Чужа", file=make_pdf(), page_count=10
+        )
+        self.client.force_login(self.user)
+
+    def post_page(self, book, body):
+        import json
+
+        return self.client.post(
+            reverse("book_library:book_progress", args=[book.pk]),
+            data=body if isinstance(body, str) else json.dumps(body),
+            content_type="application/json",
+        )
+
+    def test_post_creates_and_updates_progress(self):
+        from .models import ReadingProgress
+
+        self.assertEqual(self.post_page(self.book, {"page": 3}).status_code, 204)
+        self.assertEqual(ReadingProgress.objects.get(user=self.user, book=self.book).last_page, 3)
+
+        self.assertEqual(self.post_page(self.book, {"page": 7}).status_code, 204)
+        progress = ReadingProgress.objects.get(user=self.user, book=self.book)
+        self.assertEqual(progress.last_page, 7)
+        self.assertEqual(progress.percent, 70)
+
+    def test_invalid_payload_is_400(self):
+        for body in [{"page": 0}, {"page": 11}, {"page": "5"}, {"page": True}, {}, "не json", "[1]"]:
+            with self.subTest(body=body):
+                self.assertEqual(self.post_page(self.book, body).status_code, 400)
+
+    def test_get_not_allowed(self):
+        response = self.client.get(reverse("book_library:book_progress", args=[self.book.pk]))
+        self.assertEqual(response.status_code, 405)
+
+    def test_anonymous_redirected_to_login(self):
+        self.client.logout()
+        response = self.post_page(self.book, {"page": 2})
+        self.assertEqual(response.status_code, 302)
+
+    def test_invisible_book_is_404(self):
+        self.assertEqual(self.post_page(self.foreign_book, {"page": 2}).status_code, 404)
+
+    def test_share_link_in_session_allows_progress(self):
+        link = self.ShareLink.objects.create(
+            book=self.foreign_book, token="progress-token", created_by=self.stranger
+        )
+        self.client.get(reverse("sharing:share_view", args=[link.token]))
+        self.assertEqual(self.post_page(self.foreign_book, {"page": 4}).status_code, 204)
+
+    def test_record_progress_last_write_wins_by_read_at(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .progress import record_progress
+
+        now = timezone.now()
+        record_progress(self.user, self.book, 8, now - timedelta(minutes=1))
+        stale = record_progress(self.user, self.book, 2, now - timedelta(hours=1))
+        self.assertEqual(stale.last_page, 8)
+
+        fresh = record_progress(self.user, self.book, 9, now)
+        self.assertEqual(fresh.last_page, 9)
+
+    def test_record_progress_clamps_future_read_at(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .progress import record_progress
+
+        progress = record_progress(
+            self.user, self.book, 5, timezone.now() + timedelta(days=365)
+        )
+        self.assertLessEqual(progress.read_at, timezone.now())
+
+    def test_home_lists_visible_progress_newest_first(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .progress import record_progress
+
+        second = Book.objects.create(owner=self.user, title="Повість", file=make_pdf(), page_count=4)
+        now = timezone.now()
+        record_progress(self.user, self.book, 5, now - timedelta(hours=2))
+        record_progress(self.user, second, 1, now - timedelta(hours=1))
+        record_progress(self.user, self.foreign_book, 3, now)  # доступу нема — не показувати
+
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, "Продовжити читати")
+        titles = [p.book.title for p in response.context["continue_reading"]]
+        self.assertEqual(titles, ["Повість", "Роман"])
+
+    def test_home_without_progress_or_anonymous_has_no_block(self):
+        self.assertNotContains(self.client.get(reverse("book_library:home")), "Продовжити читати")
+        self.client.logout()
+        self.assertNotContains(self.client.get(reverse("book_library:home")), "Продовжити читати")
+
+    def test_detail_and_reader_show_saved_page(self):
+        from .progress import record_progress
+
+        detail_url = reverse("book_library:book_detail", args=[self.book.pk])
+        reader_url = reverse("book_library:book_reader", args=[self.book.pk])
+        self.assertNotContains(self.client.get(detail_url), "Продовжити з с.")
+        self.assertContains(self.client.get(reader_url), 'data-last-page=""')
+
+        record_progress(self.user, self.book, 6)
+        self.assertContains(self.client.get(detail_url), "Продовжити з с. 6")
+        reader = self.client.get(reader_url)
+        self.assertContains(reader, 'data-last-page="6"')
+        self.assertContains(
+            reader, reverse("book_library:book_progress", args=[self.book.pk])
+        )
+
+    def test_anonymous_reader_has_no_progress_wiring(self):
+        link = self.ShareLink.objects.create(
+            book=self.book, token="anon-progress", created_by=self.user
+        )
+        self.client.logout()
+        self.client.get(reverse("sharing:share_view", args=[link.token]))
+        response = self.client.get(reverse("book_library:book_reader", args=[self.book.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "data-progress-url")
