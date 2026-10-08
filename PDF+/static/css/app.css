@@ -44,6 +44,17 @@
   height: calc(100vh - 56px);
 }
 
+.reader-pager {
+  width: auto;
+  flex-wrap: nowrap;
+}
+
+.reader-pager .reader-page-input {
+  flex: 0 0 auto;
+  width: calc(4ch + 1rem);
+  font-variant-numeric: tabular-nums;
+}
+
 .reader-canvas-area {
   overflow: auto;
   background: var(--bs-secondary-bg);

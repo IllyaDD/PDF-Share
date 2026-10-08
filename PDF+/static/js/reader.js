@@ -861,9 +861,9 @@ if (viewer) {
     window.addEventListener("pagehide", () => saveProgress({ keepalive: true }));
   }
 
-  viewer.addEventListener("reader:page", (event) => {
-    pageDivs.get(event.detail.page)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+  // Без smooth: плавний проліт через сотню сторінок рендерить кожну дорогою, а
+  // проміжні reader:current збивають лічильник при швидких кліках.
+  viewer.addEventListener("reader:page", (event) => goToPage(event.detail.page));
 
   filterChips?.addEventListener("click", (event) => {
     const chip = event.target.closest("[data-filter-color]");

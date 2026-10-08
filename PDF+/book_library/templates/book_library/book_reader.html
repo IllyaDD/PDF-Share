@@ -19,18 +19,28 @@
       {{ book.title }}
     </span>
 
-    <div class="btn-group btn-group-sm" role="group" aria-label="Сторінки">
-      <button class="btn btn-light" data-reader-prev title="Попередня сторінка">
+    <div class="input-group input-group-sm reader-pager" role="group" aria-label="Сторінки">
+      <button type="button" class="btn btn-light" data-reader-first
+              title="На початок" aria-label="На початок">
+        <i class="bi bi-chevron-double-left"></i>
+      </button>
+      <button type="button" class="btn btn-light" data-reader-prev
+              title="Попередня сторінка" aria-label="Попередня сторінка">
         <i class="bi bi-chevron-left"></i>
       </button>
-      <span class="btn btn-light disabled d-flex align-items-center gap-1">
-        <input type="number" class="form-control form-control-sm border-0 p-0 text-center"
-               style="width: 4ch;" value="1" min="1" max="{{ book.page_count }}"
-               data-reader-page aria-label="Номер сторінки">
-        <span class="text-body-secondary">/ {{ book.page_count }}</span>
-      </span>
-      <button class="btn btn-light" data-reader-next title="Наступна сторінка">
+      {# text, а не number: нативні стрілки number-поля дрібні й дублюють кнопки поруч #}
+      <input type="text" inputmode="numeric" autocomplete="off" enterkeyhint="go"
+             class="form-control text-center reader-page-input" value="1"
+             data-reader-page aria-label="Номер сторінки, всього {{ book.page_count }}"
+             title="Введіть номер і натисніть Enter">
+      <span class="input-group-text text-body-secondary">/ {{ book.page_count }}</span>
+      <button type="button" class="btn btn-light" data-reader-next
+              title="Наступна сторінка" aria-label="Наступна сторінка">
         <i class="bi bi-chevron-right"></i>
+      </button>
+      <button type="button" class="btn btn-light" data-reader-last
+              title="В кінець" aria-label="В кінець">
+        <i class="bi bi-chevron-double-right"></i>
       </button>
     </div>
 
@@ -238,14 +248,39 @@
     const viewer = document.getElementById('pdf-viewer');
     const panel = document.getElementById('readerPanel');
     const pageInput = document.querySelector('[data-reader-page]');
+    const prevButton = document.querySelector('[data-reader-prev]');
+    const nextButton = document.querySelector('[data-reader-next]');
+    const firstButton = document.querySelector('[data-reader-first]');
+    const lastButton = document.querySelector('[data-reader-last]');
     const pageCount = Number(viewer.dataset.pageCount) || 1;
+    let page = 1;
     let scale = 1;
 
-    const setPage = (value) => {
-      const page = Math.min(Math.max(value, 1), pageCount);
-      pageInput.value = page;
+    // Лише відображення: поле, межові кнопки й data-атрибут, без прокрутки.
+    const showPage = (value) => {
+      page = value;
       viewer.dataset.currentPage = page;
+      prevButton.disabled = firstButton.disabled = page <= 1;
+      nextButton.disabled = lastButton.disabled = page >= pageCount;
+      if (document.activeElement !== pageInput) {
+        pageInput.value = page;
+      }
+    };
+
+    const setPage = (value) => {
+      showPage(Math.min(Math.max(value, 1), pageCount));
+      pageInput.value = page;
       viewer.dispatchEvent(new CustomEvent('reader:page', { detail: { page } }));
+    };
+
+    // Порожнє чи нечислове введення повертає поточну сторінку замість стрибка на 1.
+    const commitInput = () => {
+      const value = parseInt(pageInput.value, 10);
+      if (Number.isNaN(value)) {
+        pageInput.value = page;
+      } else {
+        setPage(value);
+      }
     };
 
     const setScale = (value) => {
@@ -254,16 +289,39 @@
       viewer.dispatchEvent(new CustomEvent('reader:scale', { detail: { scale } }));
     };
 
-    document.querySelector('[data-reader-prev]').addEventListener('click', () => setPage(Number(pageInput.value) - 1));
-    document.querySelector('[data-reader-next]').addEventListener('click', () => setPage(Number(pageInput.value) + 1));
-    pageInput.addEventListener('change', () => setPage(Number(pageInput.value)));
+    prevButton.addEventListener('click', () => setPage(page - 1));
+    nextButton.addEventListener('click', () => setPage(page + 1));
+    firstButton.addEventListener('click', () => setPage(1));
+    lastButton.addEventListener('click', () => setPage(pageCount));
+
+    pageInput.addEventListener('focus', () => pageInput.select());
+    pageInput.addEventListener('input', () => {
+      pageInput.value = pageInput.value.replace(/\D/g, '');
+    });
+    pageInput.addEventListener('change', commitInput);
+    // change спрацьовує раніше за blur, тож тут поле наздоганяє прокрутку під час фокусу.
+    pageInput.addEventListener('blur', () => {
+      pageInput.value = page;
+    });
+    pageInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitInput();
+        pageInput.select();
+      } else if (event.key === 'Escape') {
+        pageInput.value = page;
+        pageInput.blur();
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        setPage(page + (event.key === 'ArrowUp' ? 1 : -1));
+        pageInput.select();
+      }
+    });
     document.querySelector('[data-reader-zoom-in]').addEventListener('click', () => setScale(scale + 0.25));
     document.querySelector('[data-reader-zoom-out]').addEventListener('click', () => setScale(scale - 0.25));
     document.querySelector('[data-reader-toggle-panel]').addEventListener('click', () => panel.classList.toggle('d-none'));
-    viewer.addEventListener('reader:current', (event) => {
-      pageInput.value = event.detail.page;
-      viewer.dataset.currentPage = event.detail.page;
-    });
+    // Поки користувач набирає номер, прокрутка не перезаписує поле.
+    viewer.addEventListener('reader:current', (event) => showPage(event.detail.page));
 
     setPage(Number(new URLSearchParams(location.search).get('page')) || 1);
     setScale(1);
