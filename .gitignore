@@ -18,3 +18,5 @@ wheels/
 .ruff_cache
 # Playwright MCP screenshots
 .playwright-mcp/
+# Плани й специфікації superpowers — лише локально
+docs/superpowers/
