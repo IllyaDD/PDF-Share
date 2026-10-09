@@ -73,13 +73,12 @@ class BookForm(forms.ModelForm):
         model = Book
         fields = ("title", "folder", "file")
         labels = {"title": "Назва", "folder": "Тека", "file": "PDF-файл"}
-        help_texts = {"title": "Залиште порожнім — візьмемо з файлу."}
+        error_messages = {"title": {"required": "Вкажіть назву підручника."}}
 
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.page_count = None
-        self.pdf_title = ""
         self.has_text_layer = False
         self._pdf_info = None
 
@@ -89,7 +88,6 @@ class BookForm(forms.ModelForm):
         self.fields["folder"].required = False
         self.fields["folder"].empty_label = "— без теки —"
 
-        self.fields["title"].required = False
         self.fields["file"].widget.attrs["accept"] = ".pdf,application/pdf"
         self.fields["file"].help_text = f"Максимум {filesizeformat(settings.MAX_UPLOAD_SIZE)}"
 
@@ -117,28 +115,8 @@ class BookForm(forms.ModelForm):
         info = inspect_pdf(uploaded)
         self._pdf_info = info
         self.page_count = info.page_count
-        self.pdf_title = info.title
         self.has_text_layer = info.has_text_layer
         return uploaded
-
-    def clean_title(self):
-        return (self.cleaned_data.get("title") or "").strip()
-
-    def clean(self):
-        cleaned = super().clean()
-
-        if not cleaned.get("title"):
-            uploaded = cleaned.get("file")
-            fallback = self.pdf_title
-            if not fallback and isinstance(uploaded, UploadedFile):
-                fallback = uploaded.name.rsplit(".", 1)[0].replace("_", " ").strip()
-
-            if fallback:
-                cleaned["title"] = fallback[: Book._meta.get_field("title").max_length]
-            else:
-                self.add_error("title", "Вкажіть назву — з файлу її дістати не вдалося.")
-
-        return cleaned
 
     def save(self, commit=True):
         book = super().save(commit=False)

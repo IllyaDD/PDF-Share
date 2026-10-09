@@ -201,13 +201,15 @@ class UploadValidationTests(TestCase):
         self.assertContains(response, "завеликий")
         self.assertFalse(Book.objects.exists())
 
-    def test_title_falls_back_to_pdf_metadata(self):
-        self._post(make_pdf("file.pdf", title="Назва з метаданих"), title="")
-        self.assertTrue(Book.objects.filter(title="Назва з метаданих").exists())
+    def test_empty_title_rejected_even_with_pdf_metadata(self):
+        response = self._post(make_pdf("file.pdf", title="Назва з метаданих"), title="")
+        self.assertContains(response, "Вкажіть назву підручника")
+        self.assertFalse(Book.objects.exists())
 
-    def test_title_falls_back_to_filename(self):
-        self._post(make_pdf("moya_knyga.pdf"), title="")
-        self.assertTrue(Book.objects.filter(title="moya knyga").exists())
+    def test_whitespace_title_rejected(self):
+        response = self._post(make_pdf("moya_knyga.pdf"), title="   ")
+        self.assertContains(response, "Вкажіть назву підручника")
+        self.assertFalse(Book.objects.exists())
 
     def test_explicit_title_wins_over_metadata(self):
         self._post(make_pdf("f.pdf", title="З метаданих"), title="Моя назва")
