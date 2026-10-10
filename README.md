@@ -66,6 +66,7 @@ A classic monolithic Django project with server-side rendering. Five apps:
 | `sharing` | groups (classes), membership, group access to a book or folder, token links |
 | `annotations` | annotation layers (one layer per user and book), highlights with notes, JSON API for the reader |
 | `api` | DRF REST API: JWT, catalog, book file, delta sync for the offline client |
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/illyadd/pdf-share?utm_source=readme&utm_medium=badge)
 
 Key internal modules:
 
