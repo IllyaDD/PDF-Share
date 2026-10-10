@@ -24,7 +24,7 @@ uv run python manage.py runserver
 
 ```bash
 cd PDF+
-uv run python manage.py test                       # уся сюїта, ~225 тестів
+uv run python manage.py test                       
 uv run python manage.py test --parallel 4          # швидше
 uv run python manage.py test book_library          # один застосунок
 uv run python manage.py test book_library.tests.UploadValidationTests
@@ -145,8 +145,11 @@ share-посилання з `include_annotations` (шар автора поси�
 
 ### Два різні API
 
-- `annotations/api.py` — старий JSON-API читалки: звичайні Django-в'юхи, сесійна
-  автентифікація, CSRF як у форм. На DRF **не переведений**.
+- `annotations/api.py` — JSON-API читалки на DRF `APIView`, але з `SessionAuthentication`
+  (CSRF як у форм) і лише `JSONParser`. Спільна база `ReaderApiView` зводить усі помилки
+  до `{"error": ...}` — `reader.js` читає саме цей ключ — і перетворює `PayloadError` на 400.
+  Анонім отримує 403, а не редирект на вхід. Формат відповіді — `annotations/serializers.py`
+  (короткі ключі `page`/`note`/`text`), він не збігається з `api/serializers.py`.
 - `api/` — DRF + SimpleJWT для мобільного/офлайн-клієнта. Сесій і CSRF нема, тому
   share-посилання тут не працюють. Blacklist не ввімкнений: refresh відкликати достроково
   не можна. `api/sync.py` — дельта-синхронізація; видалені анотації фіксуються

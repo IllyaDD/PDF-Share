@@ -13,8 +13,8 @@ from annotations.access import publishable_groups, shared_annotations, shared_la
 from annotations.forms import LayerPublishForm
 from annotations.models import Annotation, Layer
 from annotations.serializers import (
-    serialize_annotation,
-    serialize_note_group,
+    ReaderAnnotationSerializer,
+    ReaderNoteGroupSerializer,
     serialize_shared_layers,
 )
 from annotations.validators import MAX_NOTE_LENGTH, PayloadError, parse_page_number
@@ -382,8 +382,8 @@ def book_reader_view(request, pk):
             "login_url": reverse("accounts:login"),
             "palette": Annotation.PALETTE,
             "max_note_length": MAX_NOTE_LENGTH,
-            "annotations_data": [serialize_annotation(a) for a in annotations],
-            "note_groups_data": [serialize_note_group(group) for group in note_groups],
+            "annotations_data": ReaderAnnotationSerializer(annotations, many=True).data,
+            "note_groups_data": ReaderNoteGroupSerializer(note_groups, many=True).data,
             "shared_layers_data": serialize_shared_layers(
                 shared_layers(request.user, request.session).filter(book=book),
                 shared_annotations(request.user, request.session).filter(layer__book=book),

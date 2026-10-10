@@ -182,11 +182,20 @@ class AnnotationApiTests(TestCase):
             self.create_url, data="{не json", content_type="application/json"
         )
         self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
+
+    def test_non_json_body_rejected(self):
+        response = self.client.post(self.create_url, data={"page_number": 3})
+        self.assertEqual(response.status_code, 415)
+        self.assertIn("error", response.json())
+        self.assertFalse(Annotation.objects.exists())
 
     def test_anonymous_cannot_create(self):
         self.client.logout()
         response = self.post()
-        self.assertEqual(response.status_code, 302)
+        # JSON-API не редиректить на сторінку входу: fetch у читалці отримав би HTML.
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("error", response.json())
         self.assertFalse(Annotation.objects.exists())
 
     def test_cannot_annotate_invisible_book(self):
@@ -194,7 +203,9 @@ class AnnotationApiTests(TestCase):
             username="chuzhak-notatok", email="cn@example.com", password="parol-parol-42"
         )
         self.client.force_login(stranger)
-        self.assertEqual(self.post().status_code, 404)
+        response = self.post()
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.json())
 
     def test_can_annotate_book_shared_via_group(self):
         from sharing.models import Group, GroupAccess, GroupMembership
@@ -224,6 +235,7 @@ class AnnotationApiTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 403)
+        self.assertIn("CSRF", response.json()["error"])
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
@@ -303,8 +315,9 @@ class AnnotationApiUpdateTests(TestCase):
         self.assertEqual(body["annotations"][0]["id"], self.annotation.pk)
 
     def test_wrong_method_rejected(self):
-        self.assertEqual(self.client.put(self.url, data="{}",
-                                         content_type="application/json").status_code, 405)
+        response = self.client.put(self.url, data="{}", content_type="application/json")
+        self.assertEqual(response.status_code, 405)
+        self.assertIn("error", response.json())
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)

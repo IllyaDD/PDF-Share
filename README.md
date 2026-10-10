@@ -1,259 +1,262 @@
-# PDF+ (MAN PDF Share)
+# PDF+
 
-Вебзастосунок для зберігання, читання й спільного використання PDF-книг у навчальному середовищі.
-Вчитель завантажує матеріали, групує їх у теки, відкриває доступ класам або за посиланням.
-Учні читають книги прямо в браузері та роблять власні виділення з нотатками, не змінюючи чужих файлів.
+A web application for storing, reading and sharing PDF books in an educational setting.
+A teacher uploads materials, organizes them into folders, and grants access to classes or via a link.
+Students read books right in the browser and make their own highlights with notes without modifying anyone else's files.
 
-## Зміст
+## Contents
 
-- [Стек технологій](#стек-технологій)
-- [Архітектура](#архітектура)
-- [Функціонал](#функціонал)
-- [Модель доступу](#модель-доступу)
-- [Структура проєкту](#структура-проєкту)
-- [Запуск локально](#запуск-локально)
-- [Тести](#тести)
+- [Tech stack](#tech-stack)
+- [Architecture](#architecture)
+- [Features](#features)
+- [Access model](#access-model)
+- [Project structure](#project-structure)
+- [Running locally](#running-locally)
+- [Tests](#tests)
 
-## Стек технологій
+## Tech stack
 
-### Бекенд
+### Backend
 
-| Технологія | Версія | Для чого |
+| Technology | Version | Purpose |
 |---|---|---|
-| Python | 3.13 | мова застосунку |
-| Django | 6.1 | вебфреймворк, ORM, сесії, автентифікація, адмінка |
-| PostgreSQL + psycopg 3 | 3.3 | основна база даних |
-| PyMuPDF (`pymupdf`) | 1.28 | перевірка завантажених PDF: сигнатура, кількість сторінок, пароль, наявність текстового шару |
-| Authlib | 1.8 | вхід через Google (OpenID Connect, метадані з discovery-документа) |
-| django-storages + boto3 | 1.14 | зберігання PDF у Cloudflare R2 через S3-сумісний API |
-| django-unfold | 0.106 | сучасна адмінка з дашбордом і графіком активності |
-| django-crispy-forms + crispy-bootstrap5 | 2.7 | рендер форм у стилі Bootstrap 5 |
-| python-decouple | 3.8 | конфігурація через `.env` |
-| sentry-sdk[django] | 2.69 | трекінг помилок і performance-трейси у продакшені |
-| uv | — | менеджер залежностей (`pyproject.toml`, `uv.lock`) |
-| ruff | 0.16 | лінтер |
+| Python | 3.13 | application language |
+| Django | 6.1 | web framework, ORM, sessions, authentication, admin |
+| PostgreSQL + psycopg 3 | 3.3 | primary database |
+| PyMuPDF (`pymupdf`) | 1.28 | validating uploaded PDFs: signature, page count, password, presence of a text layer |
+| Authlib | 1.8 | Google sign-in (OpenID Connect, metadata from the discovery document) |
+| django-storages + boto3 | 1.14 | storing PDFs in Cloudflare R2 via the S3-compatible API |
+| django-unfold | 0.106 | modern admin with a dashboard and an activity chart |
+| django-crispy-forms + crispy-bootstrap5 | 2.7 | rendering forms in Bootstrap 5 style |
+| Django REST Framework + simplejwt | 3.18 / 5.5 | REST API with JWT for the mobile / offline client (`api/`) |
+| python-decouple | 3.8 | configuration via `.env` |
+| sentry-sdk[django] | 2.69 | error tracking and performance traces in production |
+| uv | — | dependency manager (`pyproject.toml`, `uv.lock`) |
+| ruff | 0.16 | linter |
 
-| Django REST Framework + simplejwt | 3.18 / 5.5 | REST API з JWT для мобільного / офлайн-клієнта (`api/`) |
+`django-redis` is also among the dependencies, but the cache is not configured yet. The reader's
+JSON API (`annotations/api.py`) is also built on DRF, but uses session authentication and CSRF instead of JWT.
 
-У залежностях також є `django-redis`, але кеш поки не налаштований. JSON-API читалки
-(`annotations/api.py`) написаний на звичайних Django-в'юхах і на DRF не переведений.
+### Frontend
 
-### Фронтенд
-
-| Технологія | Версія | Для чого |
+| Technology | Version | Purpose |
 |---|---|---|
-| Django Templates | — | серверний рендер сторінок, спільний `base.html` із сайдбаром |
-| Bootstrap 5 + Bootstrap Icons | 5.3 / 1.11 | сітка, компоненти, іконки (з CDN) |
-| PDF.js | 6.3 | рендер PDF у `<canvas>` і текстовий шар для виділення (вендорено у `static/vendor/pdfjs`) |
-| Vanilla JS (ES-модулі) | — | читалка `static/js/reader.js`: сторінки, масштаб, палітра, попап нотаток, фільтр за кольором |
-| Chart.js (через Unfold) | — | графік активності на дашборді адмінки |
+| Django Templates | — | server-side page rendering, shared `base.html` with a sidebar |
+| Bootstrap 5 + Bootstrap Icons | 5.3 / 1.11 | grid, components, icons (from a CDN) |
+| PDF.js | 6.3 | rendering PDFs into `<canvas>` and a text layer for selection (vendored in `static/vendor/pdfjs`) |
+| Vanilla JS (ES modules) | — | the reader `static/js/reader.js`: pages, zoom, palette, note popup, color filter |
+| Chart.js (via Unfold) | — | activity chart on the admin dashboard |
 
-### Інфраструктура
+### Infrastructure
 
-- **Cloudflare R2** — приватний бакет для PDF. Файли віддаються підписаними URL з коротким терміном життя, бо право на книгу перевіряє застосунок, а не сховище. Вмикається `USE_R2=true`, інакше файли лежать у `PDF+/media/`.
-- **Sentry** — єдиний трекер помилок. Порожній `SENTRY_DSN` вимикає SDK повністю. PII у події не потрапляє.
-- **Vercel** — цільова платформа деплою (реліз у Sentry береться з `VERCEL_GIT_COMMIT_SHA`).
-- **Google OAuth** — облікові записи зіставляються за email, тому email у моделі користувача унікальний.
-- **SMTP** — листи скидання пароля. Налаштовується через `MAILERS` (Django 6.1); порожній `SMTP_HOST` друкує листи в консоль.
+- **Cloudflare R2** — a private bucket for PDFs. Files are served via short-lived signed URLs, because access to a book is checked by the application, not by the storage. Enabled with `USE_R2=true`; otherwise files live in `PDF+/media/`.
+- **Sentry** — the single error tracker. An empty `SENTRY_DSN` disables the SDK entirely. No PII is sent in events.
+- **Vercel** — the target deployment platform (the Sentry release is taken from `VERCEL_GIT_COMMIT_SHA`).
+- **Google OAuth** — accounts are matched by email, so email is unique in the user model.
+- **SMTP** — password reset emails. Configured via `MAILERS` (Django 6.1); an empty `SMTP_HOST` prints emails to the console.
 
-## Архітектура
+## Architecture
 
-Класичний монолітний Django-проєкт із серверним рендером. Чотири застосунки:
+A classic monolithic Django project with server-side rendering. Five apps:
 
-| Застосунок | Відповідальність |
+| App | Responsibility |
 |---|---|
-| `users` | кастомна модель `User` з роллю (вчитель / учень), реєстрація, вхід за паролем і через Google, профіль |
-| `book_library` | теки (дерево через self-FK), книги, завантаження та валідація PDF, читалка, каталог, правила доступу |
-| `sharing` | групи (класи), членство, доступ групи до книги чи теки, токен-посилання |
-| `annotations` | шари анотацій (один шар на користувача й книгу), виділення з нотатками, JSON-API для читалки |
-| `api` | REST API на DRF: JWT, каталог, файл книги, дельта-синхронізація для офлайн-клієнта |
+| `users` | custom `User` model with a role (teacher / student), registration, password and Google sign-in, profile |
+| `book_library` | folders (a tree via a self-FK), books, PDF upload and validation, reader, catalog, access rules |
+| `sharing` | groups (classes), membership, group access to a book or folder, token links |
+| `annotations` | annotation layers (one layer per user and book), highlights with notes, JSON API for the reader |
+| `api` | DRF REST API: JWT, catalog, book file, delta sync for the offline client |
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/illyadd/pdf-share?utm_source=readme&utm_medium=badge)
 
-Ключові внутрішні модулі:
+Key internal modules:
 
-- `book_library/access.py` — єдине місце, де вирішується, хто що бачить. Всі в'юхи фільтрують queryset через `visible_books()` / `visible_folders()`.
-- `book_library/pdf.py` — `inspect_pdf()` для форми на сайті й адмінки: однакова перевірка, звідки б файл не прийшов.
-- `book_library/signals.py` — видалення файлу зі сховища після `post_delete` і при заміні файлу (`pre_save`), відкладене до коміту транзакції.
-- `annotations/validators.py` — сувора перевірка payload'у від читалки перед записом у `JSONField`.
-- `book_sharing_settings/dashboard.py` — статистика та 30-денний графік для головної сторінки адмінки.
+- `book_library/access.py` — the single place that decides who sees what. All views filter querysets through `visible_books()` / `visible_folders()`.
+- `book_library/pdf.py` — `inspect_pdf()` for both the site form and the admin: the same validation no matter where the file comes from.
+- `book_library/signals.py` — deletes files from storage after `post_delete` and on file replacement (`pre_save`), deferred until the transaction commits.
+- `annotations/validators.py` — strict validation of the reader's payload before writing it into a `JSONField`.
+- `book_sharing_settings/dashboard.py` — statistics and the 30-day chart for the admin home page.
 
-## Функціонал
+## Features
 
-### Користувачі
+### Users
 
-- Реєстрація з паролем або вхід через Google. Акаунт із Google не має пароля.
-- Ролі: вчитель і учень. Роль впливає на статистику в адмінці; права на матеріали визначає власність і шаринг, а не роль.
-- Профіль: перегляд, редагування, зміна пароля, видалення акаунта.
-- Скидання пароля поштою (`/accounts/password/reset/`): посилання діє добу й спрацьовує один раз. Акаунтам із Google лист не надсилається — у них нема пароля. На невідомий email відповідь та сама, що й на відомий, тож перевірити через форму, чи зареєстрована адреса, не вийде.
+- Sign up with a password or sign in with Google. A Google account has no password.
+- Roles: teacher and student. The role affects admin statistics; permissions on materials are determined by ownership and sharing, not by role.
+- Profile: view, edit, change password, delete account.
+- Password reset by email (`/accounts/password/reset/`): the link is valid for one day and works only once. Google accounts don't receive the email — they have no password. An unknown email gets the same response as a known one, so the form can't be used to check whether an address is registered.
 
-### Бібліотека
+### Library
 
-- Дерево тек довільної вкладеності. Хлібні крихти й повний шлях («Батько / Дитина / Онук») для однойменних тек.
-- Завантаження PDF через drag-and-drop. Ліміт 50 МБ. Файл перевіряється по-справжньому: сигнатура `%PDF-`, розбір через PyMuPDF, відсів захищених паролем і порожніх документів.
-- Під час завантаження зберігаються кількість сторінок, розмір файлу, назва з метаданих PDF і прапорець наявності текстового шару (від нього залежить, чи працюватиме виділення).
-- Ключ файлу в сховищі — випадковий UUID, а не ім'я від користувача.
-- Перейменування, заміна файлу, переміщення між теками, видалення. Масове додавання книг у теку.
-- Пошук за назвою без урахування регістру, з підтримкою кирилиці. У теці пошук іде по всьому піддереву.
-- Розділи: «Моя бібліотека», «Поділилися зі мною», «Каталог».
+- A folder tree of arbitrary depth. Breadcrumbs and a full path ("Parent / Child / Grandchild") for folders with the same name.
+- PDF upload via drag-and-drop. 50 MB limit. Files are validated for real: the `%PDF-` signature, parsing with PyMuPDF, rejecting password-protected and empty documents.
+- On upload, the page count, file size, title from the PDF metadata and a text-layer flag are stored (the flag determines whether highlighting will work).
+- The file's storage key is a random UUID, not the user-supplied name.
+- Rename, replace file, move between folders, delete. Bulk-add books to a folder.
+- Case-insensitive title search with Cyrillic support. Inside a folder, search covers the whole subtree.
+- Sections: "My library", "Shared with me", "Catalog".
 
-### Каталог
+### Catalog
 
-Адміністратор позначає теку прапорцем `is_catalog`. Вона разом з усім вкладеним стає видимою кожному залогіненому користувачу. Пошук у каталозі працює по всьому його вмісту.
+An administrator marks a folder with the `is_catalog` flag. It becomes visible, together with everything nested in it, to every signed-in user. Catalog search covers all of its contents.
 
-### Шаринг
+### Sharing
 
-- **Групи (класи).** Вчитель створює групу, додає учасників, видає групі доступ до книги або теки. Доступ до теки поширюється на все дерево під нею.
-- **Посилання за токеном.** Власник створює посилання на книгу або теку, з датою закінчення або без. Токен генерується через `secrets.token_urlsafe(32)`. Відкрите посилання запам'ятовується в сесії, тож переходи по книгах далі працюють без повторного вводу.
-- **Посилання з нотатками або без.** Під час створення автор обирає: «Лише книгу» (за замовчуванням) чи «Книгу з моїми нотатками». Друге відкриває отримувачу — навіть анонімному — шар автора на книзі (для теки — на всіх книгах піддерева) лише для читання, і кнопка на сторінці посилання веде одразу в цей шар. Чужі шари на тій самій книзі посилання не відкриває.
-- **Теми в посиланні.** Для посилання на книгу з нотатками можна обрати теми — отримувач побачить лише їх (без назв тем). Нічого не обрано — усі нотатки. Якщо всі обрані теми видалити, посилання не показуватиме нотаток.
-- Список своїх посилань і доступів із можливістю відкликати.
+- **Groups (classes).** A teacher creates a group, adds members, and grants the group access to a book or folder. Access to a folder extends to the whole tree beneath it.
+- **Token links.** The owner creates a link to a book or folder, with or without an expiry date. The token is generated with `secrets.token_urlsafe(32)`. An opened link is remembered in the session, so navigating between books keeps working without re-entering it.
+- **Links with or without notes.** When creating a link, the author chooses "Book only" (default) or "Book with my notes". The latter gives the recipient — even an anonymous one — read-only access to the author's layer on the book (for a folder, on every book in the subtree), and the button on the link page leads straight into that layer. The link does not expose other users' layers on the same book.
+- **Topics in a link.** For a book link with notes, specific topics can be selected — the recipient will see only those (without topic names). Nothing selected means all notes. If all selected topics are deleted, the link will show no notes.
+- A list of your own links and grants, with the option to revoke them.
 
-### Читалка
+### Reader
 
-- Рендер сторінок PDF.js у canvas з ледачим завантаженням через `IntersectionObserver`.
-- Масштаб від 50 % до 300 %, перехід за номером сторінки.
-- Виділення тексту з палітри п'яти світлих кольорів (`mix-blend-mode: multiply`, текст лишається читним).
-- Нотатка до кожного виділення. Бокова панель зі списком анотацій і фільтр за кольором.
-- Теми нотаток у межах книги: перемикач «Тема» в читалці визначає, куди йдуть нові виділення і що показується; нотатку можна перенести в іншу тему з поповера. Перейменування й видалення — на сторінці «Мої нотатки» (нотатки видаленої теми стають «Без групи»).
-- Анотації зберігаються як список прямокутників у PDF user space, тому коректно масштабуються.
-- Читати може будь-хто, хто бачить книгу. Анотувати — лише залогінений. Шар кожного користувача окремий і чужу книгу не змінює.
-- Прогрес читання: поле сторінки в тулбарі стежить за скролом, поточна сторінка зберігається
-  (з затримкою 1,5 с і при закритті вкладки), і наступне відкриття книги починається з неї.
-  На головній — блок «Продовжити читати», на сторінці книги — прогрес і кнопка «Продовжити з с. N».
-- Шар вчителя для класу: власник групи на сторінці книги відкриває свій шар обраним групам
-  (лише тим, чиї учні бачать книгу — через доступ до книги, до теки над нею або каталог).
-  Учні отримують у читалці перемикач «Мої / <вчитель>»: чужий шар лише для читання, без
-  попапу редагування. Відкликаний доступ до книги ховає й шар.
+- Pages rendered by PDF.js into canvas, lazy-loaded via `IntersectionObserver`.
+- Zoom from 50% to 300%, jump to a page number.
+- Text highlighting with a palette of five light colors (`mix-blend-mode: multiply`, text stays readable).
+- A note on each highlight. A side panel listing annotations and a color filter.
+- Note topics within a book: the "Topic" switch in the reader determines where new highlights go and what is shown; a note can be moved to another topic from the popover. Renaming and deleting topics happen on the "My notes" page (notes of a deleted topic become "Ungrouped").
+- Annotations are stored as a list of rectangles in PDF user space, so they scale correctly.
+- Anyone who can see a book can read it. Only signed-in users can annotate. Each user's layer is separate and never modifies someone else's book.
+- Reading progress: the page field in the toolbar follows scrolling, the current page is saved
+  (with a 1.5 s delay and when the tab is closed), and the next time the book opens it starts there.
+  The home page has a "Continue reading" block; the book page shows progress and a "Continue from p. N" button.
+- Teacher layer for a class: the group owner can publish their layer on the book page to selected groups
+  (only those whose students can see the book — via access to the book, to a folder above it, or the catalog).
+  Students get a "Mine / *teacher's name*" switch in the reader: the other layer is read-only, with no
+  edit popup. Revoking access to the book also hides the layer.
 
-JSON-API читалки (сесійна автентифікація, CSRF як у форм):
+Reader JSON API (session authentication, CSRF as for forms):
 
 ```
-GET    /api/books/<id>/annotations/     список анотацій поточного користувача
-GET    /api/books/<id>/shared-layers/   опубліковані для груп користувача шари вчителів
-POST   /api/books/<id>/annotations/     створити виділення
-PATCH  /api/annotations/<id>/           змінити колір, нотатку або тему (group)
-DELETE /api/annotations/<id>/           видалити
-GET    /api/books/<id>/note-groups/     теми поточного користувача в книзі
-POST   /api/books/<id>/note-groups/     створити тему {name}
-PATCH  /api/note-groups/<id>/           перейменувати тему
-DELETE /api/note-groups/<id>/           видалити тему (нотатки → «Без групи»)
-POST   /books/<id>/progress/            {page} — зберегти поточну сторінку (204)
+GET    /api/books/<id>/annotations/     list the current user's annotations
+GET    /api/books/<id>/shared-layers/   teachers' layers published to the user's groups
+POST   /api/books/<id>/annotations/     create a highlight
+PATCH  /api/annotations/<id>/           change color, note or topic (group)
+DELETE /api/annotations/<id>/           delete
+GET    /api/books/<id>/note-groups/     the current user's topics in the book
+POST   /api/books/<id>/note-groups/     create a topic {name}
+PATCH  /api/note-groups/<id>/           rename a topic
+DELETE /api/note-groups/<id>/           delete a topic (notes → "Ungrouped")
+POST   /books/<id>/progress/            {page} — save the current page (204)
 ```
 
 ### REST API (DRF, JWT)
 
-Для мобільного / офлайн-клієнта. Заголовок `Authorization: Bearer <access>`. Токен
-перевіряється підписом, у БД сервер не ходить. Access живе 30 хв, refresh — 30 днів
-і ротується при кожному оновленні. Blacklist не ввімкнений: відкликати refresh достроково
-не можна. Сесій і CSRF тут нема, тому share-посилання (джерело 3 у моделі доступу) в API не діють.
+For the mobile / offline client. Header: `Authorization: Bearer <access>`. The token
+is verified by its signature; the server doesn't hit the database. Access tokens live 30 minutes, refresh tokens 30 days,
+and are rotated on every refresh. The blacklist is not enabled: a refresh token can't be revoked early.
+Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
+There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
 
 ```
 POST   /api/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
-GET    /api/catalog/books/       каталог, пагінація по 50, ?search= по назві
-GET    /api/books/<id>/file/     302 на файл у сховищі (з R2 — підписаний URL)
-GET    /api/sync/?since=<ISO>    дельта стану: books, folders, annotations (свої),
-                                 deleted_annotation_ids, note_groups (свої теми),
+GET    /api/catalog/books/       catalog, paginated by 50, ?search= by title
+GET    /api/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
+GET    /api/sync/?since=<ISO>    state delta: books, folders, annotations (own),
+                                 deleted_annotation_ids, note_groups (own topics),
                                  reading_progress, shared_layers, shared_annotations
-                                 (шари вчителів), visible_book_ids, visible_folder_ids,
+                                 (teachers' layers), visible_book_ids, visible_folder_ids,
                                  server_time
-POST   /api/sync/                батч {note_groups: {create, update, delete},
-                                       annotations: {create, update, delete},
-                                       reading_progress: [{book, last_page, read_at}]}
+POST   /api/sync/                batch {note_groups: {create, update, delete},
+                                        annotations: {create, update, delete},
+                                        reading_progress: [{book, last_page, read_at}]}
 ```
 
-Без `since` пул віддає повний стан. Клієнт зберігає `server_time` як наступний `since`
-і викидає локально все, чого нема у `visible_*_ids` (відкликаний доступ, видалена книга).
-Видалені анотації фіксуються тумбстоунами (`api.DeletedAnnotation`, через `post_delete`);
-у `deleted_annotation_ids` потрапляють і видалення з опублікованих шарів вчителя.
-`shared_layers` щоразу їде повністю: шар, що зник зі списку, клієнт викидає з анотаціями.
-Шар, що став видимим після `since` (нова публікація, вступ у групу, доступ до книги),
-приходить у `shared_annotations` цілком.
-У пуші кожна операція незалежна: помилки повертаються поштучно в `errors`, конфлікти —
-«останній запис перемагає». Для прогресу читання переможця визначає `read_at` (коли клієнт
-був на сторінці), а не час приходу пушу: офлайн-телефон не затре новішу позицію з вебу.
-У відповіді `reading_progress` — фактичний стан після злиття.
+Without `since`, the pull returns the full state. The client stores `server_time` as the next `since`
+and drops locally everything missing from `visible_*_ids` (revoked access, deleted book).
+Deleted annotations are recorded as tombstones (`api.DeletedAnnotation`, via `post_delete`);
+`deleted_annotation_ids` also includes deletions from published teacher layers.
+`shared_layers` is always sent in full: a layer that disappears from the list is dropped by the client along with its annotations.
+A layer that became visible after `since` (new publication, joining a group, access to the book)
+arrives in full in `shared_annotations`.
+In a push, every operation is independent: errors are returned per item in `errors`, conflicts are
+resolved as last-write-wins. For reading progress, the winner is determined by `read_at` (when the client
+was on the page), not by when the push arrived: an offline phone won't overwrite a newer position from the web.
+The `reading_progress` in the response is the actual state after merging.
 
-Теми нотаток у синку:
+Note topics in sync:
 
-- `note_groups` у пулі — **повний** список власних тем (`id, book, name, created_at,
-  updated_at`) щоразу, навіть у дельті; тема, якої нема в списку, видалена. Тумбстоунів
-  для тем нема. Анотації мають поле `group` (`id` теми або `null` — «Без групи»);
-  у `shared_annotations` його нема — учні бачать нотатки вчителя без його тем.
-- У пуші `note_groups.create` — `[{client_id, book, name}]`, `update` — `[{id, name}]`,
-  `delete` — `[id]`. Створення за назвою ідемпотентне: якщо тема з такою назвою в цій
-  книзі вже є (інший пристрій, повторений пуш), повертається вона ж з вашим `client_id`.
-  Перейменування в зайняту назву — помилка операції `group_update`.
-- Анотація в `create`/`update` приймає `group: id | null` або `group_client_id` — тему,
-  створену в цьому ж пуші. Тема має бути з тієї самої книги.
-- Порядок обробки: видалення тем → перейменування → створення → анотації → прогрес.
-  Тож «видалити чи перейменувати X і створити новий X» в одному пуші дає нову тему.
-  Якщо нотатка посилається на тему, видалену в цьому ж пуші, вона стає «Без групи»,
-  а решта її змін зберігається. Видалення теми не видаляє нотаток — сервер робить їх
-  «Без групи» й оновлює `updated_at`, тож вони прийдуть у наступній дельті.
-- Результат пушу — `note_groups: {created, updated, deleted}`; помилки — у спільному
-  `errors` з `op` `group_create` / `group_update` / `group_delete`. Операції з темами
-  рахуються в ліміт батча. Видача й оновлення токенів обмежені 10 запитами на хвилину з однієї адреси.
+- `note_groups` in a pull is the **full** list of your own topics (`id, book, name, created_at,
+  updated_at`) every time, even in a delta; a topic missing from the list has been deleted. There are no
+  tombstones for topics. Annotations have a `group` field (topic `id` or `null` — "Ungrouped");
+  it is absent in `shared_annotations` — students see the teacher's notes without the teacher's topics.
+- In a push, `note_groups.create` is `[{client_id, book, name}]`, `update` is `[{id, name}]`,
+  `delete` is `[id]`. Creating by name is idempotent: if a topic with that name already exists in this
+  book (another device, a repeated push), that same topic is returned with your `client_id`.
+  Renaming to a name already taken is a `group_update` operation error.
+- An annotation in `create`/`update` accepts `group: id | null` or `group_client_id` — a topic
+  created in the same push. The topic must belong to the same book.
+- Processing order: topic deletions → renames → creations → annotations → progress.
+  So "delete or rename X and create a new X" in one push yields a new topic.
+  If a note references a topic deleted in the same push, it becomes "Ungrouped",
+  and the rest of its changes are kept. Deleting a topic doesn't delete its notes — the server makes them
+  "Ungrouped" and bumps `updated_at`, so they arrive in the next delta.
+- The push result is `note_groups: {created, updated, deleted}`; errors go into the shared
+  `errors` with `op` `group_create` / `group_update` / `group_delete`. Topic operations
+  count toward the batch limit.
 
-### Адмінка
+### Admin
 
-- Unfold із власним `AdminSite`. Шлях адмінки задається в `.env` (`ADMIN_SITE_URL`), щоб `/admin/` не світився на проді.
-- Дашборд: кількість вчителів, учнів, книг, тек, анотацій, груп, активних посилань. Графік за 30 днів по трьох серіях: нові користувачі, книги, анотації.
-- Бейдж середовища (Development / Production).
-- Завантаження PDF через адмінку проходить ту саму перевірку, що й на сайті.
+- Unfold with a custom `AdminSite`. The admin path is set in `.env` (`ADMIN_SITE_URL`), so `/admin/` isn't exposed in production.
+- Dashboard: number of teachers, students, books, folders, annotations, groups, active links. A 30-day chart with three series: new users, books, annotations.
+- Environment badge (Development / Production).
+- PDF uploads through the admin go through the same validation as on the site.
 
-## Модель доступу
+## Access model
 
-Право на перегляд книги або теки дає будь-яке з чотирьох джерел:
+Permission to view a book or folder comes from any of four sources:
 
-1. **Власність** — користувач є `owner`.
-2. **Група** — матеріал виданий групі через `GroupAccess`, і користувач у ній.
-3. **Посилання** — користувач відкривав `ShareLink`, і токен лежить у сесії.
-4. **Каталог** — тека з `is_catalog=True` або її нащадок.
+1. **Ownership** — the user is the `owner`.
+2. **Group** — the material is granted to a group via `GroupAccess`, and the user is a member.
+3. **Link** — the user has opened a `ShareLink`, and the token is stored in the session.
+4. **Catalog** — a folder with `is_catalog=True` or one of its descendants.
 
-Право на зміну (перейменувати, видалити, замінити файл) має лише власник. `GroupAccess.EDIT` існує в моделі, але поки не розширює прав на сам матеріал.
+Only the owner can modify (rename, delete, replace the file). `GroupAccess.EDIT` exists in the model but doesn't yet grant any extra rights on the material itself.
 
-Файли в R2 приватні. Посилання на файл підписується на 3600 с (налаштовується `R2_URL_EXPIRE`), тому прямий лінк не обходить перевірку доступу.
+Files in R2 are private. A file link is signed for 3600 s (configurable via `R2_URL_EXPIRE`), so a direct link can't bypass the access check.
 
-## Структура проєкту
+## Project structure
 
 ```
 MAN-PDF-Share-Prod/
-├── pyproject.toml, uv.lock        залежності
+├── pyproject.toml, uv.lock        dependencies
 └── PDF+/
     ├── manage.py
     ├── book_sharing_settings/     settings, urls, oauth, admin_site, dashboard
-    ├── users/                     User з роллю, реєстрація, Google OAuth
-    ├── book_library/              теки, книги, pdf.py, access.py, signals.py, читалка
-    ├── sharing/                   групи, членство, доступи, посилання
-    ├── annotations/               шари, анотації, api.py, validators.py
+    ├── users/                     User with a role, registration, Google OAuth
+    ├── book_library/              folders, books, pdf.py, access.py, signals.py, reader
+    ├── sharing/                   groups, membership, access grants, links
+    ├── annotations/               layers, annotations, api.py, validators.py
+    ├── api/                       REST API (JWT), delta sync
     ├── templates/                 base.html, nav, sidebar, partials
     ├── static/
     │   ├── css/app.css
     │   ├── js/reader.js
     │   └── vendor/pdfjs/
-    └── media/                     локальне сховище PDF (без R2)
+    └── media/                     local PDF storage (without R2)
 ```
 
-## Запуск локально
 
-Потрібні PostgreSQL і Python 3.13. Redis не обов'язковий.
+## Running locally
+
+Requires PostgreSQL and Python 3.13. Redis is optional.
 
 ```bash
 uv sync
-cp PDF+/.env_example PDF+/.env      # заповнити SECRET_KEY, PG_*, DEBUG=true
+cp PDF+/.env_example PDF+/.env      # fill in SECRET_KEY, PG_*, DEBUG=true
 cd PDF+
 uv run python manage.py migrate
 uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
-Змінні оточення описані в `PDF+/.env_example`. Для Google-входу потрібні `GOOGLE_OAUTH_CLIENT_ID` і `GOOGLE_OAUTH_CLIENT_SECRET`. Для R2 — `USE_R2=true` і ключі `R2_*`. Для пошти — `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `DEFAULT_FROM_EMAIL`.
+Environment variables are described in `PDF+/.env_example`. Google sign-in needs `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`. R2 needs `USE_R2=true` and the `R2_*` keys. Email needs `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `DEFAULT_FROM_EMAIL`.
 
-## Тести
+## Tests
 
 ```bash
 cd PDF+
 uv run python manage.py test
 ```
 
-Тести не торкаються R2: сховище примусово перемикається на тимчасовий `MEDIA_ROOT` (`book_sharing_settings/testing.py`). Покриті правила доступу, валідація PDF, шаринг, анотації, автентифікація та адмінка.
+Tests never touch R2: storage is forced onto a temporary `MEDIA_ROOT` (`book_sharing_settings/testing.py`). Covered: access rules, PDF validation, sharing, annotations, authentication and the admin.
