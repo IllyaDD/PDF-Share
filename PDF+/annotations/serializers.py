@@ -1,33 +1,69 @@
+"""Серіалізатори читалки — формат, на який спирається static/js/reader.js.
+
+Ключі коротші, ніж у api/serializers.py (page, note, text замість page_number, note_text,
+selected_text): мобільний клієнт і читалка мають різні контракти. Лише на вихід — вхідний
+payload перевіряє annotations/validators.py, спільний із синком.
+"""
+
 from collections import defaultdict
 
+from rest_framework import serializers
 
-def serialize_annotation(annotation):
-    return {
-        "id": annotation.pk,
-        "page": annotation.page_number,
-        "coords": annotation.coords,
-        "color": annotation.color,
-        "note": annotation.note_text,
-        "text": annotation.selected_text,
-        "group": annotation.group_id,
-    }
+from .models import Annotation, Layer, NoteGroup
 
 
-def serialize_note_group(group):
-    return {"id": group.pk, "name": group.name}
+class ReaderAnnotationSerializer(serializers.ModelSerializer):
+    page = serializers.IntegerField(source="page_number", read_only=True)
+    note = serializers.CharField(source="note_text", read_only=True)
+    text = serializers.CharField(source="selected_text", read_only=True)
+
+    class Meta:
+        model = Annotation
+        fields = ["id", "page", "coords", "color", "note", "text", "group"]
+        read_only_fields = fields
+
+
+class ReaderSharedAnnotationSerializer(ReaderAnnotationSerializer):
+    # Без group: отримувач бачить нотатки без тем автора.
+    class Meta(ReaderAnnotationSerializer.Meta):
+        fields = [f for f in ReaderAnnotationSerializer.Meta.fields if f != "group"]
+        read_only_fields = fields
+
+
+class ReaderNoteGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NoteGroup
+        fields = ["id", "name"]
+        read_only_fields = fields
+
+
+class ReaderSharedLayerSerializer(serializers.ModelSerializer):
+    """Чужий шар разом із нотатками, які читач має право бачити.
+
+    Нотатки не беруться з layer.annotations: share-посилання з обраними темами відкриває
+    лише частину шару (див. access.shared_annotations). Їх передають у
+    context["annotations"] як {layer_id: [Annotation, ...]}.
+    """
+
+    owner = serializers.CharField(source="owner.username", read_only=True)
+    annotations = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Layer
+        fields = ["id", "owner", "annotations"]
+        read_only_fields = fields
+
+    def get_annotations(self, layer):
+        items = self.context["annotations"].get(layer.pk, [])
+        return ReaderSharedAnnotationSerializer(items, many=True).data
 
 
 def serialize_shared_layers(layers, annotations):
-    """Чужі шари з нотатками, які читач має право бачити (див. access.shared_annotations).
-
-    Поле group не віддаємо: отримувач бачить нотатки без тем автора.
-    """
     by_layer = defaultdict(list)
     for annotation in annotations.order_by("page_number", "created_at"):
-        item = serialize_annotation(annotation)
-        del item["group"]
-        by_layer[annotation.layer_id].append(item)
-    return [
-        {"id": layer.pk, "owner": layer.owner.username, "annotations": by_layer[layer.pk]}
-        for layer in layers.select_related("owner").order_by("owner__username")
-    ]
+        by_layer[annotation.layer_id].append(annotation)
+    return ReaderSharedLayerSerializer(
+        layers.select_related("owner").order_by("owner__username"),
+        many=True,
+        context={"annotations": by_layer},
+    ).data

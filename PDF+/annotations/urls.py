@@ -11,9 +11,29 @@ urlpatterns = [
     path("note-groups/<int:pk>/delete/", views.note_group_delete_view, name="note_group_delete"),
     path("books/<int:book_pk>/annotations/publish/", views.layer_publish_view, name="layer_publish"),
 
-    path("api/books/<int:book_pk>/annotations/", api.book_annotations, name="api_book_annotations"),
-    path("api/books/<int:book_pk>/shared-layers/", api.book_shared_layers, name="api_book_shared_layers"),
-    path("api/annotations/<int:pk>/", api.annotation_detail, name="api_annotation_detail"),
-    path("api/books/<int:book_pk>/note-groups/", api.book_note_groups, name="api_book_note_groups"),
-    path("api/note-groups/<int:pk>/", api.note_group_detail, name="api_note_group_detail"),
+    path(
+        "api/books/<int:book_pk>/annotations/",
+        api.BookAnnotationsView.as_view(),
+        name="api_book_annotations",
+    ),
+    path(
+        "api/books/<int:book_pk>/shared-layers/",
+        api.BookSharedLayersView.as_view(),
+        name="api_book_shared_layers",
+    ),
+    path(
+        "api/annotations/<int:pk>/",
+        api.AnnotationDetailView.as_view(),
+        name="api_annotation_detail",
+    ),
+    path(
+        "api/books/<int:book_pk>/note-groups/",
+        api.BookNoteGroupsView.as_view(),
+        name="api_book_note_groups",
+    ),
+    path(
+        "api/note-groups/<int:pk>/",
+        api.NoteGroupDetailView.as_view(),
+        name="api_note_group_detail",
+    ),
 ]
