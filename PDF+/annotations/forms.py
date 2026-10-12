@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from sharing.models import Group
 
@@ -9,7 +10,7 @@ class LayerPublishForm(forms.Form):
         queryset=Group.objects.none(),
         required=False,
         widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
-        label="Групи",
+        label=_("Групи"),
     )
 
     def __init__(self, *args, groups, **kwargs):

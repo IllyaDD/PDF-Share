@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load crispy_forms_tags %}
 
 {% block title %}{{ group.name }} — PDF+{% endblock %}
@@ -7,7 +8,7 @@
 
 {% block page_actions %}
   {% if is_owner %}
-    <a href="{% url 'sharing:group_edit' group.pk %}" class="btn btn-outline-secondary">Перейменувати</a>
+    <a href="{% url 'sharing:group_edit' group.pk %}" class="btn btn-outline-secondary">{% translate "Перейменувати" %}</a>
   {% endif %}
 {% endblock %}
 
@@ -17,7 +18,7 @@
   <div class="col-lg-7">
     <div class="card border-0 shadow-sm">
       <div class="card-body">
-        <h2 class="h6 mb-3">Учасники <span class="badge text-bg-secondary">{{ memberships|length }}</span></h2>
+        <h2 class="h6 mb-3">{% translate "Учасники" %} <span class="badge text-bg-secondary">{{ memberships|length }}</span></h2>
 
         <ul class="list-group list-group-flush">
           {% for membership in memberships %}
@@ -31,21 +32,21 @@
                 <div class="small text-body-secondary">{{ membership.user.email }}</div>
               </div>
               <span class="small text-body-secondary text-nowrap d-none d-sm-inline">
-                з {{ membership.joined_at|date:"d.m.Y" }}
+                {% blocktranslate with date=membership.joined_at|date:"d.m.Y" %}з {{ date }}{% endblocktranslate %}
               </span>
               {% if is_owner %}
                 <button type="button" class="btn btn-sm btn-link text-danger"
                         data-bs-toggle="modal" data-bs-target="#confirmModal"
                         data-action="{% url 'sharing:membership_remove' membership.pk %}"
-                        data-title="Видалити учасника?"
-                        data-text="{{ membership.user.username }} втратить доступ до матеріалів групи."
-                        data-confirm="Видалити">
+                        data-title="{% translate "Видалити учасника?" %}"
+                        data-text="{% blocktranslate with username=membership.user.username %}{{ username }} втратить доступ до матеріалів групи.{% endblocktranslate %}"
+                        data-confirm="{% translate "Видалити" %}">
                   <i class="bi bi-x-lg"></i>
                 </button>
               {% endif %}
             </li>
           {% empty %}
-            <li class="list-group-item px-0 text-body-secondary small">Учасників ще немає.</li>
+            <li class="list-group-item px-0 text-body-secondary small">{% translate "Учасників ще немає." %}</li>
           {% endfor %}
         </ul>
       </div>
@@ -56,34 +57,34 @@
     {% if is_owner %}
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-          <h2 class="h6 mb-2">Посилання для приєднання</h2>
+          <h2 class="h6 mb-2">{% translate "Посилання для приєднання" %}</h2>
           {% if group.invite_token %}
             <p class="small text-body-secondary mb-2">
-              Хто відкриє це посилання, зможе самостійно вступити в групу.
+              {% translate "Хто відкриє це посилання, зможе самостійно вступити в групу." %}
             </p>
             <div class="input-group input-group-sm mb-3">
               <input type="text" class="form-control font-monospace" readonly
                      value="{{ request.scheme }}://{{ request.get_host }}{% url 'sharing:group_join' group.invite_token %}"
-                     aria-label="URL для приєднання">
-              <button class="btn btn-outline-secondary" type="button" data-copy-input title="Скопіювати">
+                     aria-label="{% translate "URL для приєднання" %}">
+              <button class="btn btn-outline-secondary" type="button" data-copy-input title="{% translate "Скопіювати" %}">
                 <i class="bi bi-clipboard"></i>
               </button>
             </div>
             <form method="post" action="{% url 'sharing:group_invite' group.pk %}" class="d-flex gap-2">
               {% csrf_token %}
               <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-repeat me-1"></i>Оновити
+                <i class="bi bi-arrow-repeat me-1"></i>{% translate "Оновити" %}
               </button>
               <button type="submit" name="action" value="disable" class="btn btn-sm btn-outline-danger">
-                Вимкнути
+                {% translate "Вимкнути" %}
               </button>
             </form>
           {% else %}
-            <p class="small text-body-secondary mb-3">Посилання вимкнене. Учні можуть вступити лише вручну.</p>
+            <p class="small text-body-secondary mb-3">{% translate "Посилання вимкнене. Учні можуть вступити лише вручну." %}</p>
             <form method="post" action="{% url 'sharing:group_invite' group.pk %}">
               {% csrf_token %}
               <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-link-45deg me-1"></i>Створити посилання
+                <i class="bi bi-link-45deg me-1"></i>{% translate "Створити посилання" %}
               </button>
             </form>
           {% endif %}
@@ -94,7 +95,7 @@
     {% if is_owner and membership_form %}
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-          <h2 class="h6 mb-3">Додати учасника</h2>
+          <h2 class="h6 mb-3">{% translate "Додати учасника" %}</h2>
           {% crispy membership_form %}
         </div>
       </div>
@@ -103,10 +104,10 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h6 mb-0">Доступні матеріали</h2>
+          <h2 class="h6 mb-0">{% translate "Доступні матеріали" %}</h2>
           {% if is_owner %}
             <a href="{% url 'sharing:access_create' %}?group={{ group.pk }}"
-               class="btn btn-sm btn-outline-primary">Надати доступ</a>
+               class="btn btn-sm btn-outline-primary">{% translate "Надати доступ" %}</a>
           {% endif %}
         </div>
 
@@ -121,16 +122,16 @@
               <button type="button" class="btn btn-sm btn-link text-danger p-0 px-1"
                       data-bs-toggle="modal" data-bs-target="#confirmModal"
                       data-action="{% url 'sharing:access_delete' access.pk %}"
-                      data-title="Відкликати доступ?"
-                      data-text="Учасники групи «{{ group.name }}» більше не бачитимуть цей матеріал."
-                      data-confirm="Відкликати"
-                      aria-label="Відкликати доступ">
+                      data-title="{% translate "Відкликати доступ?" %}"
+                      data-text="{% blocktranslate with name=group.name %}Учасники групи «{{ name }}» більше не бачитимуть цей матеріал.{% endblocktranslate %}"
+                      data-confirm="{% translate "Відкликати" %}"
+                      aria-label="{% translate "Відкликати доступ" %}">
                 <i class="bi bi-x-lg"></i>
               </button>
             {% endif %}
           </div>
         {% empty %}
-          <p class="small text-body-secondary mb-0">Групі ще нічого не надано.</p>
+          <p class="small text-body-secondary mb-0">{% translate "Групі ще нічого не надано." %}</p>
         {% endfor %}
       </div>
     </div>

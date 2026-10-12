@@ -8,6 +8,7 @@ from django.contrib.auth.forms import (
     SetPasswordForm,
     UserCreationForm,
 )
+from django.utils.translation import gettext_lazy as _
 
 from .models import User
 
@@ -16,10 +17,10 @@ class RegistrationForm(UserCreationForm):
 
     email = forms.EmailField(
         label="Email",
-        help_text="На цю адресу зіставляється акаунт при вході через Google.",
+        help_text=_("На цю адресу зіставляється акаунт при вході через Google."),
     )
     role = forms.ChoiceField(
-        label="Я реєструюсь як",
+        label=_("Я реєструюсь як"),
         choices=User.Role.choices,
         initial=User.Role.STUDENT,
         widget=forms.RadioSelect,
@@ -39,7 +40,7 @@ class RegistrationForm(UserCreationForm):
             "role",
             "password1",
             "password2",
-            Submit("submit", "Зареєструватися", css_class="btn btn-primary w-100 mt-3"),
+            Submit("submit", _("Зареєструватися"), css_class="btn btn-primary w-100 mt-3"),
         )
 
 
@@ -52,7 +53,7 @@ class LoginForm(AuthenticationForm):
         self.helper.layout = Layout(
             "username",
             "password",
-            Submit("submit", "Увійти", css_class="btn btn-primary w-100 mt-3"),
+            Submit("submit", _("Увійти"), css_class="btn btn-primary w-100 mt-3"),
         )
 
 
@@ -71,7 +72,7 @@ class ProfileForm(forms.ModelForm):
             "first_name",
             "last_name",
             "email",
-            Submit("submit", "Зберегти", css_class="btn btn-primary mt-3"),
+            Submit("submit", _("Зберегти"), css_class="btn btn-primary mt-3"),
         )
 
 
@@ -83,7 +84,7 @@ class ResetRequestForm(PasswordResetForm):
         self.helper.form_method = "post"
         self.helper.layout = Layout(
             "email",
-            Submit("submit", "Надіслати посилання", css_class="btn btn-primary w-100 mt-3"),
+            Submit("submit", _("Надіслати посилання"), css_class="btn btn-primary w-100 mt-3"),
         )
 
 
@@ -96,7 +97,7 @@ class ResetSetPasswordForm(SetPasswordForm):
         self.helper.layout = Layout(
             "new_password1",
             "new_password2",
-            Submit("submit", "Зберегти пароль", css_class="btn btn-primary w-100 mt-3"),
+            Submit("submit", _("Зберегти пароль"), css_class="btn btn-primary w-100 mt-3"),
         )
 
 
@@ -110,5 +111,5 @@ class ChangePasswordForm(PasswordChangeForm):
             "old_password",
             "new_password1",
             "new_password2",
-            Submit("submit", "Змінити пароль", css_class="btn btn-primary w-100 mt-3"),
+            Submit("submit", _("Змінити пароль"), css_class="btn btn-primary w-100 mt-3"),
         )

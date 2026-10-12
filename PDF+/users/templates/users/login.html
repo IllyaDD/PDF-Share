@@ -1,31 +1,32 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load crispy_forms_tags %}
 
-{% block title %}Вхід — PDF+{% endblock %}
+{% block title %}{% translate "Вхід" %} — PDF+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-12 col-md-7 col-lg-5">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h1 class="h4 mb-4">Вхід</h1>
+        <h1 class="h4 mb-4">{% translate "Вхід" %}</h1>
 
         {% crispy form %}
 
         <p class="text-end small mt-2 mb-0">
-          <a href="{% url 'accounts:password_reset' %}">Забули пароль?</a>
+          <a href="{% url 'accounts:password_reset' %}">{% translate "Забули пароль?" %}</a>
         </p>
 
         <div class="d-flex align-items-center my-3">
-          <hr class="flex-grow-1"><span class="px-2 text-body-secondary small">або</span><hr class="flex-grow-1">
+          <hr class="flex-grow-1"><span class="px-2 text-body-secondary small">{% translate "або" %}</span><hr class="flex-grow-1">
         </div>
 
         <a href="{% url 'accounts:google_login' %}" class="btn btn-outline-secondary w-100">
-          Продовжити з Google
+          {% translate "Продовжити з Google" %}
         </a>
 
         <p class="text-center text-body-secondary small mt-4 mb-0">
-          Немає акаунта? <a href="{% url 'accounts:register' %}">Зареєструватися</a>
+          {% translate "Немає акаунта?" %} <a href="{% url 'accounts:register' %}">{% translate "Зареєструватися" %}</a>
         </p>
       </div>
     </div>

@@ -7,6 +7,8 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from annotations.access import publishable_groups, shared_annotations, shared_layers
@@ -41,9 +43,9 @@ def _folder_crumbs(folder):
         node = node.parent
 
     if any(node.is_catalog for node in chain):
-        crumbs = [{"url": reverse("book_library:catalog"), "label": "Каталог"}]
+        crumbs = [{"url": reverse("book_library:catalog"), "label": _("Каталог")}]
     else:
-        crumbs = [{"url": reverse("book_library:library"), "label": "Бібліотека"}]
+        crumbs = [{"url": reverse("book_library:library"), "label": _("Бібліотека")}]
 
     for node in reversed(chain):
         crumbs.append({"url": reverse("book_library:folder", args=[node.pk]), "label": node.name})
@@ -68,7 +70,11 @@ def _search_titles(queryset, query, field="title"):
 
 
 # Де шукати в «Моїй бібліотеці»: значення параметра ?scope= і підпис у селекті.
-SEARCH_SCOPES = [("all", "Усюди"), ("folders", "Теки"), ("books", "Книги")]
+SEARCH_SCOPES = [
+    ("all", gettext_lazy("Усюди")),
+    ("folders", gettext_lazy("Теки")),
+    ("books", gettext_lazy("Книги")),
+]
 
 
 def _safe_next(request, fallback):
@@ -143,7 +149,7 @@ def library_view(request, pk=None):
             "is_owner": is_owner,
             "in_catalog": is_catalog_folder(folder) if folder else False,
             "crumbs": _folder_crumbs(folder) if folder else None,
-            "page_title": folder.name if folder else "Моя бібліотека",
+            "page_title": folder.name if folder else _("Моя бібліотека"),
             "upload_url": reverse("book_library:book_upload"),
             "add_books_url": reverse("book_library:folder_add_books", args=[folder.pk])
             if folder and is_owner
@@ -168,7 +174,7 @@ def shared_with_me_view(request):
         {
             "shared_books": shared_books,
             "shared_folders": shared_folders,
-            "page_title": "Поділилися зі мною",
+            "page_title": _("Поділилися зі мною"),
         },
     )
 
@@ -195,8 +201,8 @@ def catalog_view(request):
             "folders": folders,
             "books": books,
             "query": query,
-            "page_title": "Каталог",
-            "page_subtitle": "Матеріали, доступні всім користувачам",
+            "page_title": _("Каталог"),
+            "page_subtitle": _("Матеріали, доступні всім користувачам"),
         },
     )
 
@@ -213,7 +219,7 @@ def folder_create_view(request):
         folder = form.save(commit=False)
         folder.owner = request.user
         folder.save()
-        messages.success(request, "Теку створено.")
+        messages.success(request, _("Теку створено."))
         return redirect("book_library:folder", pk=folder.pk)
 
     return render(
@@ -221,8 +227,8 @@ def folder_create_view(request):
         "book_library/folder_form.html",
         {
             "form": form,
-            "page_title": "Нова тека",
-            "form_title": "Нова тека",
+            "page_title": _("Нова тека"),
+            "form_title": _("Нова тека"),
             "cancel_url": reverse("book_library:library"),
         },
     )
@@ -235,7 +241,7 @@ def folder_edit_view(request, pk):
 
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Теку оновлено.")
+        messages.success(request, _("Теку оновлено."))
         return redirect("book_library:folder", pk=folder.pk)
 
     return render(
@@ -243,8 +249,8 @@ def folder_edit_view(request, pk):
         "book_library/folder_form.html",
         {
             "form": form,
-            "page_title": "Редагування теки",
-            "form_title": f"Тека «{folder.name}»",
+            "page_title": _("Редагування теки"),
+            "form_title": _("Тека «%(name)s»") % {"name": folder.name},
             "cancel_url": reverse("book_library:folder", args=[folder.pk]),
         },
     )
@@ -256,7 +262,7 @@ def folder_delete_view(request, pk):
     if request.method == "POST":
         parent_pk = folder.parent_id
         folder.delete()
-        messages.success(request, "Теку видалено.")
+        messages.success(request, _("Теку видалено."))
         if parent_pk:
             return redirect("book_library:folder", pk=parent_pk)
     return redirect("book_library:library")
@@ -283,8 +289,8 @@ def folder_add_books_view(request, pk):
             "folder": folder,
             "books": candidates,
             "query": query,
-            "crumbs": _folder_crumbs(folder) + [{"url": "", "label": "Додати книги"}],
-            "page_title": f"Додати книги до «{folder.name}»",
+            "crumbs": _folder_crumbs(folder) + [{"url": "", "label": _("Додати книги")}],
+            "page_title": _("Додати книги до «%(name)s»") % {"name": folder.name},
         },
     )
 
@@ -399,10 +405,10 @@ def book_progress_view(request, pk):
     try:
         payload = json.loads(request.body or b"{}")
         if not isinstance(payload, dict):
-            raise PayloadError("очікується JSON-об'єкт")
+            raise PayloadError(_("очікується JSON-об'єкт"))
         page = parse_page_number(payload.get("page"), book.page_count, field="page")
     except json.JSONDecodeError:
-        return JsonResponse({"error": "тіло запиту не є коректним JSON"}, status=400)
+        return JsonResponse({"error": _("тіло запиту не є коректним JSON")}, status=400)
     except PayloadError as error:
         return JsonResponse({"error": str(error)}, status=400)
 
@@ -422,7 +428,7 @@ def book_upload_view(request):
         book = form.save(commit=False)
         book.owner = request.user
         book.save()
-        messages.success(request, f"«{book.title}» завантажено: {book.page_count} с.")
+        messages.success(request, _("«%(title)s» завантажено: %(pages)s с.") % {"title": book.title, "pages": book.page_count})
         return redirect("book_library:book_detail", pk=book.pk)
 
     return render(
@@ -430,9 +436,9 @@ def book_upload_view(request):
         "book_library/book_form.html",
         {
             "form": form,
-            "page_title": "Завантаження PDF",
-            "form_title": "Завантажити PDF",
-            "form_hint": "Приймаються файли у форматі PDF.",
+            "page_title": _("Завантаження PDF"),
+            "form_title": _("Завантажити PDF"),
+            "form_hint": _("Приймаються файли у форматі PDF."),
             "cancel_url": reverse("book_library:library"),
         },
     )
@@ -445,7 +451,7 @@ def book_edit_view(request, pk):
 
     if request.method == "POST" and form.is_valid():
         book = form.save()
-        messages.success(request, "Книгу оновлено.")
+        messages.success(request, _("Книгу оновлено."))
         return redirect("book_library:book_detail", pk=book.pk)
 
     return render(
@@ -453,7 +459,7 @@ def book_edit_view(request, pk):
         "book_library/book_form.html",
         {
             "form": form,
-            "page_title": "Редагування книги",
+            "page_title": _("Редагування книги"),
             "form_title": f"«{book.title}»",
             "cancel_url": reverse("book_library:book_detail", args=[book.pk]),
         },
@@ -466,7 +472,7 @@ def book_delete_view(request, pk):
     if request.method == "POST":
         folder_pk = book.folder_id
         book.delete()
-        messages.success(request, "Книгу видалено.")
+        messages.success(request, _("Книгу видалено."))
         if folder_pk:
             return redirect("book_library:folder", pk=folder_pk)
     return redirect("book_library:library")
@@ -481,17 +487,17 @@ def book_move_view(request, pk):
     folder = None
     if raw_folder:
         if not raw_folder.isdigit():
-            raise Http404("Некоректна тека.")
+            raise Http404(_("Некоректна тека."))
         folder = get_object_or_404(Folder, pk=int(raw_folder), owner=request.user)
 
     book.folder = folder
     book.save(update_fields=["folder", "updated_at"])
 
     if folder:
-        messages.success(request, f"«{book.title}» перенесено до теки «{folder.name}».")
+        messages.success(request, _("«%(title)s» перенесено до теки «%(folder)s».") % {"title": book.title, "folder": folder.name})
         fallback = reverse("book_library:folder", args=[folder.pk])
     else:
-        messages.success(request, f"«{book.title}» прибрано з теки.")
+        messages.success(request, _("«%(title)s» прибрано з теки.") % {"title": book.title})
         fallback = reverse("book_library:library")
 
     return redirect(_safe_next(request, fallback))

@@ -1,26 +1,27 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Каталог — PDF+{% endblock %}
+{% block title %}{% translate "Каталог" %} — PDF+{% endblock %}
 
 {% block content %}
-  {% include "partials/search_form.html" with placeholder="Пошук по каталогу…" %}
+  {% include "partials/search_form.html" with placeholder=_("Пошук по каталогу…") %}
 
   {% if query %}
     <h2 class="h6 text-body-secondary text-uppercase mb-3">
-      Знайдено за «{{ query }}»: {{ books|length }}
+      {% blocktranslate with result_count=books|length %}Знайдено за «{{ query }}»: {{ result_count }}{% endblocktranslate %}
     </h2>
     {% if books %}
       <div class="row g-3">
         {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
       </div>
     {% else %}
-      {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Спробуйте іншу назву або скиньте пошук." action_url=request.path action_label="Скинути пошук" %}
+      {% include "partials/empty_state.html" with icon="bi-search" title=_("Нічого не знайдено") text=_("Спробуйте іншу назву або скиньте пошук.") action_url=request.path action_label=_("Скинути пошук") %}
     {% endif %}
   {% elif folders %}
     <div class="row g-3">
       {% for folder in folders %}{% include "partials/folder_card.html" %}{% endfor %}
     </div>
   {% else %}
-    {% include "partials/empty_state.html" with icon="bi-collection" title="Каталог порожній" text="Адміністратор ще не відкрив жодної теки для всіх." %}
+    {% include "partials/empty_state.html" with icon="bi-collection" title=_("Каталог порожній") text=_("Адміністратор ще не відкрив жодної теки для всіх.") %}
   {% endif %}
 {% endblock %}

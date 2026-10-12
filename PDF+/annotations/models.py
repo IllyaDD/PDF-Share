@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from book_library.models import Book
 
@@ -77,7 +78,7 @@ class NoteGroup(models.Model):
         on_delete=models.CASCADE,
         related_name="note_groups",
     )
-    name = models.CharField("назва", max_length=100)
+    name = models.CharField(_("назва"), max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -98,15 +99,15 @@ class NoteGroup(models.Model):
 class Annotation(models.Model):
 
     PALETTE = [
-        ("#FFEB3B", "Жовтий"),
-        ("#A5D6A7", "Зелений"),
-        ("#90CAF9", "Блакитний"),
-        ("#F48FB1", "Рожевий"),
-        ("#FFCC80", "Помаранчевий"),
+        ("#FFEB3B", _("Жовтий")),
+        ("#A5D6A7", _("Зелений")),
+        ("#90CAF9", _("Блакитний")),
+        ("#F48FB1", _("Рожевий")),
+        ("#FFCC80", _("Помаранчевий")),
     ]
 
     class Type(models.TextChoices):
-        HIGHLIGHT = "highlight", "Виділення"
+        HIGHLIGHT = "highlight", _("Виділення")
 
     layer = models.ForeignKey(
         Layer,
@@ -120,7 +121,7 @@ class Annotation(models.Model):
         default=Type.HIGHLIGHT,
     )
     coords = models.JSONField(
-        help_text="Список прямокутників у PDF user space: [{x0, y0, x1, y1}, ...]",
+        help_text=_("Список прямокутників у PDF user space: [{x0, y0, x1, y1}, ...]"),
     )
     selected_text = models.TextField(blank=True)
     note_text = models.TextField(blank=True)

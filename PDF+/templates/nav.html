@@ -1,9 +1,10 @@
+{% load i18n static %}
 <nav class="navbar navbar-expand-lg bg-body border-bottom sticky-top">
   <div class="container-fluid px-3 px-lg-4">
 
     {% if user.is_authenticated %}
       <button class="btn btn-link text-body d-lg-none px-2" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="Меню">
+              data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="{% translate "Меню" %}">
         <i class="bi bi-list fs-4"></i>
       </button>
     {% endif %}
@@ -13,6 +14,20 @@
     </a>
 
     <div class="ms-auto d-flex align-items-center gap-2">
+      <form method="post" action="{% url 'set_language' %}" class="m-0">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="btn-group btn-group-sm lang-switch" role="group" aria-label="{% translate "Мова інтерфейсу" %}">
+          {% for code, name in LANGUAGES %}
+            {# Прапор лежить у static/img/flags/<код мови>.svg; назва мови — у title й aria-label. #}
+            <button type="submit" name="language" value="{{ code }}" title="{{ name }}" aria-label="{{ name }}" lang="{{ code }}"
+                    class="btn btn-light{% if code == LANGUAGE_CODE %} active{% endif %}"
+                    aria-pressed="{% if code == LANGUAGE_CODE %}true{% else %}false{% endif %}">
+              <img src="{% static 'img/flags/'|add:code|add:'.svg' %}" class="lang-flag" alt="" width="21" height="14">
+            </button>
+          {% endfor %}
+        </div>
+      </form>
       {% if user.is_authenticated %}
         <div class="dropdown">
           <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
@@ -21,20 +36,20 @@
             <span class="badge text-bg-secondary">{{ user.get_role_display }}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Профіль</a></li>
-            <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">Редагувати профіль</a></li>
+            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">{% translate "Профіль" %}</a></li>
+            <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">{% translate "Редагувати профіль" %}</a></li>
             <li><hr class="dropdown-divider"></li>
             <li>
               <form method="post" action="{% url 'accounts:logout' %}">
                 {% csrf_token %}
-                <button type="submit" class="dropdown-item text-danger">Вийти</button>
+                <button type="submit" class="dropdown-item text-danger">{% translate "Вийти" %}</button>
               </form>
             </li>
           </ul>
         </div>
       {% else %}
-        <a class="btn btn-link btn-sm text-body" href="{% url 'accounts:login' %}">Увійти</a>
-        <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">Реєстрація</a>
+        <a class="btn btn-link btn-sm text-body" href="{% url 'accounts:login' %}">{% translate "Увійти" %}</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">{% translate "Реєстрація" %}</a>
       {% endif %}
     </div>
 

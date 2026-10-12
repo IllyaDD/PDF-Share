@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Профіль — PDF+{% endblock %}
+{% block title %}{% translate "Профіль" %} — PDF+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -14,20 +15,20 @@
           </div>
           <div class="d-flex gap-2">
             {% if user.has_usable_password %}
-              <a href="{% url 'accounts:password_change' %}" class="btn btn-outline-secondary btn-sm">Змінити пароль</a>
+              <a href="{% url 'accounts:password_change' %}" class="btn btn-outline-secondary btn-sm">{% translate "Змінити пароль" %}</a>
             {% endif %}
-            <a href="{% url 'accounts:edit_profile' %}" class="btn btn-outline-primary btn-sm">Редагувати</a>
+            <a href="{% url 'accounts:edit_profile' %}" class="btn btn-outline-primary btn-sm">{% translate "Редагувати" %}</a>
           </div>
         </div>
 
         <dl class="row mb-0">
-          <dt class="col-sm-4 text-body-secondary fw-normal">Ім'я</dt>
+          <dt class="col-sm-4 text-body-secondary fw-normal">{% translate "Ім'я" %}</dt>
           <dd class="col-sm-8">{{ user.get_full_name|default:"—" }}</dd>
 
           <dt class="col-sm-4 text-body-secondary fw-normal">Email</dt>
           <dd class="col-sm-8">{{ user.email }}</dd>
 
-          <dt class="col-sm-4 text-body-secondary fw-normal">Зареєстровано</dt>
+          <dt class="col-sm-4 text-body-secondary fw-normal">{% translate "Зареєстровано" %}</dt>
           <dd class="col-sm-8">{{ user.date_joined|date:"d.m.Y" }}</dd>
         </dl>
       </div>
@@ -35,13 +36,13 @@
 
     <div class="card border-danger-subtle shadow-sm mt-4">
       <div class="card-body p-4">
-        <h2 class="h6 text-danger mb-2">Видалення акаунта</h2>
+        <h2 class="h6 text-danger mb-2">{% translate "Видалення акаунта" %}</h2>
         <p class="text-body-secondary small mb-3">
-          Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації.
+          {% translate "Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації." %}
         </p>
         <button type="button" class="btn btn-outline-danger btn-sm"
                 data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-          Видалити акаунт
+          {% translate "Видалити акаунт" %}
         </button>
       </div>
     </div>
@@ -52,17 +53,17 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Видалити акаунт?</h5>
+        <h5 class="modal-title">{% translate "Видалити акаунт?" %}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-0">Дію не можна скасувати. Усі ваші дані буде видалено назавжди.</p>
+        <p class="mb-0">{% translate "Дію не можна скасувати. Усі ваші дані буде видалено назавжди." %}</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Скасувати" %}</button>
         <form method="post" action="{% url 'accounts:delete_profile' %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn-danger">Видалити назавжди</button>
+          <button type="submit" class="btn btn-danger">{% translate "Видалити назавжди" %}</button>
         </form>
       </div>
     </div>

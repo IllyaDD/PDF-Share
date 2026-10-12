@@ -1,29 +1,30 @@
+{% load i18n %}
 <div class="modal fade" id="moveModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <form method="post" class="modal-content" data-move-form>
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
       <div class="modal-header">
-        <h5 class="modal-title">Перемістити <span data-move-title></span></h5>
+        <h5 class="modal-title">{% translate "Перемістити" %} <span data-move-title></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <label for="moveFolderSelect" class="form-label">Тека</label>
+        <label for="moveFolderSelect" class="form-label">{% translate "Тека" %}</label>
         <select name="folder" id="moveFolderSelect" class="form-select" data-move-select>
-          <option value="">— корінь бібліотеки —</option>
+          <option value="">— {% translate "корінь бібліотеки" %} —</option>
           {% for item in move_folders %}
             <option value="{{ item.pk }}">{{ item.label }}</option>
           {% endfor %}
         </select>
         {% if not move_folders %}
           <p class="small text-body-secondary mt-2 mb-0">
-            Тек ще немає — <a href="{% url 'book_library:folder_create' %}">створіть першу</a>.
+            {% url 'book_library:folder_create' as create_url %}{% blocktranslate %}Тек ще немає — <a href="{{ create_url }}">створіть першу</a>.{% endblocktranslate %}
           </p>
         {% endif %}
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
-        <button type="submit" class="btn btn-primary">Перемістити</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Скасувати" %}</button>
+        <button type="submit" class="btn btn-primary">{% translate "Перемістити" %}</button>
       </div>
     </form>
   </div>

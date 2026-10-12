@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Нотатки — {{ book.title }}{% endblock %}
+{% block title %}{% translate "Нотатки" %} — {{ book.title }}{% endblock %}
 
 {% block breadcrumbs %}{% include "partials/breadcrumbs.html" %}{% endblock %}
 
 {% block page_actions %}
   <a href="{% url 'book_library:book_reader' book.pk %}" class="btn btn-primary">
-    <i class="bi bi-book me-1"></i>Відкрити книгу
+    <i class="bi bi-book me-1"></i>{% translate "Відкрити книгу" %}
   </a>
 {% endblock %}
 
@@ -18,7 +19,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2 mt-4 mb-2">
           <h2 class="h5 mb-0">
             <i class="bi {% if section.group %}bi-folder2-open{% else %}bi-folder2{% endif %} me-1"></i>
-            {% if section.group %}{{ section.group.name }}{% else %}Без групи{% endif %}
+            {% if section.group %}{{ section.group.name }}{% else %}{% translate "Без групи" %}{% endif %}
           </h2>
           <span class="badge text-bg-light border">{{ section.count }}</span>
           {% if section.group %}
@@ -26,17 +27,17 @@
                   class="d-flex gap-1 ms-auto">
               {% csrf_token %}
               <input type="text" name="name" value="{{ section.group.name }}" maxlength="100" required
-                     class="form-control form-control-sm" aria-label="Нова назва теми">
-              <button type="submit" class="btn btn-sm btn-outline-secondary" title="Перейменувати">
+                     class="form-control form-control-sm" aria-label="{% translate "Нова назва теми" %}">
+              <button type="submit" class="btn btn-sm btn-outline-secondary" title="{% translate "Перейменувати" %}">
                 <i class="bi bi-pencil"></i>
               </button>
             </form>
-            <button type="button" class="btn btn-sm btn-outline-danger" title="Видалити тему"
+            <button type="button" class="btn btn-sm btn-outline-danger" title="{% translate "Видалити тему" %}"
                     data-bs-toggle="modal" data-bs-target="#confirmModal"
                     data-action="{% url 'annotations:note_group_delete' section.group.pk %}"
-                    data-title="Видалити тему «{{ section.group.name }}»?"
-                    data-text="Нотатки не зникнуть — вони перейдуть у «Без групи»."
-                    data-confirm="Видалити тему">
+                    data-title="{% blocktranslate with name=section.group.name %}Видалити тему «{{ name }}»?{% endblocktranslate %}"
+                    data-text="{% translate "Нотатки не зникнуть — вони перейдуть у «Без групи»." %}"
+                    data-confirm="{% translate "Видалити тему" %}">
               <i class="bi bi-trash"></i>
             </button>
           {% endif %}
@@ -44,30 +45,30 @@
       {% endif %}
 
       {% for page_number, page_annotations in section.pages %}
-        <h3 class="h6 text-body-secondary text-uppercase mb-2 mt-3">Сторінка {{ page_number }}</h3>
+        <h3 class="h6 text-body-secondary text-uppercase mb-2 mt-3">{% blocktranslate %}Сторінка {{ page_number }}{% endblocktranslate %}</h3>
         {% for annotation in page_annotations %}
           {% include "annotations/partials/annotation_item.html" %}
         {% endfor %}
       {% empty %}
-        <p class="small text-body-secondary mb-0">У темі поки нема нотаток.</p>
+        <p class="small text-body-secondary mb-0">{% translate "У темі поки нема нотаток." %}</p>
       {% endfor %}
     {% empty %}
-      {% include "partials/empty_state.html" with icon="bi-highlighter" title="Нотаток немає" text="Виділення, зроблені в читалці, з'являться тут." action_url=reader_url action_label="Відкрити книгу" %}
+      {% include "partials/empty_state.html" with icon="bi-highlighter" title=_("Нотаток немає") text=_("Виділення, зроблені в читалці, з'являться тут.") action_url=reader_url action_label=_("Відкрити книгу") %}
     {% endfor %}
   </div>
 
   <div class="col-lg-4">
     <div class="card border-0 shadow-sm">
       <div class="card-body">
-        <h2 class="h6 mb-3">Підсумок</h2>
+        <h2 class="h6 mb-3">{% translate "Підсумок" %}</h2>
         <dl class="row small mb-0">
-          <dt class="col-7 fw-normal text-body-secondary">Усього виділень</dt>
+          <dt class="col-7 fw-normal text-body-secondary">{% translate "Усього виділень" %}</dt>
           <dd class="col-5 text-end mb-1">{{ total_count }}</dd>
 
-          <dt class="col-7 fw-normal text-body-secondary">Сторінок з нотатками</dt>
+          <dt class="col-7 fw-normal text-body-secondary">{% translate "Сторінок з нотатками" %}</dt>
           <dd class="col-5 text-end mb-1">{{ pages_with_notes }}</dd>
 
-          <dt class="col-7 fw-normal text-body-secondary">З коментарем</dt>
+          <dt class="col-7 fw-normal text-body-secondary">{% translate "З коментарем" %}</dt>
           <dd class="col-5 text-end mb-0">{{ with_notes_count }}</dd>
         </dl>
       </div>

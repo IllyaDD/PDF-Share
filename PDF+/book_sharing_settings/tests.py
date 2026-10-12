@@ -4,13 +4,15 @@ import tempfile
 from datetime import timedelta
 
 from annotations.models import Annotation, Layer
+from annotations.validators import PayloadError, parse_group_name
 from book_library.models import Book, Folder
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import Group as AuthGroup
+from django.core import mail
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from sharing.models import Group, GroupAccess, GroupMembership, ShareLink
 from users.models import User
 
@@ -178,3 +180,71 @@ class DashboardLegendTests(TestCase):
         self.assertEqual([item["label"] for item in legend], [d["label"] for d in chart["datasets"]])
         self.assertEqual([item["color"] for item in legend], [d["borderColor"] for d in chart["datasets"]])
         self.assertEqual(len({item["color"] for item in legend}), 3)
+
+
+class LanguageSwitchTests(TestCase):
+    """Перемикач мови: cookie від set_language, LocaleMiddleware і каталог locale/en."""
+
+    def use_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
+    def test_default_language_is_ukrainian(self):
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, '<html lang="uk"')
+        self.assertContains(response, "Увійти")
+
+    def test_set_language_switches_to_english_and_returns_to_next(self):
+        target = reverse("accounts:login")
+        response = self.client.post(reverse("set_language"), {"language": "en", "next": target})
+
+        self.assertRedirects(response, target, fetch_redirect_response=False)
+        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "en")
+
+        page = self.client.get(target)
+        self.assertContains(page, '<html lang="en"')
+        self.assertContains(page, "Forgot your password?")
+        self.assertNotContains(page, "Забули пароль?")
+
+    def test_set_language_ignores_foreign_next(self):
+        response = self.client.post(
+            reverse("set_language"), {"language": "en", "next": "https://evil.example/"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("evil.example", response["Location"])
+
+    def test_browser_language_is_used_without_cookie(self):
+        response = self.client.get(reverse("book_library:home"), HTTP_ACCEPT_LANGUAGE="en-US,en;q=0.9")
+        self.assertContains(response, '<html lang="en"')
+
+    def test_unsupported_browser_language_falls_back_to_ukrainian(self):
+        response = self.client.get(reverse("book_library:home"), HTTP_ACCEPT_LANGUAGE="de")
+        self.assertContains(response, '<html lang="uk"')
+
+    def test_flash_message_is_translated(self):
+        user = User.objects.create_user(username="reader", email="r@example.com", password="parol-parol-42")
+        self.client.force_login(user)
+        self.use_english()
+
+        response = self.client.post(reverse("accounts:logout"), follow=True)
+        self.assertContains(response, "You have logged out.")
+
+    def test_password_reset_email_follows_language(self):
+        User.objects.create_user(username="reader", email="r@example.com", password="parol-parol-42")
+        self.use_english()
+
+        self.client.post(reverse("accounts:password_reset"), {"email": "r@example.com"})
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Password reset — PDF+")
+        self.assertIn("Hello, reader!", mail.outbox[0].body)
+
+    def test_javascript_catalog_serves_reader_strings(self):
+        self.use_english()
+        response = self.client.get(reverse("javascript-catalog"))
+        self.assertContains(response, "All highlights are hidden by the filter.")
+
+    def test_payload_error_is_translated(self):
+        with translation.override("en"), self.assertRaisesMessage(
+            PayloadError, "name: the topic name cannot be empty"
+        ):
+            parse_group_name("   ")

@@ -1,0 +1,95 @@
+# English translation of PDF+.
+# msgid — українські рядки з коду; тут лише переклад на англійську.
+msgid ""
+msgstr ""
+"Project-Id-Version: PDF+\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-12 10:51+0000\n"
+"PO-Revision-Date: 2026-10-12 00:00+0000\n"
+"Last-Translator: IllyaDD\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: static/js/reader.js:238
+msgid "с. %(page)s"
+msgstr "p. %(page)s"
+
+#: static/js/reader.js:284
+msgid "Усі мітки сховані фільтром."
+msgstr "All highlights are hidden by the filter."
+
+#: static/js/reader.js:286
+msgid "У цій темі нотаток ще немає."
+msgstr "No notes in this topic yet."
+
+#: static/js/reader.js:288
+msgid "Нотаток ще немає."
+msgstr "No notes yet."
+
+#: static/js/reader.js:288
+msgid "У цьому шарі нотаток немає."
+msgstr "There are no notes in this layer."
+
+#: static/js/reader.js:303
+msgid "Клік — сховати/показати. Подвійний клік — лише цей колір."
+msgstr "Click to hide/show. Double-click to show only this color."
+
+#: static/js/reader.js:385
+msgid "%(shown)s з %(total)s"
+msgstr "%(shown)s of %(total)s"
+
+#: static/js/reader.js:386
+msgid "%(total)s міток"
+msgstr "highlights: %(total)s"
+
+#: static/js/reader.js:422
+msgid "Усі"
+msgstr "All"
+
+#: static/js/reader.js:423 static/js/reader.js:446
+msgid "Без групи"
+msgstr "No topic"
+
+#: static/js/reader.js:432
+msgid "Нові виділення потрапляють у тему «%(name)s»."
+msgstr "New highlights go to the topic “%(name)s”."
+
+#: static/js/reader.js:433
+msgid "Нові виділення потрапляють у «Без групи»."
+msgstr "New highlights go to “No topic”."
+
+#: static/js/reader.js:443
+msgid "+ Нова"
+msgstr "+ New"
+
+#: static/js/reader.js:507
+msgid "Нотатки: %(owner)s"
+msgstr "Notes: %(owner)s"
+
+#: static/js/reader.js:507
+msgid "Мої нотатки"
+msgstr "My notes"
+
+#: static/js/reader.js:644
+msgid "Не вдалося зберегти виділення: %(error)s"
+msgstr "Could not save the highlight: %(error)s"
+
+#: static/js/reader.js:980
+msgid "Колір змінено"
+msgstr "Colour changed"
+
+#: static/js/reader.js:995
+msgid "Збережено"
+msgstr "Saved"
+
+#: static/js/reader.js:1039
+msgid "Тему змінено"
+msgstr "Topic changed"
+
+#: static/js/reader.js:1139
+msgid "Не вдалося відкрити документ: %(error)s"
+msgstr "Could not open the document: %(error)s"

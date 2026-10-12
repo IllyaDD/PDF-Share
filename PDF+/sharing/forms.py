@@ -3,6 +3,7 @@ from crispy_forms.layout import Layout, Submit
 from django import forms
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from annotations.models import NoteGroup
 from book_library.models import Book, Folder
@@ -16,7 +17,7 @@ class GroupForm(forms.ModelForm):
     class Meta:
         model = Group
         fields = ("name",)
-        labels = {"name": "Назва групи"}
+        labels = {"name": _("Назва групи")}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -24,18 +25,18 @@ class GroupForm(forms.ModelForm):
         self.helper.form_method = "post"
         self.helper.layout = Layout(
             "name",
-            Submit("submit", "Зберегти", css_class="btn btn-primary mt-3"),
+            Submit("submit", _("Зберегти"), css_class="btn btn-primary mt-3"),
         )
 
 
 class MembershipForm(forms.Form):
 
-    username = forms.CharField(label="Username учасника", max_length=150)
+    username = forms.CharField(label=_("Username учасника"), max_length=150)
 
     def __init__(self, *args, group=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.group = group
-        add_button = Submit("add_member", "Додати")
+        add_button = Submit("add_member", _("Додати"))
         add_button.field_classes = "btn btn-outline-primary mt-2"
 
         self.helper = FormHelper()
@@ -47,10 +48,10 @@ class MembershipForm(forms.Form):
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
-            raise forms.ValidationError("Користувача з таким username не знайдено.")
+            raise forms.ValidationError(_("Користувача з таким username не знайдено."))
 
         if self.group and GroupMembership.objects.filter(group=self.group, user=user).exists():
-            raise forms.ValidationError("Цей користувач уже в групі.")
+            raise forms.ValidationError(_("Цей користувач уже в групі."))
 
         self.cleaned_user = user
         return username
@@ -73,23 +74,23 @@ class ShareLinkForm(forms.ModelForm):
         model = ShareLink
         fields = ("book", "folder", "include_annotations", "note_groups", "expires_at")
         labels = {
-            "book": "Книга",
-            "folder": "Тека",
-            "include_annotations": "Що побачить отримувач",
-            "note_groups": "Які теми показати",
-            "expires_at": "Діє до",
+            "book": _("Книга"),
+            "folder": _("Тека"),
+            "include_annotations": _("Що побачить отримувач"),
+            "note_groups": _("Які теми показати"),
+            "expires_at": _("Діє до"),
         }
         widgets = {
             "include_annotations": forms.RadioSelect(
-                choices=[(False, "Лише книгу"), (True, "Книгу з моїми нотатками")]
+                choices=[(False, _("Лише книгу")), (True, _("Книгу з моїми нотатками"))]
             ),
             "note_groups": NoteGroupCheckboxes,
             "expires_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
         }
         help_texts = {
-            "include_annotations": "Нотатки відкриються окремим шаром, лише для читання.",
-            "note_groups": "Нічого не обрано — усі нотатки книги. Лише для посилання на книгу.",
-            "expires_at": "Порожньо — посилання безстрокове.",
+            "include_annotations": _("Нотатки відкриються окремим шаром, лише для читання."),
+            "note_groups": _("Нічого не обрано — усі нотатки книги. Лише для посилання на книгу."),
+            "expires_at": _("Порожньо — посилання безстрокове."),
         }
 
     def __init__(self, *args, owner=None, **kwargs):
@@ -101,8 +102,8 @@ class ShareLinkForm(forms.ModelForm):
         self.fields["folder"].queryset = (
             Folder.objects.none() if owner is None else Folder.objects.filter(owner=owner)
         )
-        self.fields["book"].empty_label = "— не обрано —"
-        self.fields["folder"].empty_label = "— не обрано —"
+        self.fields["book"].empty_label = _("— не обрано —")
+        self.fields["folder"].empty_label = _("— не обрано —")
         self.fields["expires_at"].widget.attrs["min"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
 
         groups = (
@@ -128,29 +129,29 @@ class ShareLinkForm(forms.ModelForm):
             "include_annotations",
             *(["note_groups"] if "note_groups" in self.fields else []),
             "expires_at",
-            Submit("submit", "Створити посилання", css_class="btn btn-primary mt-3"),
+            Submit("submit", _("Створити посилання"), css_class="btn btn-primary mt-3"),
         )
 
     def clean_expires_at(self):
         expires_at = self.cleaned_data.get("expires_at")
         if expires_at is not None and expires_at <= timezone.now():
-            raise forms.ValidationError("Дата завершення не може бути в минулому.")
+            raise forms.ValidationError(_("Дата завершення не може бути в минулому."))
         return expires_at
 
     def clean(self):
         cleaned = super().clean()
         book, folder = cleaned.get("book"), cleaned.get("folder")
         if bool(book) == bool(folder):
-            raise forms.ValidationError("Оберіть рівно одне: книгу або теку.")
+            raise forms.ValidationError(_("Оберіть рівно одне: книгу або теку."))
 
         groups = cleaned.get("note_groups")
         if groups:
             if not book or not cleaned.get("include_annotations"):
                 raise forms.ValidationError(
-                    "Теми можна обрати лише для посилання на книгу з нотатками."
+                    _("Теми можна обрати лише для посилання на книгу з нотатками.")
                 )
             if any(group.layer.book_id != book.pk for group in groups):
-                self.add_error("note_groups", "Обрані теми мають належати обраній книзі.")
+                self.add_error("note_groups", _("Обрані теми мають належати обраній книзі."))
         return cleaned
 
     def save(self, commit=True):
@@ -172,10 +173,10 @@ class GroupAccessForm(forms.ModelForm):
         model = GroupAccess
         fields = ("group", "book", "folder", "permission")
         labels = {
-            "group": "Група",
-            "book": "Книга",
-            "folder": "Тека",
-            "permission": "Права",
+            "group": _("Група"),
+            "book": _("Книга"),
+            "folder": _("Тека"),
+            "permission": _("Права"),
         }
 
     def __init__(self, *args, owner=None, **kwargs):
@@ -192,8 +193,8 @@ class GroupAccessForm(forms.ModelForm):
         )
         self.fields["book"].required = False
         self.fields["folder"].required = False
-        self.fields["book"].empty_label = "— не обрано —"
-        self.fields["folder"].empty_label = "— не обрано —"
+        self.fields["book"].empty_label = _("— не обрано —")
+        self.fields["folder"].empty_label = _("— не обрано —")
 
         self.helper = FormHelper()
         self.helper.form_method = "post"
@@ -202,7 +203,7 @@ class GroupAccessForm(forms.ModelForm):
             "book",
             "folder",
             "permission",
-            Submit("submit", "Надати доступ", css_class="btn btn-primary mt-3"),
+            Submit("submit", _("Надати доступ"), css_class="btn btn-primary mt-3"),
         )
 
     def clean(self):
@@ -210,7 +211,7 @@ class GroupAccessForm(forms.ModelForm):
         group, book, folder = cleaned.get("group"), cleaned.get("book"), cleaned.get("folder")
 
         if bool(book) == bool(folder):
-            raise forms.ValidationError("Оберіть рівно одне: книгу або теку.")
+            raise forms.ValidationError(_("Оберіть рівно одне: книгу або теку."))
 
         if group:
             duplicate = GroupAccess.objects.filter(group=group, book=book, folder=folder)
@@ -219,7 +220,7 @@ class GroupAccessForm(forms.ModelForm):
             if duplicate.exists():
                 target = book or folder
                 raise forms.ValidationError(
-                    f"Група «{group.name}» уже має доступ до «{target}»."
+                    _("Група «%(group)s» уже має доступ до «%(target)s».") % {"group": group.name, "target": target}
                 )
 
         return cleaned

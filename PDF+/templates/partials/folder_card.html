@@ -1,3 +1,4 @@
+{% load i18n %}
 <div class="col-6 col-md-4 col-xl-3">
   <div class="card entity-card h-100 border-0 shadow-sm">
     <div class="card-body d-flex align-items-center gap-3">
@@ -8,30 +9,30 @@
            class="text-decoration-none text-body fw-medium d-block text-truncate"
            title="{{ folder.name }}">{{ folder.name }}</a>
         <div class="small text-body-secondary">
-          {{ folder.books.count }} кн. · {{ folder.children.count }} тек
+          {% blocktranslate with books=folder.books.count folders=folder.children.count %}{{ books }} кн. · {{ folders }} тек{% endblocktranslate %}
         </div>
         {% if show_path %}
-          <div class="small text-body-secondary text-truncate mt-1" title="{{ folder.parent.path_label|default:'Корінь бібліотеки' }}">
-            <i class="bi bi-folder me-1"></i>{% if folder.parent %}{{ folder.parent.path_label }}{% else %}Корінь бібліотеки{% endif %}
+          <div class="small text-body-secondary text-truncate mt-1" title="{{ folder.parent.path_label|default:_("Корінь бібліотеки") }}">
+            <i class="bi bi-folder me-1"></i>{% if folder.parent %}{{ folder.parent.path_label }}{% else %}{% translate "Корінь бібліотеки" %}{% endif %}
           </div>
         {% endif %}
       </div>
 
       {% if folder.owner_id == user.pk %}
         <div class="dropdown">
-          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Дії з текою">
+          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="{% translate "Дії з текою" %}">
             <i class="bi bi-three-dots"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'book_library:folder_edit' folder.pk %}">Перейменувати</a></li>
+            <li><a class="dropdown-item" href="{% url 'book_library:folder_edit' folder.pk %}">{% translate "Перейменувати" %}</a></li>
             <li><hr class="dropdown-divider"></li>
             <li>
               <button type="button" class="dropdown-item text-danger"
                       data-bs-toggle="modal" data-bs-target="#confirmModal"
                       data-action="{% url 'book_library:folder_delete' folder.pk %}"
-                      data-title="Видалити теку «{{ folder.name }}»?"
-                      data-text="Вкладені теки та книги буде видалено разом з нею.">
-                Видалити
+                      data-title="{% blocktranslate with name=folder.name %}Видалити теку «{{ name }}»?{% endblocktranslate %}"
+                      data-text="{% translate "Вкладені теки та книги буде видалено разом з нею." %}">
+                {% translate "Видалити" %}
               </button>
             </li>
           </ul>

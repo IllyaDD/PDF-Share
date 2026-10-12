@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ book.title }} — PDF+{% endblock %}
 
@@ -7,15 +8,15 @@
 {% block page_actions %}
   {% if progress %}
     <a href="{% url 'book_library:book_reader' book.pk %}?page={{ progress.last_page }}" class="btn btn-primary">
-      <i class="bi bi-book me-1"></i>Продовжити з с. {{ progress.last_page }}
+      <i class="bi bi-book me-1"></i>{% blocktranslate with page=progress.last_page %}Продовжити з с. {{ page }}{% endblocktranslate %}
     </a>
   {% else %}
     <a href="{% url 'book_library:book_reader' book.pk %}" class="btn btn-primary">
-      <i class="bi bi-book me-1"></i>Читати
+      <i class="bi bi-book me-1"></i>{% translate "Читати" %}
     </a>
   {% endif %}
   {% if is_owner %}
-    <a href="{% url 'book_library:book_edit' book.pk %}" class="btn btn-outline-secondary">Редагувати</a>
+    <a href="{% url 'book_library:book_edit' book.pk %}" class="btn btn-outline-secondary">{% translate "Редагувати" %}</a>
   {% endif %}
 {% endblock %}
 
@@ -29,7 +30,7 @@
       </div>
       <div class="card-body">
         <a href="{{ book.file.url }}" class="btn btn-outline-secondary w-100" download>
-          <i class="bi bi-download me-1"></i>Завантажити файл
+          <i class="bi bi-download me-1"></i>{% translate "Завантажити файл" %}
         </a>
       </div>
     </div>
@@ -38,9 +39,9 @@
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h2 class="h6 text-body-secondary text-uppercase mb-3">Про книгу</h2>
+        <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Про книгу" %}</h2>
         <dl class="row mb-0">
-          <dt class="col-sm-4 fw-normal text-body-secondary">Тека</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Тека" %}</dt>
           <dd class="col-sm-8">
             <div class="d-flex flex-wrap align-items-center gap-2">
               {% if book.folder %}
@@ -52,7 +53,7 @@
                         data-action="{% url 'book_library:book_move' book.pk %}"
                         data-title="{{ book.title }}"
                         data-folder="{{ book.folder_id|default_if_none:'' }}">
-                  <i class="bi bi-folder-symlink me-1"></i>Перемістити
+                  <i class="bi bi-folder-symlink me-1"></i>{% translate "Перемістити" %}
                 </button>
                 {% if book.folder %}
                   <form method="post" action="{% url 'book_library:book_move' book.pk %}" class="d-inline">
@@ -60,7 +61,7 @@
                     <input type="hidden" name="folder" value="">
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     <button type="submit" class="btn btn-sm btn-outline-secondary py-0">
-                      <i class="bi bi-folder-minus me-1"></i>Прибрати з теки
+                      <i class="bi bi-folder-minus me-1"></i>{% translate "Прибрати з теки" %}
                     </button>
                   </form>
                 {% endif %}
@@ -68,25 +69,25 @@
             </div>
           </dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">Власник</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Власник" %}</dt>
           <dd class="col-sm-8">{{ book.owner.username }}</dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">Сторінок</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Сторінок" %}</dt>
           <dd class="col-sm-8">{{ book.page_count }}</dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">Розмір</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Розмір" %}</dt>
           <dd class="col-sm-8">{{ book.file_size|filesizeformat }}</dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">Текст видобуто</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Текст видобуто" %}</dt>
           <dd class="col-sm-8">
             {% if book.extracted_text %}
-              <span class="badge text-bg-success">Так</span>
+              <span class="badge text-bg-success">{% translate "Так" %}</span>
             {% else %}
-              <span class="badge text-bg-secondary">Ні</span>
+              <span class="badge text-bg-secondary">{% translate "Ні" %}</span>
             {% endif %}
           </dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">Завантажено</dt>
+          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Завантажено" %}</dt>
           <dd class="col-sm-8 mb-0">{{ book.uploaded_at|date:"d.m.Y H:i" }}</dd>
         </dl>
       </div>
@@ -96,18 +97,18 @@
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-baseline mb-2">
-          <h2 class="h6 mb-0">Мій прогрес</h2>
+          <h2 class="h6 mb-0">{% translate "Мій прогрес" %}</h2>
           <span class="small text-body-secondary">
-            с. {{ progress.last_page }} з {{ book.page_count }} · {{ progress.percent }}%
+            {% blocktranslate with page=progress.last_page total=book.page_count %}с. {{ page }} з {{ total }}{% endblocktranslate %} · {{ progress.percent }}%
           </span>
         </div>
         <div class="progress" style="height: .5rem;" role="progressbar"
-             aria-label="Прогрес читання" aria-valuenow="{{ progress.percent }}"
+             aria-label="{% translate "Прогрес читання" %}" aria-valuenow="{{ progress.percent }}"
              aria-valuemin="0" aria-valuemax="100">
           <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
         </div>
         <p class="small text-body-secondary mb-0 mt-2">
-          Востаннє читали {{ progress.read_at|date:"d.m.Y H:i" }}.
+          {% blocktranslate with date=progress.read_at|date:"d.m.Y H:i" %}Востаннє читали {{ date }}.{% endblocktranslate %}
         </p>
       </div>
     </div>
@@ -117,13 +118,13 @@
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body d-flex justify-content-between align-items-center">
         <div>
-          <h2 class="h6 mb-1">Мої нотатки</h2>
+          <h2 class="h6 mb-1">{% translate "Мої нотатки" %}</h2>
           <p class="small text-body-secondary mb-0">
-            {{ annotation_count }} виділень у вашому шарі.
+            {% blocktranslate %}{{ annotation_count }} виділень у вашому шарі.{% endblocktranslate %}
           </p>
         </div>
         <a href="{% url 'annotations:book_annotations' book.pk %}" class="btn btn-outline-primary btn-sm">
-          Переглянути
+          {% translate "Переглянути" %}
         </a>
       </div>
     </div>
@@ -132,17 +133,17 @@
     {% if teacher_layers %}
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h2 class="h6 mb-1">Нотатки вчителя</h2>
-        <p class="small text-body-secondary mb-2">Відкриваються в читалці окремим шаром, лише для читання.</p>
+        <h2 class="h6 mb-1">{% translate "Нотатки вчителя" %}</h2>
+        <p class="small text-body-secondary mb-2">{% translate "Відкриваються в читалці окремим шаром, лише для читання." %}</p>
         <ul class="list-group list-group-flush">
           {% for layer in teacher_layers %}
             <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
               <span>
                 <i class="bi bi-mortarboard me-1"></i>{{ layer.owner.username }}
-                <span class="small text-body-secondary">· {{ layer.annotation_count }} виділень</span>
+                <span class="small text-body-secondary">· {% blocktranslate with count_=layer.annotation_count %}{{ count_ }} виділень{% endblocktranslate %}</span>
               </span>
               <a href="{% url 'book_library:book_reader' book.pk %}?layer={{ layer.pk }}" class="btn btn-outline-primary btn-sm">
-                Відкрити
+                {% translate "Відкрити" %}
               </a>
             </li>
           {% endfor %}
@@ -154,10 +155,12 @@
     {% if publish_form %}
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h2 class="h6 mb-1">Показати мої нотатки групам</h2>
+        <h2 class="h6 mb-1">{% translate "Показати мої нотатки групам" %}</h2>
         <p class="small text-body-secondary mb-3">
+          {% blocktranslate trimmed %}
           Учасники обраних груп побачать ваші виділення й коментарі окремим шаром у читалці —
           без права змінювати.
+          {% endblocktranslate %}
         </p>
         {% if publish_form.groups %}
           <form method="post" action="{% url 'annotations:layer_publish' book.pk %}">
@@ -168,13 +171,13 @@
                 <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
               </div>
             {% endfor %}
-            <button type="submit" class="btn btn-sm btn-primary mt-3">Зберегти</button>
+            <button type="submit" class="btn btn-sm btn-primary mt-3">{% translate "Зберегти" %}</button>
           </form>
         {% else %}
           <p class="small mb-0">
-            Жодна з ваших груп не має доступу до цієї книги.
+            {% translate "Жодна з ваших груп не має доступу до цієї книги." %}
             {% if is_owner %}
-              <a href="{% url 'sharing:access_create' %}?book={{ book.pk }}">Надати доступ групі</a>
+              <a href="{% url 'sharing:access_create' %}?book={{ book.pk }}">{% translate "Надати доступ групі" %}</a>
             {% endif %}
           </p>
         {% endif %}
@@ -186,25 +189,25 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="h6 mb-0">Спільний доступ</h2>
+            <h2 class="h6 mb-0">{% translate "Спільний доступ" %}</h2>
             <div class="d-flex gap-2">
               <a href="{% url 'sharing:access_create' %}?book={{ book.pk }}" class="btn btn-sm btn-outline-primary">
-                Надати групі
+                {% translate "Надати групі" %}
               </a>
               <div class="dropdown">
                 <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
                         data-bs-toggle="dropdown" aria-expanded="false">
-                  Створити посилання
+                  {% translate "Створити посилання" %}
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li>
                     <a class="dropdown-item" href="{% url 'sharing:link_create' %}?book={{ book.pk }}">
-                      <i class="bi bi-file-earmark-pdf me-2"></i>Лише книга
+                      <i class="bi bi-file-earmark-pdf me-2"></i>{% translate "Лише книга" %}
                     </a>
                   </li>
                   <li>
                     <a class="dropdown-item" href="{% url 'sharing:link_create' %}?book={{ book.pk }}&amp;annotations=1">
-                      <i class="bi bi-mortarboard me-2"></i>Книга з моїми нотатками
+                      <i class="bi bi-mortarboard me-2"></i>{% translate "Книга з моїми нотатками" %}
                     </a>
                   </li>
                 </ul>
@@ -218,23 +221,23 @@
                 <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
                   <code class="text-truncate">{{ link.token }}</code>
                   {% if link.include_annotations %}
-                    <span class="badge text-bg-light border text-nowrap ms-auto" title="Отримувач бачить ваші нотатки">
-                      <i class="bi bi-mortarboard me-1"></i>з нотатками
+                    <span class="badge text-bg-light border text-nowrap ms-auto" title="{% translate "Отримувач бачить ваші нотатки" %}">
+                      <i class="bi bi-mortarboard me-1"></i>{% translate "з нотатками" %}
                     </span>
                   {% endif %}
                   <span class="small text-body-secondary text-nowrap">
-                    {% if link.expires_at %}до {{ link.expires_at|date:"d.m.Y" }}{% else %}безстроково{% endif %}
+                    {% if link.expires_at %}{% blocktranslate with date=link.expires_at|date:"d.m.Y" %}до {{ date }}{% endblocktranslate %}{% else %}{% translate "безстроково" %}{% endif %}
                   </span>
                 </li>
               {% endfor %}
             </ul>
           {% else %}
-            <p class="small text-body-secondary mb-0">Посилань ще немає.</p>
+            <p class="small text-body-secondary mb-0">{% translate "Посилань ще немає." %}</p>
           {% endif %}
 
           {% if group_accesses %}
             <hr>
-            <p class="small text-body-secondary mb-2">Доступ груп:</p>
+            <p class="small text-body-secondary mb-2">{% translate "Доступ груп:" %}</p>
             {% for access in group_accesses %}
               <span class="badge text-bg-light border me-1">
                 {{ access.group.name }} — {{ access.get_permission_display|lower }}
@@ -247,15 +250,15 @@
       <div class="card border-danger-subtle shadow-sm">
         <div class="card-body d-flex justify-content-between align-items-center">
           <div>
-            <h2 class="h6 text-danger mb-1">Видалення книги</h2>
-            <p class="small text-body-secondary mb-0">Разом з книгою зникнуть усі шари анотацій.</p>
+            <h2 class="h6 text-danger mb-1">{% translate "Видалення книги" %}</h2>
+            <p class="small text-body-secondary mb-0">{% translate "Разом з книгою зникнуть усі шари анотацій." %}</p>
           </div>
           <button type="button" class="btn btn-outline-danger btn-sm"
                   data-bs-toggle="modal" data-bs-target="#confirmModal"
                   data-action="{% url 'book_library:book_delete' book.pk %}"
-                  data-title="Видалити «{{ book.title }}»?"
-                  data-text="Книга та всі анотації до неї будуть видалені безповоротно.">
-            Видалити
+                  data-title="{% blocktranslate with title=book.title %}Видалити «{{ title }}»?{% endblocktranslate %}"
+                  data-text="{% translate "Книга та всі анотації до неї будуть видалені безповоротно." %}">
+            {% translate "Видалити" %}
           </button>
         </div>
       </div>

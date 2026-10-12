@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from book_library.access import visible_books
@@ -58,11 +59,11 @@ def book_annotations_view(request, book_pk):
             "with_notes_count": sum(1 for a in annotations if a.note_text),
             "reader_url": reverse("book_library:book_reader", args=[book.pk]),
             "crumbs": [
-                {"url": reverse("book_library:library"), "label": "Бібліотека"},
+                {"url": reverse("book_library:library"), "label": _("Бібліотека")},
                 {"url": reverse("book_library:book_detail", args=[book.pk]), "label": book.title},
-                {"url": "", "label": "Нотатки"},
+                {"url": "", "label": _("Нотатки")},
             ],
-            "page_title": "Мої нотатки",
+            "page_title": _("Мої нотатки"),
             "page_subtitle": book.title,
         },
     )
@@ -74,7 +75,7 @@ def annotation_delete_view(request, pk):
     book_pk = annotation.layer.book_id
     if request.method == "POST":
         annotation.delete()
-        messages.success(request, "Нотатку видалено.")
+        messages.success(request, _("Нотатку видалено."))
     return redirect("annotations:book_annotations", book_pk=book_pk)
 
 
@@ -84,12 +85,12 @@ def layer_publish_view(request, book_pk):
     book = get_object_or_404(visible_books(request.user, request.session), pk=book_pk)
     form = LayerPublishForm(request.POST, groups=publishable_groups(request.user, book))
     if not form.is_valid():
-        messages.error(request, "Оберіть групи зі списку.")
+        messages.error(request, _("Оберіть групи зі списку."))
         return redirect("book_library:book_detail", pk=book.pk)
 
     groups = form.cleaned_data["groups"]
     if groups:
-        layer, _ = Layer.objects.get_or_create(book=book, owner=request.user)
+        layer, _created = Layer.objects.get_or_create(book=book, owner=request.user)
     else:
         layer = Layer.objects.filter(book=book, owner=request.user).first()
 
@@ -99,9 +100,9 @@ def layer_publish_view(request, book_pk):
 
     if groups:
         names = ", ".join(group.name for group in groups)
-        messages.success(request, f"Нотатки відкрито для груп: {names}.")
+        messages.success(request, _("Нотатки відкрито для груп: %(names)s.") % {"names": names})
     else:
-        messages.success(request, "Нотатки більше не видно жодній групі.")
+        messages.success(request, _("Нотатки більше не видно жодній групі."))
     return redirect("book_library:book_detail", pk=book.pk)
 
 
@@ -118,9 +119,9 @@ def note_group_rename_view(request, pk):
     try:
         rename_note_group(group, parse_group_name(request.POST.get("name")))
     except PayloadError as error:
-        messages.error(request, f"Не вдалося перейменувати тему: {error}")
+        messages.error(request, _("Не вдалося перейменувати тему: %(error)s") % {"error": error})
     else:
-        messages.success(request, "Тему перейменовано.")
+        messages.success(request, _("Тему перейменовано."))
     return redirect("annotations:book_annotations", book_pk=group.layer.book_id)
 
 
@@ -130,5 +131,5 @@ def note_group_delete_view(request, pk):
     group = _own_group(request, pk)
     book_pk = group.layer.book_id
     delete_note_group(group)
-    messages.success(request, "Тему видалено, її нотатки тепер «Без групи».")
+    messages.success(request, _("Тему видалено, її нотатки тепер «Без групи»."))
     return redirect("annotations:book_annotations", book_pk=book_pk)

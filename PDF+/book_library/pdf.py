@@ -5,6 +5,7 @@ import pymupdf
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.template.defaultfilters import filesizeformat
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,10 @@ def _has_text_layer(document):
 def inspect_pdf(uploaded):
     if uploaded.size > settings.MAX_UPLOAD_SIZE:
         raise ValidationError(
-            f"Файл завеликий: {filesizeformat(uploaded.size)}. "
-            f"Максимум — {filesizeformat(settings.MAX_UPLOAD_SIZE)}."
+            _("Файл завеликий: %(size)s. Максимум — %(max)s.") % {
+                "size": filesizeformat(uploaded.size),
+                "max": filesizeformat(settings.MAX_UPLOAD_SIZE),
+            }
         )
 
     data = uploaded.read()
@@ -52,19 +55,19 @@ def inspect_pdf(uploaded):
 
     if not data.startswith(PDF_MAGIC):
         raise ValidationError(
-            "Це не PDF. Перевірте файл — саме розширення .pdf нічого не гарантує."
+            _("Це не PDF. Перевірте файл — саме розширення .pdf нічого не гарантує.")
         )
 
     try:
         document = pymupdf.open(stream=data, filetype="pdf")
     except Exception:
-        raise ValidationError("Файл пошкоджений — не вдалося його розібрати.")
+        raise ValidationError(_("Файл пошкоджений — не вдалося його розібрати."))
 
     with document:
         if document.needs_pass:
-            raise ValidationError("PDF захищений паролем. Зніміть пароль і завантажте ще раз.")
+            raise ValidationError(_("PDF захищений паролем. Зніміть пароль і завантажте ще раз."))
         if document.page_count == 0:
-            raise ValidationError("У документі нема жодної сторінки.")
+            raise ValidationError(_("У документі нема жодної сторінки."))
 
         try:
             cover = render_cover(document)

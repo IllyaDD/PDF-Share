@@ -3,6 +3,7 @@ import secrets
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from book_library.models import Book, Folder
 
@@ -31,22 +32,22 @@ class ShareLink(models.Model):
     )
     expires_at = models.DateTimeField(null=True, blank=True)
     # Отримувач бачить шар нотаток автора посилання — лише для читання.
-    include_annotations = models.BooleanField("з нотатками", default=False)
+    include_annotations = models.BooleanField(_("з нотатками"), default=False)
 
     class AnnotationScope(models.TextChoices):
-        ALL = "all", "Усі нотатки"
-        SELECTED = "selected", "Лише обрані теми"
+        ALL = "all", _("Усі нотатки")
+        SELECTED = "selected", _("Лише обрані теми")
 
     # Явний режим, а не «порожній note_groups = усі»: якщо автор видалить усі обрані
     # теми, посилання має показувати нічого, а не весь шар.
     annotation_scope = models.CharField(
-        "які нотатки", max_length=8, choices=AnnotationScope.choices, default=AnnotationScope.ALL
+        _("які нотатки"), max_length=8, choices=AnnotationScope.choices, default=AnnotationScope.ALL
     )
     note_groups = models.ManyToManyField(
         "annotations.NoteGroup",
         blank=True,
         related_name="share_links",
-        verbose_name="теми",
+        verbose_name=_("теми"),
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -114,8 +115,8 @@ class GroupMembership(models.Model):
 class GroupAccess(models.Model):
 
     class Permission(models.TextChoices):
-        VIEW = "view", "Перегляд"
-        EDIT = "edit", "Редагування"
+        VIEW = "view", _("Перегляд")
+        EDIT = "edit", _("Редагування")
 
     group = models.ForeignKey(
         Group,

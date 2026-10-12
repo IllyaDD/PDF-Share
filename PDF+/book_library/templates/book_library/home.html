@@ -1,25 +1,26 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}PDF+ — спільна бібліотека{% endblock %}
+{% block title %}PDF+ — {% translate "спільна бібліотека" %}{% endblock %}
 
 {% block content %}
 <div class="py-5 text-center">
   <h1 class="display-6 fw-semibold">PDF+</h1>
-  <p class="lead text-body-secondary">Бібліотека PDF з анотаціями та спільним доступом.</p>
+  <p class="lead text-body-secondary">{% translate "Бібліотека PDF з анотаціями та спільним доступом." %}</p>
 
   {% if user.is_authenticated %}
-    <p class="mb-0">Вітаємо, <strong>{{ user.username }}</strong>.</p>
+    <p class="mb-0">{% blocktranslate with username=user.username %}Вітаємо, <strong>{{ username }}</strong>.{% endblocktranslate %}</p>
   {% else %}
     <div class="d-flex gap-2 justify-content-center mt-4">
-      <a href="{% url 'accounts:register' %}" class="btn btn-primary">Створити акаунт</a>
-      <a href="{% url 'accounts:login' %}" class="btn btn-outline-secondary">Увійти</a>
+      <a href="{% url 'accounts:register' %}" class="btn btn-primary">{% translate "Створити акаунт" %}</a>
+      <a href="{% url 'accounts:login' %}" class="btn btn-outline-secondary">{% translate "Увійти" %}</a>
     </div>
   {% endif %}
 </div>
 
 {% if continue_reading %}
 <section class="mb-5">
-  <h2 class="h5 mb-3">Продовжити читати</h2>
+  <h2 class="h5 mb-3">{% translate "Продовжити читати" %}</h2>
   <div class="row g-3">
     {% for progress in continue_reading %}
       {% with book=progress.book %}
@@ -34,14 +35,14 @@
             {% endif %}
           </div>
           <div class="progress rounded-0" style="height: .25rem;" role="progressbar"
-               aria-label="Прогрес читання" aria-valuenow="{{ progress.percent }}"
+               aria-label="{% translate "Прогрес читання" %}" aria-valuenow="{{ progress.percent }}"
                aria-valuemin="0" aria-valuemax="100">
             <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
           </div>
           <div class="card-body p-2">
             <div class="fw-medium small text-truncate" title="{{ book.title }}">{{ book.title }}</div>
             <div class="small text-body-secondary">
-              с. {{ progress.last_page }} з {{ book.page_count }} · {{ progress.percent }}%
+              {% blocktranslate with page=progress.last_page total=book.page_count %}с. {{ page }} з {{ total }}{% endblocktranslate %} · {{ progress.percent }}%
             </div>
           </div>
         </a>
