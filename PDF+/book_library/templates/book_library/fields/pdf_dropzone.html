@@ -1,4 +1,4 @@
-{% load crispy_forms_field %}
+{% load i18n crispy_forms_field %}
 
 <div id="div_{{ field.auto_id }}" class="mb-3">
   <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -8,7 +8,7 @@
     <i class="bi bi-cloud-arrow-up display-6 text-body-secondary d-block mb-2"></i>
 
     <span class="d-block fw-medium" data-dropzone-prompt>
-      Перетягніть PDF сюди або натисніть, щоб обрати
+      {% translate "Перетягніть PDF сюди або натисніть, щоб обрати" %}
     </span>
     <span class="d-block small text-body-secondary" data-dropzone-hint>
       {{ field.help_text }}

@@ -1,5 +1,7 @@
 import re
 
+from django.utils.translation import gettext as _
+
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 MAX_RECTS = 200
@@ -17,9 +19,9 @@ class PayloadError(ValueError):
 
 def _number(value, field):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise PayloadError(f"{field}: очікується число")
+        raise PayloadError(_("%(field)s: очікується число") % {"field": field})
     if value != value or value in (float("inf"), float("-inf")):
-        raise PayloadError(f"{field}: некоректне число")
+        raise PayloadError(_("%(field)s: некоректне число") % {"field": field})
     return float(value)
 
 
@@ -39,7 +41,7 @@ def _line_groups(rects):
 
 def merge_rects(rects):
     merged = []
-    for _, members in _line_groups(rects):
+    for _line, members in _line_groups(rects):
         current = None
         for rect in sorted(members, key=lambda r: r["x0"]):
             if current is not None and rect["x0"] - current["x1"] <= JOIN_TOLERANCE:
@@ -55,20 +57,20 @@ def merge_rects(rects):
 
 def parse_coords(raw):
     if not isinstance(raw, list) or not raw:
-        raise PayloadError("coords: очікується непорожній список прямокутників")
+        raise PayloadError(_("coords: очікується непорожній список прямокутників"))
     if len(raw) > MAX_RECTS:
-        raise PayloadError(f"coords: забагато прямокутників (максимум {MAX_RECTS})")
+        raise PayloadError(_("coords: забагато прямокутників (максимум %(max)s)") % {"max": MAX_RECTS})
 
     rects = []
     for index, item in enumerate(raw):
         if not isinstance(item, dict):
-            raise PayloadError(f"coords[{index}]: очікується об'єкт")
+            raise PayloadError(_("coords[%(index)s]: очікується об'єкт") % {"index": index})
         if set(item) != set(RECT_KEYS):
-            raise PayloadError(f"coords[{index}]: потрібні саме ключі {', '.join(RECT_KEYS)}")
+            raise PayloadError(_("coords[%(index)s]: потрібні саме ключі %(keys)s") % {"index": index, "keys": ", ".join(RECT_KEYS)})
 
         rect = {key: _number(item[key], f"coords[{index}].{key}") for key in RECT_KEYS}
         if rect["x1"] <= rect["x0"] or rect["y1"] <= rect["y0"]:
-            raise PayloadError(f"coords[{index}]: порожній прямокутник")
+            raise PayloadError(_("coords[%(index)s]: порожній прямокутник") % {"index": index})
         rects.append(rect)
 
     return merge_rects(rects)
@@ -76,15 +78,15 @@ def parse_coords(raw):
 
 def parse_color(raw):
     if not isinstance(raw, str) or not HEX_COLOR.match(raw):
-        raise PayloadError("color: очікується колір у форматі #RRGGBB")
+        raise PayloadError(_("color: очікується колір у форматі #RRGGBB"))
     return raw.upper()
 
 
 def parse_page_number(raw, page_count, field="page_number"):
     if isinstance(raw, bool) or not isinstance(raw, int):
-        raise PayloadError(f"{field}: очікується ціле число")
+        raise PayloadError(_("%(field)s: очікується ціле число") % {"field": field})
     if raw < 1 or (page_count and raw > page_count):
-        raise PayloadError(f"{field}: поза межами документа (1..{page_count})")
+        raise PayloadError(_("%(field)s: поза межами документа (1..%(pages)s)") % {"field": field, "pages": page_count})
     return raw
 
 
@@ -92,20 +94,20 @@ def parse_text(raw, field, limit):
     if raw is None:
         return ""
     if not isinstance(raw, str):
-        raise PayloadError(f"{field}: очікується рядок")
+        raise PayloadError(_("%(field)s: очікується рядок") % {"field": field})
     if len(raw) > limit:
-        raise PayloadError(f"{field}: задовгий текст (максимум {limit})")
+        raise PayloadError(_("%(field)s: задовгий текст (максимум %(max)s)") % {"field": field, "max": limit})
     return raw
 
 
 def parse_group_name(raw):
     if not isinstance(raw, str):
-        raise PayloadError("name: очікується рядок")
+        raise PayloadError(_("name: очікується рядок"))
     name = raw.strip()
     if not name:
-        raise PayloadError("name: назва теми не може бути порожньою")
+        raise PayloadError(_("name: назва теми не може бути порожньою"))
     if len(name) > MAX_GROUP_NAME_LENGTH:
-        raise PayloadError(f"name: задовга назва (максимум {MAX_GROUP_NAME_LENGTH})")
+        raise PayloadError(_("name: задовга назва (максимум %(max)s)") % {"max": MAX_GROUP_NAME_LENGTH})
     return name
 
 
@@ -113,13 +115,13 @@ def parse_group_id(raw):
     if raw is None:
         return None
     if isinstance(raw, bool) or not isinstance(raw, int) or raw < 1:
-        raise PayloadError("group: очікується id теми або null")
+        raise PayloadError(_("group: очікується id теми або null"))
     return raw
 
 
 def parse_new_annotation(payload, page_count):
     if not isinstance(payload, dict):
-        raise PayloadError("очікується JSON-об'єкт")
+        raise PayloadError(_("очікується JSON-об'єкт"))
 
     return {
         "page_number": parse_page_number(payload.get("page_number"), page_count),
@@ -134,15 +136,15 @@ def parse_new_annotation(payload, page_count):
 
 def parse_annotation_update(payload):
     if not isinstance(payload, dict):
-        raise PayloadError("очікується JSON-об'єкт")
+        raise PayloadError(_("очікується JSON-об'єкт"))
 
     # group перевіряє groups.group_fields(): для неї потрібні книга й власник.
     allowed = {"color", "note_text", "group"}
     unknown = set(payload) - allowed
     if unknown:
-        raise PayloadError(f"поля не можна змінювати: {', '.join(sorted(unknown))}")
+        raise PayloadError(_("поля не можна змінювати: %(fields)s") % {"fields": ", ".join(sorted(unknown))})
     if not payload:
-        raise PayloadError("нема що оновлювати")
+        raise PayloadError(_("нема що оновлювати"))
 
     fields = {}
     if "color" in payload:

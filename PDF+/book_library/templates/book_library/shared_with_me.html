@@ -1,23 +1,24 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Поділилися зі мною — PDF+{% endblock %}
+{% block title %}{% translate "Поділилися зі мною" %} — PDF+{% endblock %}
 
 {% block content %}
   {% if shared_folders %}
-    <h2 class="h6 text-body-secondary text-uppercase mb-3">Теки</h2>
+    <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Теки" %}</h2>
     <div class="row g-3 mb-4">
       {% for folder in shared_folders %}{% include "partials/folder_card.html" %}{% endfor %}
     </div>
   {% endif %}
 
   {% if shared_books %}
-    <h2 class="h6 text-body-secondary text-uppercase mb-3">Книги</h2>
+    <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Книги" %}</h2>
     <div class="row g-3">
       {% for book in shared_books %}{% include "partials/book_card.html" %}{% endfor %}
     </div>
   {% endif %}
 
   {% if not shared_folders and not shared_books %}
-    {% include "partials/empty_state.html" with icon="bi-people" title="Вам ще нічого не надали" text="Матеріали, до яких вас допустять через групу або посилання, з'являться тут." %}
+    {% include "partials/empty_state.html" with icon="bi-people" title=_("Вам ще нічого не надали") text=_("Матеріали, до яких вас допустять через групу або посилання, з'являться тут.") %}
   {% endif %}
 {% endblock %}

@@ -1,0 +1,1882 @@
+# English translation of PDF+.
+# msgid — українські рядки з коду; тут лише переклад на англійську.
+msgid ""
+msgstr ""
+"Project-Id-Version: PDF+\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-12 19:35+0000\n"
+"PO-Revision-Date: 2026-10-12 00:00+0000\n"
+"Last-Translator: IllyaDD\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: annotations/api.py:60 annotations/validators.py:124
+#: annotations/validators.py:139 book_library/views.py:408
+msgid "очікується JSON-об'єкт"
+msgstr "a JSON object is expected"
+
+#: annotations/forms.py:13 sharing/templates/sharing/group_list.html:4
+#: sharing/views.py:27 sharing/views.py:57 templates/partials/sidebar.html:24
+msgid "Групи"
+msgstr "Groups"
+
+#: annotations/groups.py:11
+msgid "name: тема з такою назвою вже є"
+msgstr "name: a topic with this name already exists"
+
+#: annotations/groups.py:57
+msgid "group_client_id: такої теми нема в цьому пуші"
+msgstr "group_client_id: no such topic in this push"
+
+#: annotations/groups.py:59
+msgid "group_client_id: тема з іншої книги"
+msgstr "group_client_id: the topic belongs to another book"
+
+#: annotations/groups.py:71
+msgid "group: теми нема або вона з іншої книги"
+msgstr "group: the topic does not exist or belongs to another book"
+
+#: annotations/models.py:81
+msgid "назва"
+msgstr "name"
+
+#: annotations/models.py:102
+msgid "Жовтий"
+msgstr "Yellow"
+
+#: annotations/models.py:103
+msgid "Зелений"
+msgstr "Green"
+
+#: annotations/models.py:104
+msgid "Блакитний"
+msgstr "Blue"
+
+#: annotations/models.py:105
+msgid "Рожевий"
+msgstr "Pink"
+
+#: annotations/models.py:106
+msgid "Помаранчевий"
+msgstr "Orange"
+
+#: annotations/models.py:110
+msgid "Виділення"
+msgstr "Highlight"
+
+#: annotations/models.py:124
+msgid "Список прямокутників у PDF user space: [{x0, y0, x1, y1}, ...]"
+msgstr "List of rectangles in PDF user space: [{x0, y0, x1, y1}, ...]"
+
+#: annotations/templates/annotations/annotation_list.html:4
+#: annotations/views.py:64
+msgid "Нотатки"
+msgstr "Notes"
+
+#: annotations/templates/annotations/annotation_list.html:10
+#: annotations/templates/annotations/annotation_list.html:56
+#: sharing/templates/sharing/share_view.html:36
+msgid "Відкрити книгу"
+msgstr "Open book"
+
+#: annotations/templates/annotations/annotation_list.html:22
+#: book_library/templates/book_library/book_reader.html:127
+msgid "Без групи"
+msgstr "No topic"
+
+#: annotations/templates/annotations/annotation_list.html:30
+msgid "Нова назва теми"
+msgstr "New topic name"
+
+#: annotations/templates/annotations/annotation_list.html:31
+#: sharing/templates/sharing/group_detail.html:11
+#: sharing/templates/sharing/group_list.html:33
+#: templates/partials/folder_card.html:27
+msgid "Перейменувати"
+msgstr "Rename"
+
+#: annotations/templates/annotations/annotation_list.html:35
+#: annotations/templates/annotations/annotation_list.html:40
+msgid "Видалити тему"
+msgstr "Delete topic"
+
+#: annotations/templates/annotations/annotation_list.html:38
+#, python-format
+msgid "Видалити тему «%(name)s»?"
+msgstr "Delete topic “%(name)s”?"
+
+#: annotations/templates/annotations/annotation_list.html:39
+msgid "Нотатки не зникнуть — вони перейдуть у «Без групи»."
+msgstr "The notes will stay — they move to “No topic”."
+
+#: annotations/templates/annotations/annotation_list.html:48
+#, python-format
+msgid "Сторінка %(page_number)s"
+msgstr "Page %(page_number)s"
+
+#: annotations/templates/annotations/annotation_list.html:53
+msgid "У темі поки нема нотаток."
+msgstr "No notes in this topic yet."
+
+#: annotations/templates/annotations/annotation_list.html:56
+msgid "Нотаток немає"
+msgstr "No notes"
+
+#: annotations/templates/annotations/annotation_list.html:56
+msgid "Виділення, зроблені в читалці, з'являться тут."
+msgstr "Highlights you make in the reader will appear here."
+
+#: annotations/templates/annotations/annotation_list.html:63
+msgid "Підсумок"
+msgstr "Summary"
+
+#: annotations/templates/annotations/annotation_list.html:65
+msgid "Усього виділень"
+msgstr "Total highlights"
+
+#: annotations/templates/annotations/annotation_list.html:68
+msgid "Сторінок з нотатками"
+msgstr "Pages with notes"
+
+#: annotations/templates/annotations/annotation_list.html:71
+msgid "З коментарем"
+msgstr "With a comment"
+
+#: annotations/templates/annotations/partials/annotation_item.html:9
+#, python-format
+msgid "с. %(page)s"
+msgstr "p. %(page)s"
+
+#: annotations/templates/annotations/partials/annotation_item.html:14
+msgid "Дії з нотаткою"
+msgstr "Note actions"
+
+#: annotations/templates/annotations/partials/annotation_item.html:21
+msgid "Перейти в книзі"
+msgstr "Go to in book"
+
+#: annotations/templates/annotations/partials/annotation_item.html:29
+msgid "Видалити нотатку?"
+msgstr "Delete note?"
+
+#: annotations/templates/annotations/partials/annotation_item.html:30
+msgid "Виділення та коментар до нього буде видалено."
+msgstr "The highlight and its comment will be deleted."
+
+#: annotations/templates/annotations/partials/annotation_item.html:31
+#: book_library/templates/book_library/book_detail.html:261
+#: sharing/templates/sharing/group_detail.html:43
+#: sharing/templates/sharing/group_list.html:41
+#: templates/partials/book_card.html:71
+#: templates/partials/confirm_modal.html:16
+#: templates/partials/confirm_modal.html:31
+#: templates/partials/folder_card.html:35
+msgid "Видалити"
+msgstr "Delete"
+
+#: annotations/validators.py:22
+#, python-format
+msgid "%(field)s: очікується число"
+msgstr "%(field)s: a number is expected"
+
+#: annotations/validators.py:24
+#, python-format
+msgid "%(field)s: некоректне число"
+msgstr "%(field)s: invalid number"
+
+#: annotations/validators.py:60
+msgid "coords: очікується непорожній список прямокутників"
+msgstr "coords: a non-empty list of rectangles is expected"
+
+#: annotations/validators.py:62
+#, python-format
+msgid "coords: забагато прямокутників (максимум %(max)s)"
+msgstr "coords: too many rectangles (maximum %(max)s)"
+
+#: annotations/validators.py:67
+#, python-format
+msgid "coords[%(index)s]: очікується об'єкт"
+msgstr "coords[%(index)s]: an object is expected"
+
+#: annotations/validators.py:69
+#, python-format
+msgid "coords[%(index)s]: потрібні саме ключі %(keys)s"
+msgstr "coords[%(index)s]: exactly these keys are required: %(keys)s"
+
+#: annotations/validators.py:73
+#, python-format
+msgid "coords[%(index)s]: порожній прямокутник"
+msgstr "coords[%(index)s]: empty rectangle"
+
+#: annotations/validators.py:81
+msgid "color: очікується колір у форматі #RRGGBB"
+msgstr "color: a color in #RRGGBB format is expected"
+
+#: annotations/validators.py:87
+#, python-format
+msgid "%(field)s: очікується ціле число"
+msgstr "%(field)s: an integer is expected"
+
+#: annotations/validators.py:89
+#, python-format
+msgid "%(field)s: поза межами документа (1..%(pages)s)"
+msgstr "%(field)s: outside the document (1..%(pages)s)"
+
+#: annotations/validators.py:97
+#, python-format
+msgid "%(field)s: очікується рядок"
+msgstr "%(field)s: a string is expected"
+
+#: annotations/validators.py:99
+#, python-format
+msgid "%(field)s: задовгий текст (максимум %(max)s)"
+msgstr "%(field)s: text is too long (maximum %(max)s)"
+
+#: annotations/validators.py:105
+msgid "name: очікується рядок"
+msgstr "name: a string is expected"
+
+#: annotations/validators.py:108
+msgid "name: назва теми не може бути порожньою"
+msgstr "name: the topic name cannot be empty"
+
+#: annotations/validators.py:110
+#, python-format
+msgid "name: задовга назва (максимум %(max)s)"
+msgstr "name: the name is too long (maximum %(max)s)"
+
+#: annotations/validators.py:118
+msgid "group: очікується id теми або null"
+msgstr "group: a topic id or null is expected"
+
+#: annotations/validators.py:145
+#, python-format
+msgid "поля не можна змінювати: %(fields)s"
+msgstr "these fields cannot be changed: %(fields)s"
+
+#: annotations/validators.py:147
+msgid "нема що оновлювати"
+msgstr "nothing to update"
+
+#: annotations/views.py:62 book_library/views.py:48
+msgid "Бібліотека"
+msgstr "Library"
+
+#: annotations/views.py:66
+#: book_library/templates/book_library/book_detail.html:121
+#: book_library/templates/book_library/book_reader.html:88
+#: templates/partials/book_card.html:39
+msgid "Мої нотатки"
+msgstr "My notes"
+
+#: annotations/views.py:78
+msgid "Нотатку видалено."
+msgstr "Note deleted."
+
+#: annotations/views.py:88
+msgid "Оберіть групи зі списку."
+msgstr "Choose groups from the list."
+
+#: annotations/views.py:103
+#, python-format
+msgid "Нотатки відкрито для груп: %(names)s."
+msgstr "Notes shared with groups: %(names)s."
+
+#: annotations/views.py:105
+msgid "Нотатки більше не видно жодній групі."
+msgstr "Notes are no longer visible to any group."
+
+#: annotations/views.py:122
+#, python-format
+msgid "Не вдалося перейменувати тему: %(error)s"
+msgstr "Could not rename the topic: %(error)s"
+
+#: annotations/views.py:124
+msgid "Тему перейменовано."
+msgstr "Topic renamed."
+
+#: annotations/views.py:134
+msgid "Тему видалено, її нотатки тепер «Без групи»."
+msgstr "Topic deleted; its notes are now under “No topic”."
+
+#: book_library/forms.py:41
+msgid "Назва теки"
+msgstr "Folder name"
+
+#: book_library/forms.py:42
+msgid "Батьківська тека"
+msgstr "Parent folder"
+
+#: book_library/forms.py:43
+msgid "Показувати в каталозі"
+msgstr "Show in catalog"
+
+#: book_library/forms.py:45
+msgid "Теку разом з усім вкладеним побачить кожен користувач."
+msgstr "Every user will see this folder with everything inside it."
+
+#: book_library/forms.py:59
+msgid "— корінь бібліотеки —"
+msgstr "— library root —"
+
+#: book_library/forms.py:67 book_library/forms.py:106
+#: book_library/templates/book_library/book_detail.html:174 sharing/forms.py:28
+#: users/forms.py:75
+msgid "Зберегти"
+msgstr "Save"
+
+#: book_library/forms.py:76
+msgid "Назва"
+msgstr "Title"
+
+#: book_library/forms.py:76
+#: book_library/templates/book_library/book_detail.html:44 sharing/forms.py:78
+#: sharing/forms.py:178 templates/partials/move_modal.html:12
+msgid "Тека"
+msgstr "Folder"
+
+#: book_library/forms.py:76
+msgid "PDF-файл"
+msgstr "PDF file"
+
+#: book_library/forms.py:77
+msgid "Вкажіть назву підручника."
+msgstr "Enter the textbook title."
+
+#: book_library/forms.py:90
+msgid "— без теки —"
+msgstr "— no folder —"
+
+#: book_library/forms.py:93
+#, python-format
+msgid "Максимум %(size)s"
+msgstr "Maximum %(size)s"
+
+#: book_library/forms.py:97
+msgid "Залиште порожнім, щоб не змінювати файл."
+msgstr "Leave empty to keep the current file."
+
+#: book_library/forms.py:108
+msgid "Поступ завантаження"
+msgstr "Upload progress"
+
+#: book_library/forms.py:108
+#: book_library/templates/book_library/book_form.html:90
+#: book_library/templates/book_library/book_form.html:95
+#: book_library/templates/book_library/book_form.html:127
+msgid "Завантаження…"
+msgstr "Uploading…"
+
+#: book_library/models.py:25
+msgid "Тека каталогу: разом з усім вкладеним доступна кожному користувачу."
+msgstr ""
+"Catalog folder: available to every user together with everything inside it."
+
+#: book_library/models.py:73
+msgid "Розмір файлу в байтах"
+msgstr "File size in bytes"
+
+#: book_library/models.py:100
+msgid "Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша."
+msgstr "When the reader was on this page; decides which position is newer."
+
+#: book_library/pdf.py:47
+#, python-format
+msgid "Файл завеликий: %(size)s. Максимум — %(max)s."
+msgstr "The file is too large: %(size)s. Maximum is %(max)s."
+
+#: book_library/pdf.py:58
+msgid "Це не PDF. Перевірте файл — саме розширення .pdf нічого не гарантує."
+msgstr ""
+"This is not a PDF. Check the file — a .pdf extension alone guarantees "
+"nothing."
+
+#: book_library/pdf.py:64
+msgid "Файл пошкоджений — не вдалося його розібрати."
+msgstr "The file is damaged and could not be parsed."
+
+#: book_library/pdf.py:68
+msgid "PDF захищений паролем. Зніміть пароль і завантажте ще раз."
+msgstr ""
+"The PDF is password-protected. Remove the password and upload it again."
+
+#: book_library/pdf.py:70
+msgid "У документі нема жодної сторінки."
+msgstr "The document has no pages."
+
+#: book_library/templates/book_library/book_detail.html:11
+#, python-format
+msgid "Продовжити з с. %(page)s"
+msgstr "Continue from p. %(page)s"
+
+#: book_library/templates/book_library/book_detail.html:15
+#: templates/partials/book_card.html:31
+msgid "Читати"
+msgstr "Read"
+
+#: book_library/templates/book_library/book_detail.html:19
+#: templates/partials/book_card.html:41 users/templates/users/profile.html:20
+msgid "Редагувати"
+msgstr "Edit"
+
+#: book_library/templates/book_library/book_detail.html:33
+msgid "Завантажити файл"
+msgstr "Download file"
+
+#: book_library/templates/book_library/book_detail.html:42
+msgid "Про книгу"
+msgstr "About the book"
+
+#: book_library/templates/book_library/book_detail.html:56
+#: templates/partials/move_modal.html:8 templates/partials/move_modal.html:27
+msgid "Перемістити"
+msgstr "Move"
+
+#: book_library/templates/book_library/book_detail.html:64
+#: templates/partials/book_card.html:59
+msgid "Прибрати з теки"
+msgstr "Remove from folder"
+
+#: book_library/templates/book_library/book_detail.html:72
+msgid "Власник"
+msgstr "Owner"
+
+#: book_library/templates/book_library/book_detail.html:75
+msgid "Сторінок"
+msgstr "Pages"
+
+#: book_library/templates/book_library/book_detail.html:78
+msgid "Розмір"
+msgstr "Size"
+
+#: book_library/templates/book_library/book_detail.html:81
+msgid "Текст видобуто"
+msgstr "Text extracted"
+
+#: book_library/templates/book_library/book_detail.html:84
+msgid "Так"
+msgstr "Yes"
+
+#: book_library/templates/book_library/book_detail.html:86
+msgid "Ні"
+msgstr "No"
+
+#: book_library/templates/book_library/book_detail.html:90
+msgid "Завантажено"
+msgstr "Uploaded"
+
+#: book_library/templates/book_library/book_detail.html:100
+msgid "Мій прогрес"
+msgstr "My progress"
+
+#: book_library/templates/book_library/book_detail.html:102
+#: book_library/templates/book_library/home.html:45
+#, python-format
+msgid "с. %(page)s з %(total)s"
+msgstr "p. %(page)s of %(total)s"
+
+#: book_library/templates/book_library/book_detail.html:106
+#: book_library/templates/book_library/home.html:38
+msgid "Прогрес читання"
+msgstr "Reading progress"
+
+#: book_library/templates/book_library/book_detail.html:111
+#, python-format
+msgid "Востаннє читали %(date)s."
+msgstr "Last read on %(date)s."
+
+#: book_library/templates/book_library/book_detail.html:123
+#, python-format
+msgid "%(annotation_count)s виділень у вашому шарі."
+msgstr "Highlights in your layer: %(annotation_count)s."
+
+#: book_library/templates/book_library/book_detail.html:127
+msgid "Переглянути"
+msgstr "View"
+
+#: book_library/templates/book_library/book_detail.html:136
+msgid "Нотатки вчителя"
+msgstr "Teacher's notes"
+
+#: book_library/templates/book_library/book_detail.html:137
+msgid "Відкриваються в читалці окремим шаром, лише для читання."
+msgstr "Open in the reader as a separate read-only layer."
+
+#: book_library/templates/book_library/book_detail.html:143
+#, python-format
+msgid "%(count_)s виділень"
+msgstr "highlights: %(count_)s"
+
+#: book_library/templates/book_library/book_detail.html:146
+msgid "Відкрити"
+msgstr "Open"
+
+#: book_library/templates/book_library/book_detail.html:158
+msgid "Показати мої нотатки групам"
+msgstr "Show my notes to groups"
+
+#: book_library/templates/book_library/book_detail.html:160
+msgid ""
+"Учасники обраних груп побачать ваші виділення й коментарі окремим шаром у "
+"читалці — без права змінювати."
+msgstr ""
+"Members of the selected groups will see your highlights and comments as a "
+"separate layer in the reader — without the right to change them."
+
+#: book_library/templates/book_library/book_detail.html:178
+msgid "Жодна з ваших груп не має доступу до цієї книги."
+msgstr "None of your groups has access to this book."
+
+#: book_library/templates/book_library/book_detail.html:180
+#: sharing/views.py:193
+msgid "Надати доступ групі"
+msgstr "Give a group access"
+
+#: book_library/templates/book_library/book_detail.html:192
+msgid "Спільний доступ"
+msgstr "Sharing"
+
+#: book_library/templates/book_library/book_detail.html:195
+msgid "Надати групі"
+msgstr "Share with group"
+
+#: book_library/templates/book_library/book_detail.html:200
+#: sharing/forms.py:132 sharing/templates/sharing/group_detail.html:87
+#: sharing/templates/sharing/link_list.html:80
+msgid "Створити посилання"
+msgstr "Create link"
+
+#: book_library/templates/book_library/book_detail.html:205
+msgid "Лише книга"
+msgstr "Book only"
+
+#: book_library/templates/book_library/book_detail.html:210
+msgid "Книга з моїми нотатками"
+msgstr "Book with my notes"
+
+#: book_library/templates/book_library/book_detail.html:224
+#: sharing/templates/sharing/link_list.html:32
+msgid "Отримувач бачить ваші нотатки"
+msgstr "The recipient sees your notes"
+
+#: book_library/templates/book_library/book_detail.html:225
+#: sharing/models.py:35 sharing/templates/sharing/link_list.html:33
+msgid "з нотатками"
+msgstr "with notes"
+
+#: book_library/templates/book_library/book_detail.html:229
+#, python-format
+msgid "до %(date)s"
+msgstr "until %(date)s"
+
+#: book_library/templates/book_library/book_detail.html:229
+msgid "безстроково"
+msgstr "no expiry"
+
+#: book_library/templates/book_library/book_detail.html:235
+msgid "Посилань ще немає."
+msgstr "No links yet."
+
+#: book_library/templates/book_library/book_detail.html:240
+msgid "Доступ груп:"
+msgstr "Group access:"
+
+#: book_library/templates/book_library/book_detail.html:253
+msgid "Видалення книги"
+msgstr "Delete book"
+
+#: book_library/templates/book_library/book_detail.html:254
+msgid "Разом з книгою зникнуть усі шари анотацій."
+msgstr "All annotation layers will be deleted with the book."
+
+#: book_library/templates/book_library/book_detail.html:259
+#: templates/partials/book_card.html:69
+#, python-format
+msgid "Видалити «%(title)s»?"
+msgstr "Delete “%(title)s”?"
+
+#: book_library/templates/book_library/book_detail.html:260
+#: templates/partials/book_card.html:70
+msgid "Книга та всі анотації до неї будуть видалені безповоротно."
+msgstr "The book and all its annotations will be permanently deleted."
+
+#: book_library/templates/book_library/book_form.html:22
+msgid "Б"
+msgstr "B"
+
+#: book_library/templates/book_library/book_form.html:22
+msgid "КБ"
+msgstr "KB"
+
+#: book_library/templates/book_library/book_form.html:22
+msgid "МБ"
+msgstr "MB"
+
+#: book_library/templates/book_library/book_form.html:22
+msgid "ГБ"
+msgstr "GB"
+
+#: book_library/templates/book_library/book_form.html:32
+msgid "Обрати інший файл"
+msgstr "Choose another file"
+
+#: book_library/templates/book_library/book_form.html:132
+msgid "Обробка файлу…"
+msgstr "Processing file…"
+
+#: book_library/templates/book_library/book_form.html:137
+msgid "Сервер відхилив завантаження. Спробуйте ще раз."
+msgstr "The server rejected the upload. Please try again."
+
+#: book_library/templates/book_library/book_form.html:152
+msgid "Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз."
+msgstr "Could not upload the file. Check your connection and try again."
+
+#: book_library/templates/book_library/book_reader.html:5
+msgid "читалка"
+msgstr "reader"
+
+#: book_library/templates/book_library/book_reader.html:15
+msgid "Назад"
+msgstr "Back"
+
+#: book_library/templates/book_library/book_reader.html:23
+msgid "Сторінки"
+msgstr "Pages"
+
+#: book_library/templates/book_library/book_reader.html:25
+msgid "На початок"
+msgstr "First page"
+
+#: book_library/templates/book_library/book_reader.html:29
+msgid "Попередня сторінка"
+msgstr "Previous page"
+
+#: book_library/templates/book_library/book_reader.html:35
+#, python-format
+msgid "Номер сторінки, всього %(total)s"
+msgstr "Page number, %(total)s in total"
+
+#: book_library/templates/book_library/book_reader.html:36
+msgid "Введіть номер і натисніть Enter"
+msgstr "Type a number and press Enter"
+
+#: book_library/templates/book_library/book_reader.html:39
+msgid "Наступна сторінка"
+msgstr "Next page"
+
+#: book_library/templates/book_library/book_reader.html:43
+msgid "В кінець"
+msgstr "Last page"
+
+#: book_library/templates/book_library/book_reader.html:48
+msgid "Масштаб"
+msgstr "Zoom"
+
+#: book_library/templates/book_library/book_reader.html:49
+msgid "Зменшити"
+msgstr "Zoom out"
+
+#: book_library/templates/book_library/book_reader.html:50
+msgid "Збільшити"
+msgstr "Zoom in"
+
+#: book_library/templates/book_library/book_reader.html:53
+msgid "Панель нотаток"
+msgstr "Notes panel"
+
+#: book_library/templates/book_library/book_reader.html:78
+msgid "Завантаження"
+msgstr "Loading"
+
+#: book_library/templates/book_library/book_reader.html:79
+msgid "Готуємо документ…"
+msgstr "Preparing the document…"
+
+#: book_library/templates/book_library/book_reader.html:81
+msgid "Відкрити файл у новій вкладці"
+msgstr "Open file in a new tab"
+
+#: book_library/templates/book_library/book_reader.html:91
+#: book_library/templates/book_library/book_reader.html:125
+#: book_library/templates/book_library/book_reader.html:161
+msgid "Усі"
+msgstr "All"
+
+#: book_library/templates/book_library/book_reader.html:98
+msgid "Чиї нотатки показувати"
+msgstr "Whose notes to show"
+
+#: book_library/templates/book_library/book_reader.html:100
+msgid "Мої"
+msgstr "Mine"
+
+#: book_library/templates/book_library/book_reader.html:104
+msgid "Нотатки вчителя — лише для читання"
+msgstr "Teacher's notes — read only"
+
+#: book_library/templates/book_library/book_reader.html:110
+msgid "Нотатки вчителя — лише для читання."
+msgstr "Teacher's notes — read only."
+
+#: book_library/templates/book_library/book_reader.html:118
+msgid "Теми"
+msgstr "Topics"
+
+#: book_library/templates/book_library/book_reader.html:120
+#: book_library/templates/book_library/book_reader.html:212
+msgid "Тема"
+msgstr "Topic"
+
+#: book_library/templates/book_library/book_reader.html:123
+msgid "Тема нотаток"
+msgstr "Notes topic"
+
+#: book_library/templates/book_library/book_reader.html:136
+#: book_library/templates/book_library/book_reader.html:217
+msgid "Назва нової теми"
+msgstr "New topic name"
+
+#: book_library/templates/book_library/book_reader.html:137
+#: book_library/templates/book_library/book_reader.html:218
+msgid "Створити"
+msgstr "Create"
+
+#: book_library/templates/book_library/book_reader.html:139
+#: templates/partials/confirm_modal.html:13
+#: templates/partials/form_card.html:12 templates/partials/move_modal.html:26
+#: users/templates/users/password_change_form.html:16
+#: users/templates/users/profile.html:63
+msgid "Скасувати"
+msgstr "Cancel"
+
+#: book_library/templates/book_library/book_reader.html:151
+msgid "Навігація по мітках"
+msgstr "Highlight navigation"
+
+#: book_library/templates/book_library/book_reader.html:152
+msgid "Попередня мітка"
+msgstr "Previous highlight"
+
+#: book_library/templates/book_library/book_reader.html:155
+msgid "Наступна мітка"
+msgstr "Next highlight"
+
+#: book_library/templates/book_library/book_reader.html:170
+msgid ""
+"У документі нема текстового шару — схоже, це скан. Виділення тексту тут не "
+"працюватиме."
+msgstr ""
+"The document has no text layer — it looks like a scan. Text selection will "
+"not work here."
+
+#: book_library/templates/book_library/book_reader.html:182
+msgid "Нотаток ще немає"
+msgstr "No notes yet"
+
+#: book_library/templates/book_library/book_reader.html:182
+msgid "Виділіть текст у книзі, щоб створити перше виділення."
+msgstr "Select text in the book to create your first highlight."
+
+#: book_library/templates/book_library/book_reader.html:184
+msgid "Нотатки для зареєстрованих"
+msgstr "Notes are for registered users"
+
+#: book_library/templates/book_library/book_reader.html:184
+msgid "Увійдіть, щоб робити виділення у цій книзі."
+msgstr "Log in to highlight this book."
+
+#: book_library/templates/book_library/book_reader.html:184
+#: book_library/templates/book_library/home.html:16
+#: sharing/templates/sharing/group_join.html:35 templates/nav.html:57
+#: users/forms.py:56 users/templates/users/password_reset_complete.html:13
+#: users/templates/users/register.html:25
+msgid "Увійти"
+msgstr "Log in"
+
+#: book_library/templates/book_library/book_reader.html:198
+#, python-format
+msgid "Виділити: %(label)s"
+msgstr "Highlight: %(label)s"
+
+#: book_library/templates/book_library/book_reader.html:207
+#, python-format
+msgid "Перефарбувати: %(label)s"
+msgstr "Recolor: %(label)s"
+
+#: book_library/templates/book_library/book_reader.html:213
+msgid "Тема нотатки"
+msgstr "Note topic"
+
+#: book_library/templates/book_library/book_reader.html:224
+msgid "Коментар до виділення…"
+msgstr "Comment on the highlight…"
+
+#: book_library/templates/book_library/book_reader.html:232
+msgid "Готово"
+msgstr "Done"
+
+#: book_library/templates/book_library/catalog.html:4
+#: book_library/templates/book_library/library.html:25 book_library/views.py:46
+#: book_library/views.py:204 templates/partials/sidebar.html:17
+msgid "Каталог"
+msgstr "Catalog"
+
+#: book_library/templates/book_library/catalog.html:7
+msgid "Пошук по каталогу…"
+msgstr "Search the catalog…"
+
+#: book_library/templates/book_library/catalog.html:11
+#: book_library/templates/book_library/library.html:39
+#, python-format
+msgid "Знайдено за «%(query)s»: %(result_count)s"
+msgstr "Results for “%(query)s”: %(result_count)s"
+
+#: book_library/templates/book_library/catalog.html:18
+#: book_library/templates/book_library/folder_add_books.html:48
+#: book_library/templates/book_library/library.html:54
+msgid "Нічого не знайдено"
+msgstr "Nothing found"
+
+#: book_library/templates/book_library/catalog.html:18
+#: book_library/templates/book_library/library.html:54
+msgid "Спробуйте іншу назву або скиньте пошук."
+msgstr "Try another title or reset the search."
+
+#: book_library/templates/book_library/catalog.html:18
+#: book_library/templates/book_library/folder_add_books.html:48
+#: book_library/templates/book_library/library.html:54
+#: templates/partials/search_form.html:17
+msgid "Скинути пошук"
+msgstr "Reset search"
+
+#: book_library/templates/book_library/catalog.html:25
+msgid "Каталог порожній"
+msgstr "The catalog is empty"
+
+#: book_library/templates/book_library/catalog.html:25
+msgid "Адміністратор ще не відкрив жодної теки для всіх."
+msgstr "The administrator has not opened any folder to everyone yet."
+
+#: book_library/templates/book_library/fields/pdf_dropzone.html:11
+msgid "Перетягніть PDF сюди або натисніть, щоб обрати"
+msgstr "Drag a PDF here or click to choose one"
+
+#: book_library/templates/book_library/folder_add_books.html:10
+msgid "До теки"
+msgstr "To folder"
+
+#: book_library/templates/book_library/folder_add_books.html:13
+#: book_library/templates/book_library/library.html:21
+#: book_library/templates/book_library/library.html:76
+#: book_library/views.py:440 templates/partials/sidebar.html:43
+msgid "Завантажити PDF"
+msgstr "Upload PDF"
+
+#: book_library/templates/book_library/folder_add_books.html:18
+msgid "Пошук серед книг поза цією текою…"
+msgstr "Search books outside this folder…"
+
+#: book_library/templates/book_library/folder_add_books.html:31
+#: templates/partials/book_card.html:23 templates/partials/book_card.html:24
+#: templates/partials/folder_card.html:15
+#: templates/partials/folder_card.html:16
+msgid "Корінь бібліотеки"
+msgstr "Library root"
+
+#: book_library/templates/book_library/folder_add_books.html:32
+#: sharing/templates/sharing/share_view.html:26
+#: templates/partials/book_card.html:20
+#, python-format
+msgid "%(pages)s с."
+msgstr "%(pages)s p."
+
+#: book_library/templates/book_library/folder_add_books.html:40
+#: sharing/forms.py:39
+msgid "Додати"
+msgstr "Add"
+
+#: book_library/templates/book_library/folder_add_books.html:48
+msgid "Серед книг поза цією текою немає збігів."
+msgstr "No matches among books outside this folder."
+
+#: book_library/templates/book_library/folder_add_books.html:50
+msgid "Усі книги вже тут"
+msgstr "All books are already here"
+
+#: book_library/templates/book_library/folder_add_books.html:50
+msgid ""
+"Поза цією текою книг не залишилось. Завантажте новий PDF, щоб додати ще."
+msgstr ""
+"There are no books left outside this folder. Upload a new PDF to add more."
+
+#: book_library/templates/book_library/home.html:4
+msgid "спільна бібліотека"
+msgstr "shared library"
+
+#: book_library/templates/book_library/home.html:9
+msgid "Бібліотека PDF з анотаціями та спільним доступом."
+msgstr "A PDF library with annotations and sharing."
+
+#: book_library/templates/book_library/home.html:12
+#, python-format
+msgid "Вітаємо, <strong>%(username)s</strong>."
+msgstr "Welcome, <strong>%(username)s</strong>."
+
+#: book_library/templates/book_library/home.html:15
+#: users/templates/users/register.html:12
+msgid "Створити акаунт"
+msgstr "Create account"
+
+#: book_library/templates/book_library/home.html:23
+msgid "Продовжити читати"
+msgstr "Continue reading"
+
+#: book_library/templates/book_library/library.html:12
+#: book_library/templates/book_library/library.html:74
+#: book_library/views.py:292
+msgid "Додати книги"
+msgstr "Add books"
+
+#: book_library/templates/book_library/library.html:17
+#: book_library/views.py:230 book_library/views.py:231
+msgid "Нова тека"
+msgstr "New folder"
+
+#: book_library/templates/book_library/library.html:29
+msgid "Спільна тека"
+msgstr "Shared folder"
+
+#: book_library/templates/book_library/library.html:35
+msgid "Пошук у цій теці та вкладених…,Пошук по всій бібліотеці…"
+msgstr "Search this folder and subfolders…,Search the whole library…"
+
+#: book_library/templates/book_library/library.html:42
+#: book_library/templates/book_library/library.html:58
+#: book_library/templates/book_library/shared_with_me.html:8
+#: book_library/views.py:75
+msgid "Теки"
+msgstr "Folders"
+
+#: book_library/templates/book_library/library.html:48
+#: book_library/templates/book_library/library.html:65
+#: book_library/templates/book_library/shared_with_me.html:15
+#: book_library/views.py:76
+msgid "Книги"
+msgstr "Books"
+
+#: book_library/templates/book_library/library.html:74
+#: book_library/templates/book_library/library.html:79
+#: book_library/templates/book_library/library.html:81
+msgid "Тека порожня"
+msgstr "The folder is empty"
+
+#: book_library/templates/book_library/library.html:74
+msgid "Покладіть сюди книги з бібліотеки або завантажте новий PDF."
+msgstr "Put books from your library here or upload a new PDF."
+
+#: book_library/templates/book_library/library.html:76
+msgid "Тут порожньо"
+msgstr "Nothing here yet"
+
+#: book_library/templates/book_library/library.html:76
+msgid "Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали."
+msgstr "Upload your first PDF or create a folder to organize your materials."
+
+#: book_library/templates/book_library/library.html:79
+msgid "Адміністратор ще нічого сюди не поклав."
+msgstr "The administrator has not put anything here yet."
+
+#: book_library/templates/book_library/library.html:81
+msgid "Власник ще нічого сюди не поклав."
+msgstr "The owner has not put anything here yet."
+
+#: book_library/templates/book_library/shared_with_me.html:4
+#: book_library/views.py:177 templates/partials/sidebar.html:12
+msgid "Поділилися зі мною"
+msgstr "Shared with me"
+
+#: book_library/templates/book_library/shared_with_me.html:22
+msgid "Вам ще нічого не надали"
+msgstr "Nothing has been shared with you yet"
+
+#: book_library/templates/book_library/shared_with_me.html:22
+msgid ""
+"Матеріали, до яких вас допустять через групу або посилання, з'являться тут."
+msgstr "Materials shared with you through a group or a link will appear here."
+
+#: book_library/views.py:74
+msgid "Усюди"
+msgstr "Everywhere"
+
+#: book_library/views.py:152 templates/partials/sidebar.html:7
+msgid "Моя бібліотека"
+msgstr "My library"
+
+#: book_library/views.py:205
+msgid "Матеріали, доступні всім користувачам"
+msgstr "Materials available to all users"
+
+#: book_library/views.py:222
+msgid "Теку створено."
+msgstr "Folder created."
+
+#: book_library/views.py:244
+msgid "Теку оновлено."
+msgstr "Folder updated."
+
+#: book_library/views.py:252
+msgid "Редагування теки"
+msgstr "Edit folder"
+
+#: book_library/views.py:253
+#, python-format
+msgid "Тека «%(name)s»"
+msgstr "Folder “%(name)s”"
+
+#: book_library/views.py:265
+msgid "Теку видалено."
+msgstr "Folder deleted."
+
+#: book_library/views.py:293
+#, python-format
+msgid "Додати книги до «%(name)s»"
+msgstr "Add books to “%(name)s”"
+
+#: book_library/views.py:411
+msgid "тіло запиту не є коректним JSON"
+msgstr "the request body is not valid JSON"
+
+#: book_library/views.py:431
+#, python-format
+msgid "«%(title)s» завантажено: %(pages)s с."
+msgstr "“%(title)s” uploaded: %(pages)s p."
+
+#: book_library/views.py:439
+msgid "Завантаження PDF"
+msgstr "Upload PDF"
+
+#: book_library/views.py:441
+msgid "Приймаються файли у форматі PDF."
+msgstr "PDF files are accepted."
+
+#: book_library/views.py:454
+msgid "Книгу оновлено."
+msgstr "Book updated."
+
+#: book_library/views.py:462
+msgid "Редагування книги"
+msgstr "Edit book"
+
+#: book_library/views.py:475
+msgid "Книгу видалено."
+msgstr "Book deleted."
+
+#: book_library/views.py:490
+msgid "Некоректна тека."
+msgstr "Invalid folder."
+
+#: book_library/views.py:497
+#, python-format
+msgid "«%(title)s» перенесено до теки «%(folder)s»."
+msgstr "“%(title)s” moved to folder “%(folder)s”."
+
+#: book_library/views.py:500
+#, python-format
+msgid "«%(title)s» прибрано з теки."
+msgstr "“%(title)s” removed from its folder."
+
+#: sharing/forms.py:20
+msgid "Назва групи"
+msgstr "Group name"
+
+#: sharing/forms.py:34
+msgid "Username учасника"
+msgstr "Member's username"
+
+#: sharing/forms.py:51
+msgid "Користувача з таким username не знайдено."
+msgstr "No user with this username was found."
+
+#: sharing/forms.py:54
+msgid "Цей користувач уже в групі."
+msgstr "This user is already in the group."
+
+#: sharing/forms.py:77 sharing/forms.py:177
+msgid "Книга"
+msgstr "Book"
+
+#: sharing/forms.py:79
+msgid "Що побачить отримувач"
+msgstr "What the recipient will see"
+
+#: sharing/forms.py:80
+msgid "Які теми показати"
+msgstr "Which topics to show"
+
+#: sharing/forms.py:81 sharing/templates/sharing/link_list.html:21
+msgid "Діє до"
+msgstr "Valid until"
+
+#: sharing/forms.py:85
+msgid "Лише книгу"
+msgstr "Only the book"
+
+#: sharing/forms.py:85
+msgid "Книгу з моїми нотатками"
+msgstr "The book with my notes"
+
+#: sharing/forms.py:91
+msgid "Нотатки відкриються окремим шаром, лише для читання."
+msgstr "Notes open as a separate read-only layer."
+
+#: sharing/forms.py:92
+msgid "Нічого не обрано — усі нотатки книги. Лише для посилання на книгу."
+msgstr "Nothing selected — all notes for the book. Only for links to a book."
+
+#: sharing/forms.py:93
+msgid "Порожньо — посилання безстрокове."
+msgstr "Leave empty for a link that never expires."
+
+#: sharing/forms.py:105 sharing/forms.py:106 sharing/forms.py:196
+#: sharing/forms.py:197
+msgid "— не обрано —"
+msgstr "— not selected —"
+
+#: sharing/forms.py:138
+msgid "Дата завершення не може бути в минулому."
+msgstr "The expiry date cannot be in the past."
+
+#: sharing/forms.py:145 sharing/forms.py:214
+msgid "Оберіть рівно одне: книгу або теку."
+msgstr "Choose exactly one: a book or a folder."
+
+#: sharing/forms.py:151
+msgid "Теми можна обрати лише для посилання на книгу з нотатками."
+msgstr "Topics can be chosen only for a link to a book with notes."
+
+#: sharing/forms.py:154
+msgid "Обрані теми мають належати обраній книзі."
+msgstr "The selected topics must belong to the selected book."
+
+#: sharing/forms.py:176
+msgid "Група"
+msgstr "Group"
+
+#: sharing/forms.py:179
+msgid "Права"
+msgstr "Permission"
+
+#: sharing/forms.py:206 sharing/templates/sharing/group_detail.html:110
+#: sharing/views.py:192
+msgid "Надати доступ"
+msgstr "Give access"
+
+#: sharing/forms.py:223
+#, python-format
+msgid "Група «%(group)s» уже має доступ до «%(target)s»."
+msgstr "Group “%(group)s” already has access to “%(target)s”."
+
+#: sharing/models.py:38
+msgid "Усі нотатки"
+msgstr "All notes"
+
+#: sharing/models.py:39
+msgid "Лише обрані теми"
+msgstr "Selected topics only"
+
+#: sharing/models.py:44
+msgid "які нотатки"
+msgstr "which notes"
+
+#: sharing/models.py:50
+msgid "теми"
+msgstr "topics"
+
+#: sharing/models.py:118
+msgid "Перегляд"
+msgstr "View"
+
+#: sharing/models.py:119
+msgid "Редагування"
+msgstr "Edit"
+
+#: sharing/templates/sharing/group_detail.html:21
+msgid "Учасники"
+msgstr "Members"
+
+#: sharing/templates/sharing/group_detail.html:35
+#, python-format
+msgid "з %(date)s"
+msgstr "since %(date)s"
+
+#: sharing/templates/sharing/group_detail.html:41
+msgid "Видалити учасника?"
+msgstr "Remove member?"
+
+#: sharing/templates/sharing/group_detail.html:42
+#, python-format
+msgid "%(username)s втратить доступ до матеріалів групи."
+msgstr "%(username)s will lose access to the group's materials."
+
+#: sharing/templates/sharing/group_detail.html:49
+msgid "Учасників ще немає."
+msgstr "No members yet."
+
+#: sharing/templates/sharing/group_detail.html:60
+msgid "Посилання для приєднання"
+msgstr "Join link"
+
+#: sharing/templates/sharing/group_detail.html:63
+msgid "Хто відкриє це посилання, зможе самостійно вступити в групу."
+msgstr "Anyone who opens this link can join the group."
+
+#: sharing/templates/sharing/group_detail.html:68
+msgid "URL для приєднання"
+msgstr "Join URL"
+
+#: sharing/templates/sharing/group_detail.html:69
+#: sharing/templates/sharing/link_list.html:47
+msgid "Скопіювати"
+msgstr "Copy"
+
+#: sharing/templates/sharing/group_detail.html:76
+msgid "Оновити"
+msgstr "Regenerate"
+
+#: sharing/templates/sharing/group_detail.html:79
+msgid "Вимкнути"
+msgstr "Disable"
+
+#: sharing/templates/sharing/group_detail.html:83
+msgid "Посилання вимкнене. Учні можуть вступити лише вручну."
+msgstr "The link is disabled. Students can only be added manually."
+
+#: sharing/templates/sharing/group_detail.html:98
+msgid "Додати учасника"
+msgstr "Add member"
+
+#: sharing/templates/sharing/group_detail.html:107
+msgid "Доступні матеріали"
+msgstr "Available materials"
+
+#: sharing/templates/sharing/group_detail.html:125
+msgid "Відкликати доступ?"
+msgstr "Revoke access?"
+
+#: sharing/templates/sharing/group_detail.html:126
+#, python-format
+msgid "Учасники групи «%(name)s» більше не бачитимуть цей матеріал."
+msgstr "Members of group “%(name)s” will no longer see this material."
+
+#: sharing/templates/sharing/group_detail.html:127
+#: sharing/templates/sharing/link_list.html:69
+#: sharing/templates/sharing/link_list.html:70
+msgid "Відкликати"
+msgstr "Revoke"
+
+#: sharing/templates/sharing/group_detail.html:128
+msgid "Відкликати доступ"
+msgstr "Revoke access"
+
+#: sharing/templates/sharing/group_detail.html:134
+msgid "Групі ще нічого не надано."
+msgstr "Nothing has been shared with the group yet."
+
+#: sharing/templates/sharing/group_join.html:4
+msgid "Приєднання до групи"
+msgstr "Join a group"
+
+#: sharing/templates/sharing/group_join.html:18
+#: sharing/templates/sharing/share_view.html:18
+msgid "Посилання недоступне"
+msgstr "Link unavailable"
+
+#: sharing/templates/sharing/group_join.html:19
+msgid "Посилання не існує або було вимкнене вчителем."
+msgstr "The link does not exist or was disabled by the teacher."
+
+#: sharing/templates/sharing/group_join.html:20
+#: sharing/templates/sharing/share_view.html:20
+msgid "На головну"
+msgstr "Go home"
+
+#: sharing/templates/sharing/group_join.html:25
+#: sharing/templates/sharing/group_list.html:60 sharing/views.py:61
+#, python-format
+msgid "Вчитель: %(teacher)s"
+msgstr "Teacher: %(teacher)s"
+
+#: sharing/templates/sharing/group_join.html:30
+msgid "Приєднатися до групи"
+msgstr "Join group"
+
+#: sharing/templates/sharing/group_join.html:33
+msgid "Щоб приєднатися, увійдіть або створіть акаунт."
+msgstr "Log in or create an account to join."
+
+#: sharing/templates/sharing/group_join.html:36 users/forms.py:43
+#: users/templates/users/login.html:29
+msgid "Зареєструватися"
+msgstr "Sign up"
+
+#: sharing/templates/sharing/group_list.html:9 sharing/views.py:82
+#: sharing/views.py:83
+msgid "Нова група"
+msgstr "New group"
+
+#: sharing/templates/sharing/group_list.html:16
+msgid "Мої групи"
+msgstr "My groups"
+
+#: sharing/templates/sharing/group_list.html:25
+#, python-format
+msgid "%(members)s учасників · %(materials)s матеріалів"
+msgstr "Members: %(members)s · Materials: %(materials)s"
+
+#: sharing/templates/sharing/group_list.html:29
+msgid "Дії з групою"
+msgstr "Group actions"
+
+#: sharing/templates/sharing/group_list.html:39
+#, python-format
+msgid "Видалити групу «%(name)s»?"
+msgstr "Delete group “%(name)s”?"
+
+#: sharing/templates/sharing/group_list.html:40
+msgid "Учасники втратять доступ до наданих через цю групу матеріалів."
+msgstr "Members will lose access to materials shared through this group."
+
+#: sharing/templates/sharing/group_list.html:52
+msgid "Я учасник"
+msgstr "Member of"
+
+#: sharing/templates/sharing/group_list.html:68
+msgid "Груп немає"
+msgstr "No groups"
+
+#: sharing/templates/sharing/group_list.html:68
+msgid "Групи дають класу доступ до ваших матеріалів одним рухом."
+msgstr "Groups give a whole class access to your materials in one step."
+
+#: sharing/templates/sharing/group_list.html:68
+msgid "Створити групу"
+msgstr "Create group"
+
+#: sharing/templates/sharing/link_list.html:4
+#: sharing/templates/sharing/link_list.html:20 sharing/views.py:220
+#: templates/partials/sidebar.html:29
+msgid "Посилання"
+msgstr "Links"
+
+#: sharing/templates/sharing/link_list.html:8 sharing/views.py:248
+#: sharing/views.py:249
+msgid "Нове посилання"
+msgstr "New link"
+
+#: sharing/templates/sharing/link_list.html:19
+msgid "Матеріал"
+msgstr "Material"
+
+#: sharing/templates/sharing/link_list.html:22
+msgid "Дії"
+msgstr "Actions"
+
+#: sharing/templates/sharing/link_list.html:37
+msgid "Отримувач бачить лише ці теми"
+msgstr "The recipient sees only these topics"
+
+#: sharing/templates/sharing/link_list.html:38
+msgid "теми видалено"
+msgstr "topics deleted"
+
+#: sharing/templates/sharing/link_list.html:46
+msgid "URL посилання"
+msgstr "Link URL"
+
+#: sharing/templates/sharing/link_list.html:55
+msgid "Прострочене"
+msgstr "Expired"
+
+#: sharing/templates/sharing/link_list.html:60
+msgid "безстрокове"
+msgstr "never expires"
+
+#: sharing/templates/sharing/link_list.html:67
+msgid "Відкликати посилання?"
+msgstr "Revoke link?"
+
+#: sharing/templates/sharing/link_list.html:68
+msgid "Хто має це посилання, втратить доступ негайно."
+msgstr "Anyone with this link will lose access immediately."
+
+#: sharing/templates/sharing/link_list.html:80
+msgid "Посилань немає"
+msgstr "No links"
+
+#: sharing/templates/sharing/link_list.html:80
+msgid "Посилання дає доступ до книги або теки без реєстрації в групі."
+msgstr "A link gives access to a book or folder without joining a group."
+
+#: sharing/templates/sharing/share_view.html:4
+msgid "Спільний матеріал"
+msgstr "Shared material"
+
+#: sharing/templates/sharing/share_view.html:27
+#, python-format
+msgid "від %(author)s"
+msgstr "by %(author)s"
+
+#: sharing/templates/sharing/share_view.html:31
+#: sharing/templates/sharing/share_view.html:47
+msgid "З нотатками автора — лише для читання."
+msgstr "With the author's notes — read only."
+
+#: sharing/templates/sharing/share_view.html:43
+#, python-format
+msgid "%(books)s книг · від %(author)s"
+msgstr "Books: %(books)s · by %(author)s"
+
+#: sharing/templates/sharing/share_view.html:51
+msgid "Відкрити теку"
+msgstr "Open folder"
+
+#: sharing/templates/sharing/share_view.html:60
+#, python-format
+msgid ""
+"<a href=\"%(register_url)s\">Створіть акаунт</a>, щоб робити нотатки в цій "
+"книзі."
+msgstr ""
+"<a href=\"%(register_url)s\">Create an account</a> to take notes in this "
+"book."
+
+#: sharing/views.py:38
+msgid "Немає доступу до цієї групи."
+msgstr "You have no access to this group."
+
+#: sharing/views.py:44
+msgid "Учасника додано."
+msgstr "Member added."
+
+#: sharing/views.py:74
+msgid "Групу створено. Поділіться посиланням для приєднання з учнями."
+msgstr "Group created. Share the join link with your students."
+
+#: sharing/views.py:96
+msgid "Групу оновлено."
+msgstr "Group updated."
+
+#: sharing/views.py:104
+msgid "Редагування групи"
+msgstr "Edit group"
+
+#: sharing/views.py:105
+#, python-format
+msgid "Група «%(name)s»"
+msgstr "Group “%(name)s”"
+
+#: sharing/views.py:116
+msgid "Групу видалено."
+msgstr "Group deleted."
+
+#: sharing/views.py:127
+msgid "Посилання для приєднання оновлено. Старе більше не діє."
+msgstr "The join link was regenerated. The old one no longer works."
+
+#: sharing/views.py:131
+msgid "Посилання для приєднання вимкнено."
+msgstr "The join link is disabled."
+
+#: sharing/views.py:145
+msgid "Ви власник цієї групи."
+msgstr "You own this group."
+
+#: sharing/views.py:149
+#, python-format
+msgid "Ви вже в групі «%(name)s»."
+msgstr "You are already in group “%(name)s”."
+
+#: sharing/views.py:154
+#, python-format
+msgid "Ви приєдналися до групи «%(name)s»."
+msgstr "You joined group “%(name)s”."
+
+#: sharing/views.py:166
+msgid "Учасника видалено з групи."
+msgstr "Member removed from the group."
+
+#: sharing/views.py:184
+msgid "Доступ надано."
+msgstr "Access granted."
+
+#: sharing/views.py:194
+msgid "Оберіть групу і матеріал — книгу або теку — зі своєї бібліотеки."
+msgstr ""
+"Choose a group and a material — a book or a folder — from your library."
+
+#: sharing/views.py:206
+msgid "Доступ відкликано."
+msgstr "Access revoked."
+
+#: sharing/views.py:240
+msgid "Посилання створено."
+msgstr "Link created."
+
+#: sharing/views.py:250
+msgid "Оберіть книгу або теку, до якої відкриваєте доступ."
+msgstr "Choose the book or folder you want to share."
+
+#: sharing/views.py:261
+msgid "Посилання відкликано."
+msgstr "Link revoked."
+
+#: sharing/views.py:271
+msgid "Посилання не існує або було відкликане."
+msgstr "The link does not exist or has been revoked."
+
+#: sharing/views.py:273
+msgid "Термін дії посилання минув."
+msgstr "The link has expired."
+
+#: templates/admin/index.html:5
+msgid "Django site admin"
+msgstr ""
+
+#: templates/base.html:60
+msgid "Навігація"
+msgstr "Navigation"
+
+#: templates/nav.html:7
+msgid "Меню"
+msgstr "Menu"
+
+#: templates/nav.html:19
+msgid "Темна тема"
+msgstr "Dark theme"
+
+#: templates/nav.html:26
+msgid "Мова інтерфейсу"
+msgstr "Interface language"
+
+#: templates/nav.html:45 templates/partials/sidebar.html:36
+#: users/templates/users/profile.html:4
+msgid "Профіль"
+msgstr "Profile"
+
+#: templates/nav.html:46
+msgid "Редагувати профіль"
+msgstr "Edit profile"
+
+#: templates/nav.html:51
+msgid "Вийти"
+msgstr "Log out"
+
+#: templates/nav.html:58 users/templates/users/register.html:5
+msgid "Реєстрація"
+msgstr "Sign up"
+
+#: templates/partials/book_card.html:34
+msgid "Дії з книгою"
+msgstr "Book actions"
+
+#: templates/partials/book_card.html:38
+msgid "Деталі"
+msgstr "Details"
+
+#: templates/partials/book_card.html:49
+msgid "Перемістити в теку…"
+msgstr "Move to folder…"
+
+#: templates/partials/confirm_modal.html:6
+#: templates/partials/confirm_modal.html:29
+msgid "Підтвердити дію"
+msgstr "Confirm action"
+
+#: templates/partials/confirm_modal.html:10
+#: templates/partials/confirm_modal.html:30
+msgid "Дію не можна скасувати."
+msgstr "This cannot be undone."
+
+#: templates/partials/empty_state.html:4
+msgid "Поки що порожньо"
+msgstr "Nothing here yet"
+
+#: templates/partials/folder_card.html:12
+#, python-format
+msgid "%(books)s кн. · %(folders)s тек"
+msgstr "Books: %(books)s · Folders: %(folders)s"
+
+#: templates/partials/folder_card.html:23
+msgid "Дії з текою"
+msgstr "Folder actions"
+
+#: templates/partials/folder_card.html:33
+#, python-format
+msgid "Видалити теку «%(name)s»?"
+msgstr "Delete folder “%(name)s”?"
+
+#: templates/partials/folder_card.html:34
+msgid "Вкладені теки та книги буде видалено разом з нею."
+msgstr "Nested folders and books will be deleted with it."
+
+#: templates/partials/messages.html:7
+msgid "Закрити"
+msgstr "Close"
+
+#: templates/partials/move_modal.html:14
+msgid "корінь бібліотеки"
+msgstr "library root"
+
+#: templates/partials/move_modal.html:21
+#, python-format
+msgid "Тек ще немає — <a href=\"%(create_url)s\">створіть першу</a>."
+msgstr "No folders yet — <a href=\"%(create_url)s\">create the first one</a>."
+
+#: templates/partials/search_form.html:6
+msgid "Пошук за назвою…"
+msgstr "Search by title…"
+
+#: templates/partials/search_form.html:6
+msgid "Пошук"
+msgstr "Search"
+
+#: templates/partials/search_form.html:9
+msgid "Де шукати"
+msgstr "Where to search"
+
+#: templates/partials/search_form.html:21
+msgid "Знайти"
+msgstr "Search"
+
+#: users/admin.py:23 users/admin.py:24
+msgid "Роль"
+msgstr "Role"
+
+#: users/forms.py:20
+msgid "На цю адресу зіставляється акаунт при вході через Google."
+msgstr "Google sign-in matches your account by this address."
+
+#: users/forms.py:23
+msgid "Я реєструюсь як"
+msgstr "I am signing up as"
+
+#: users/forms.py:87
+msgid "Надіслати посилання"
+msgstr "Send link"
+
+#: users/forms.py:100
+msgid "Зберегти пароль"
+msgstr "Save password"
+
+#: users/forms.py:114 users/templates/users/profile.html:18
+msgid "Змінити пароль"
+msgstr "Change password"
+
+#: users/models.py:9
+msgid "Вчитель"
+msgstr "Teacher"
+
+#: users/models.py:10
+msgid "Учень"
+msgstr "Student"
+
+#: users/templates/users/edit_profile.html:5
+#: users/templates/users/edit_profile.html:12
+msgid "Редагування профілю"
+msgstr "Edit profile"
+
+#: users/templates/users/edit_profile.html:16
+msgid "Назад до профілю"
+msgstr "Back to profile"
+
+#: users/templates/users/emails/password_reset.txt:1
+#, python-format
+msgid "Вітаємо, %(username)s!"
+msgstr "Hello, %(username)s!"
+
+#: users/templates/users/emails/password_reset.txt:3
+#, python-format
+msgid "Хтось запросив скидання пароля для акаунта PDF+ з адресою %(email)s."
+msgstr ""
+"Someone requested a password reset for the PDF+ account with the address "
+"%(email)s."
+
+#: users/templates/users/emails/password_reset.txt:4
+msgid "Щоб встановити новий пароль, перейдіть за посиланням:"
+msgstr "To set a new password, follow this link:"
+
+#: users/templates/users/emails/password_reset.txt:8
+msgid "Посилання діє добу і спрацьовує лише один раз."
+msgstr "The link is valid for 24 hours and works only once."
+
+#: users/templates/users/emails/password_reset.txt:10
+msgid ""
+"Якщо ви не запитували скидання — просто проігноруйте цей лист, пароль "
+"лишиться тим самим."
+msgstr ""
+"If you didn't request a reset, just ignore this email — your password stays "
+"the same."
+
+#: users/templates/users/emails/password_reset_subject.txt:1
+#: users/templates/users/password_reset_form.html:5
+#: users/templates/users/password_reset_form.html:12
+msgid "Відновлення пароля"
+msgstr "Password reset"
+
+#: users/templates/users/login.html:5 users/templates/users/login.html:12
+msgid "Вхід"
+msgstr "Log in"
+
+#: users/templates/users/login.html:17
+msgid "Забули пароль?"
+msgstr "Forgot your password?"
+
+#: users/templates/users/login.html:21 users/templates/users/register.html:17
+msgid "або"
+msgstr "or"
+
+#: users/templates/users/login.html:25 users/templates/users/register.html:21
+msgid "Продовжити з Google"
+msgstr "Continue with Google"
+
+#: users/templates/users/login.html:29
+msgid "Немає акаунта?"
+msgstr "Don't have an account?"
+
+#: users/templates/users/password_change_form.html:5
+#: users/templates/users/password_change_form.html:12
+msgid "Зміна пароля"
+msgstr "Change password"
+
+#: users/templates/users/password_reset_complete.html:4
+#: users/templates/users/password_reset_complete.html:11
+msgid "Пароль змінено"
+msgstr "Password changed"
+
+#: users/templates/users/password_reset_complete.html:12
+msgid "Тепер можна увійти з новим паролем."
+msgstr "You can now log in with your new password."
+
+#: users/templates/users/password_reset_confirm.html:5
+#: users/templates/users/password_reset_confirm.html:13
+msgid "Новий пароль"
+msgstr "New password"
+
+#: users/templates/users/password_reset_confirm.html:16
+msgid "Посилання недійсне"
+msgstr "Invalid link"
+
+#: users/templates/users/password_reset_confirm.html:18
+msgid "Посилання застаріло або вже було використане. Запросіть нове."
+msgstr "The link has expired or has already been used. Request a new one."
+
+#: users/templates/users/password_reset_confirm.html:20
+msgid "Запросити нове посилання"
+msgstr "Request a new link"
+
+#: users/templates/users/password_reset_done.html:4
+#: users/templates/users/password_reset_done.html:11
+msgid "Перевірте пошту"
+msgstr "Check your email"
+
+#: users/templates/users/password_reset_done.html:13
+msgid ""
+"Якщо акаунт із такою адресою існує, ми надіслали на неї лист із посиланням "
+"для встановлення нового пароля. Посилання діє добу."
+msgstr ""
+"If an account with this address exists, we have sent it an email with a link "
+"to set a new password. The link is valid for 24 hours."
+
+#: users/templates/users/password_reset_done.html:19
+msgid ""
+"Листа немає за кілька хвилин? Перевірте папку «Спам» і чи правильно вказано "
+"адресу."
+msgstr ""
+"No email after a few minutes? Check your spam folder and make sure the "
+"address is correct."
+
+#: users/templates/users/password_reset_done.html:21
+#: users/templates/users/password_reset_form.html:28
+msgid "Повернутися до входу"
+msgstr "Back to log in"
+
+#: users/templates/users/password_reset_form.html:14
+msgid ""
+"Вкажіть email акаунта — надішлемо посилання для встановлення нового пароля."
+msgstr ""
+"Enter your account's email and we'll send a link to set a new password."
+
+#: users/templates/users/password_reset_form.html:21
+#, python-format
+msgid ""
+"Акаунт створено через Google? Скидати пароль не потрібно — <a "
+"href=\"%(google_url)s\">увійдіть через Google</a>."
+msgstr ""
+"Signed up with Google? No need to reset your password — <a "
+"href=\"%(google_url)s\">log in with Google</a>."
+
+#: users/templates/users/profile.html:25
+msgid "Ім'я"
+msgstr "Name"
+
+#: users/templates/users/profile.html:31
+msgid "Зареєстровано"
+msgstr "Joined"
+
+#: users/templates/users/profile.html:39
+msgid "Видалення акаунта"
+msgstr "Delete account"
+
+#: users/templates/users/profile.html:41
+msgid "Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації."
+msgstr ""
+"Your folders, books and annotations are permanently deleted together with "
+"the account."
+
+#: users/templates/users/profile.html:45
+msgid "Видалити акаунт"
+msgstr "Delete account"
+
+#: users/templates/users/profile.html:56
+msgid "Видалити акаунт?"
+msgstr "Delete account?"
+
+#: users/templates/users/profile.html:60
+msgid "Дію не можна скасувати. Усі ваші дані буде видалено назавжди."
+msgstr "This cannot be undone. All your data will be deleted forever."
+
+#: users/templates/users/profile.html:66
+msgid "Видалити назавжди"
+msgstr "Delete forever"
+
+#: users/templates/users/register.html:25
+msgid "Вже маєте акаунт?"
+msgstr "Already have an account?"
+
+#: users/views.py:65 users/views.py:163
+msgid "Реєстрація успішна!"
+msgstr "Signed up successfully!"
+
+#: users/views.py:107
+msgid "Пароль змінено."
+msgstr "Password changed."
+
+#: users/views.py:114
+msgid "Ви вийшли з акаунта."
+msgstr "You have logged out."
+
+#: users/views.py:163
+msgid "Вітаємо знову!"
+msgstr "Welcome back!"
+
+#: users/views.py:178
+msgid "Профіль успішно оновлено!"
+msgstr "Profile updated!"
+
+#: users/views.py:187
+msgid "Акаунт видалено."
+msgstr "Account deleted."

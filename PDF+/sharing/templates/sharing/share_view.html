@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Спільний матеріал — PDF+{% endblock %}
+{% block title %}{% translate "Спільний матеріал" %} — PDF+{% endblock %}
 
 {% block layout %}
 <main class="container py-5">
@@ -14,40 +15,40 @@
 
           {% if error %}
             <i class="bi bi-link-45deg display-4 text-body-secondary opacity-50"></i>
-            <h1 class="h5 mt-3 mb-2">Посилання недоступне</h1>
+            <h1 class="h5 mt-3 mb-2">{% translate "Посилання недоступне" %}</h1>
             <p class="text-body-secondary mb-4">{{ error }}</p>
-            <a href="{% url 'book_library:home' %}" class="btn btn-outline-secondary">На головну</a>
+            <a href="{% url 'book_library:home' %}" class="btn btn-outline-secondary">{% translate "На головну" %}</a>
 
           {% elif link.book %}
             <i class="bi bi-file-earmark-pdf display-4 text-danger opacity-75"></i>
             <h1 class="h5 mt-3 mb-1">{{ link.book.title }}</h1>
             <p class="text-body-secondary small mb-4">
-              {{ link.book.page_count }} с. · {{ link.book.file_size|filesizeformat }}
-              · від {{ link.created_by.username }}
+              {% blocktranslate with pages=link.book.page_count %}{{ pages }} с.{% endblocktranslate %} · {{ link.book.file_size|filesizeformat }}
+              · {% blocktranslate with author=link.created_by.username %}від {{ author }}{% endblocktranslate %}
             </p>
             {% if layer %}
               <p class="small mb-3">
-                <i class="bi bi-mortarboard me-1"></i>З нотатками автора — лише для читання.
+                <i class="bi bi-mortarboard me-1"></i>{% translate "З нотатками автора — лише для читання." %}
               </p>
             {% endif %}
             <a href="{% url 'book_library:book_reader' link.book.pk %}{% if layer %}?layer={{ layer.pk }}{% endif %}"
                class="btn btn-primary">
-              Відкрити книгу
+              {% translate "Відкрити книгу" %}
             </a>
 
           {% else %}
             <i class="bi bi-folder-fill display-4 text-warning opacity-75"></i>
             <h1 class="h5 mt-3 mb-1">{{ link.folder.name }}</h1>
             <p class="text-body-secondary small mb-4">
-              {{ link.folder.books.count }} книг · від {{ link.created_by.username }}
+              {% blocktranslate with books=link.folder.books.count author=link.created_by.username %}{{ books }} книг · від {{ author }}{% endblocktranslate %}
             </p>
             {% if link.include_annotations %}
               <p class="small mb-3">
-                <i class="bi bi-mortarboard me-1"></i>З нотатками автора — лише для читання.
+                <i class="bi bi-mortarboard me-1"></i>{% translate "З нотатками автора — лише для читання." %}
               </p>
             {% endif %}
             <a href="{% url 'book_library:folder' link.folder.pk %}" class="btn btn-primary">
-              Відкрити теку
+              {% translate "Відкрити теку" %}
             </a>
           {% endif %}
 
@@ -56,7 +57,7 @@
 
       {% if not user.is_authenticated and not error %}
         <p class="text-center text-body-secondary small mt-3 mb-0">
-          <a href="{% url 'accounts:register' %}">Створіть акаунт</a>, щоб робити нотатки в цій книзі.
+          {% url 'accounts:register' as register_url %}{% blocktranslate %}<a href="{{ register_url }}">Створіть акаунт</a>, щоб робити нотатки в цій книзі.{% endblocktranslate %}
         </p>
       {% endif %}
 

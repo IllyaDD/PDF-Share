@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ page_title }} — PDF+{% endblock %}
 
@@ -8,60 +9,60 @@
   {% if is_owner %}
     {% if folder %}
       <a href="{% url 'book_library:folder_add_books' folder.pk %}" class="btn btn-outline-secondary">
-        <i class="bi bi-journal-plus me-1"></i>Додати книги
+        <i class="bi bi-journal-plus me-1"></i>{% translate "Додати книги" %}
       </a>
     {% endif %}
     <a href="{% url 'book_library:folder_create' %}{% if folder %}?parent={{ folder.pk }}{% endif %}"
        class="btn btn-outline-secondary">
-      <i class="bi bi-folder-plus me-1"></i>Нова тека
+      <i class="bi bi-folder-plus me-1"></i>{% translate "Нова тека" %}
     </a>
     <a href="{% url 'book_library:book_upload' %}{% if folder %}?folder={{ folder.pk }}{% endif %}"
        class="btn btn-primary">
-      <i class="bi bi-upload me-1"></i>Завантажити PDF
+      <i class="bi bi-upload me-1"></i>{% translate "Завантажити PDF" %}
     </a>
   {% elif in_catalog %}
     <span class="badge text-bg-light border">
-      <i class="bi bi-collection me-1"></i>Каталог
+      <i class="bi bi-collection me-1"></i>{% translate "Каталог" %}
     </span>
   {% else %}
     <span class="badge text-bg-light border">
-      <i class="bi bi-people me-1"></i>Спільна тека · {{ folder.owner.username }}
+      <i class="bi bi-people me-1"></i>{% translate "Спільна тека" %} · {{ folder.owner.username }}
     </span>
   {% endif %}
 {% endblock %}
 
 {% block content %}
-  {% include "partials/search_form.html" with placeholder=folder|yesno:"Пошук у цій теці та вкладених…,Пошук по всій бібліотеці…" %}
+  {% include "partials/search_form.html" with placeholder=folder|yesno:_("Пошук у цій теці та вкладених…,Пошук по всій бібліотеці…") %}
 
   {% if query %}
     <h2 class="h6 text-body-secondary text-uppercase mb-3">
-      Знайдено за «{{ query }}»: {{ result_count }}
+      {% blocktranslate %}Знайдено за «{{ query }}»: {{ result_count }}{% endblocktranslate %}
     </h2>
     {% if folders %}
-      <h3 class="h6 text-body-secondary mb-2">Теки</h3>
+      <h3 class="h6 text-body-secondary mb-2">{% translate "Теки" %}</h3>
       <div class="row g-3 mb-4">
         {% for folder in folders %}{% include "partials/folder_card.html" with show_path=True %}{% endfor %}
       </div>
     {% endif %}
     {% if books %}
-      {% if folders %}<h3 class="h6 text-body-secondary mb-2">Книги</h3>{% endif %}
+      {% if folders %}<h3 class="h6 text-body-secondary mb-2">{% translate "Книги" %}</h3>{% endif %}
       <div class="row g-3">
         {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
       </div>
     {% endif %}
     {% if not result_count %}
-      {% include "partials/empty_state.html" with icon="bi-search" title="Нічого не знайдено" text="Спробуйте іншу назву або скиньте пошук." action_url=request.path action_label="Скинути пошук" %}
+      {% include "partials/empty_state.html" with icon="bi-search" title=_("Нічого не знайдено") text=_("Спробуйте іншу назву або скиньте пошук.") action_url=request.path action_label=_("Скинути пошук") %}
     {% endif %}
   {% else %}
     {% if folders %}
-      <h2 class="h6 text-body-secondary text-uppercase mb-3">Теки</h2>
+      <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Теки" %}</h2>
       <div class="row g-3 mb-4">
         {% for folder in folders %}{% include "partials/folder_card.html" %}{% endfor %}
       </div>
     {% endif %}
 
     {% if books %}
-      <h2 class="h6 text-body-secondary text-uppercase mb-3">Книги</h2>
+      <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Книги" %}</h2>
       <div class="row g-3">
         {% for book in books %}{% include "partials/book_card.html" %}{% endfor %}
       </div>
@@ -70,14 +71,14 @@
     {% if not folders and not books %}
       {% if is_owner %}
         {% if folder %}
-          {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Покладіть сюди книги з бібліотеки або завантажте новий PDF." action_url=add_books_url action_label="Додати книги" %}
+          {% include "partials/empty_state.html" with icon="bi-folder2-open" title=_("Тека порожня") text=_("Покладіть сюди книги з бібліотеки або завантажте новий PDF.") action_url=add_books_url action_label=_("Додати книги") %}
         {% else %}
-          {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тут порожньо" text="Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали." action_url=upload_url action_label="Завантажити PDF" %}
+          {% include "partials/empty_state.html" with icon="bi-folder2-open" title=_("Тут порожньо") text=_("Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали.") action_url=upload_url action_label=_("Завантажити PDF") %}
         {% endif %}
       {% elif in_catalog %}
-        {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Адміністратор ще нічого сюди не поклав." %}
+        {% include "partials/empty_state.html" with icon="bi-folder2-open" title=_("Тека порожня") text=_("Адміністратор ще нічого сюди не поклав.") %}
       {% else %}
-        {% include "partials/empty_state.html" with icon="bi-folder2-open" title="Тека порожня" text="Власник ще нічого сюди не поклав." %}
+        {% include "partials/empty_state.html" with icon="bi-folder2-open" title=_("Тека порожня") text=_("Власник ще нічого сюди не поклав.") %}
       {% endif %}
     {% endif %}
   {% endif %}

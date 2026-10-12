@@ -1,3 +1,9 @@
+// Переклади дає JavaScriptCatalog, який шаблон підключає перед модулем;
+// без нього рядки лишаються українськими msgid.
+const gettext = window.gettext ?? ((text) => text);
+const interpolate = window.interpolate
+  ?? ((format, values) => format.replace(/%\((\w+)\)s/g, (_, key) => values[key]));
+
 const viewer = document.getElementById("pdf-viewer");
 
 if (viewer) {
@@ -229,7 +235,7 @@ if (viewer) {
 
     const badge = document.createElement("span");
     badge.className = "badge text-bg-light border";
-    badge.textContent = `с. ${annotation.page}`;
+    badge.textContent = interpolate(gettext("с. %(page)s"), { page: annotation.page }, true);
 
     head.append(dot, badge);
     body.append(head);
@@ -275,11 +281,11 @@ if (viewer) {
       const empty = document.createElement("p");
       empty.className = "text-body-secondary small text-center py-4 mb-0";
       if (hiddenColors.size) {
-        empty.textContent = "Усі мітки сховані фільтром.";
+        empty.textContent = gettext("Усі мітки сховані фільтром.");
       } else if (topicFiltered) {
-        empty.textContent = "У цій темі нотаток ще немає.";
+        empty.textContent = gettext("У цій темі нотаток ще немає.");
       } else {
-        empty.textContent = ownShown() ? "Нотаток ще немає." : "У цьому шарі нотаток немає.";
+        empty.textContent = ownShown() ? gettext("Нотаток ще немає.") : gettext("У цьому шарі нотаток немає.");
       }
       sidebar.replaceChildren(empty);
       return;
@@ -294,7 +300,7 @@ if (viewer) {
     chip.type = "button";
     chip.className = "filter-chip";
     chip.dataset.filterColor = color;
-    chip.title = "Клік — сховати/показати. Подвійний клік — лише цей колір.";
+    chip.title = gettext("Клік — сховати/показати. Подвійний клік — лише цей колір.");
 
     const dot = document.createElement("span");
     dot.className = "filter-chip-dot";
@@ -376,8 +382,8 @@ if (viewer) {
     if (filterSummary) {
       const total = topicScoped().length;
       filterSummary.textContent = hiddenColors.size
-        ? `${visibleSorted().length} з ${total}`
-        : `${total} міток`;
+        ? interpolate(gettext("%(shown)s з %(total)s"), { shown: visibleSorted().length, total }, true)
+        : interpolate(gettext("%(total)s міток"), { total }, true);
     }
     filterReset?.classList.toggle("d-none", hiddenColors.size === 0);
   }
@@ -413,8 +419,8 @@ if (viewer) {
   function renderTopics() {
     if (topicChips) {
       topicChips.replaceChildren(
-        buildTopicChip("all", "Усі", activeTopic === "all"),
-        buildTopicChip("none", "Без групи", activeTopic === "none"),
+        buildTopicChip("all", gettext("Усі"), activeTopic === "all"),
+        buildTopicChip("none", gettext("Без групи"), activeTopic === "none"),
         ...sortedGroups().map((group) =>
           buildTopicChip(String(group.id), group.name, activeTopic === String(group.id)),
         ),
@@ -423,8 +429,8 @@ if (viewer) {
     if (topicHint) {
       const group = noteGroups.get(Number(activeTopic));
       topicHint.textContent = group
-        ? `Нові виділення потрапляють у тему «${group.name}».`
-        : "Нові виділення потрапляють у «Без групи».";
+        ? interpolate(gettext("Нові виділення потрапляють у тему «%(name)s»."), { name: group.name }, true)
+        : gettext("Нові виділення потрапляють у «Без групи».");
     }
   }
 
@@ -434,10 +440,10 @@ if (viewer) {
       return;
     }
     const current = annotation.group === null ? "none" : String(annotation.group);
-    const add = buildTopicChip("new", "+ Нова", false);
+    const add = buildTopicChip("new", gettext("+ Нова"), false);
     add.classList.replace("btn-outline-secondary", "btn-outline-primary");
     popoverTopicChips.replaceChildren(
-      buildTopicChip("none", "Без групи", current === "none"),
+      buildTopicChip("none", gettext("Без групи"), current === "none"),
       ...sortedGroups().map((group) =>
         buildTopicChip(String(group.id), group.name, current === String(group.id)),
       ),
@@ -498,7 +504,7 @@ if (viewer) {
       .querySelectorAll("[data-own-only]")
       .forEach((node) => node.classList.toggle("d-none", Boolean(layer)));
     if (layerTitle) {
-      layerTitle.textContent = layer ? `Нотатки: ${layer.owner}` : "Мої нотатки";
+      layerTitle.textContent = layer ? interpolate(gettext("Нотатки: %(owner)s"), { owner: layer.owner }, true) : gettext("Мої нотатки");
     }
 
     refresh();
@@ -635,7 +641,7 @@ if (viewer) {
       }
       window.getSelection()?.removeAllRanges();
     } catch (error) {
-      alert(`Не вдалося зберегти виділення: ${error.message}`);
+      alert(interpolate(gettext("Не вдалося зберегти виділення: %(error)s"), { error: error.message }, true));
     } finally {
       hidePalette();
     }
@@ -971,7 +977,7 @@ if (viewer) {
         popover.querySelectorAll(".swatch").forEach((node) =>
           node.classList.toggle("is-active", node === swatch),
         );
-        patchActive({ color: swatch.dataset.color }, "Колір змінено");
+        patchActive({ color: swatch.dataset.color }, gettext("Колір змінено"));
         return;
       }
       if (event.target.closest("[data-delete]")) {
@@ -986,7 +992,7 @@ if (viewer) {
     popover?.querySelector("[data-note]")?.addEventListener("blur", (event) => {
       const annotation = annotations.get(activeId);
       if (annotation && event.target.value !== (annotation.note || "")) {
-        patchActive({ note_text: event.target.value }, "Збережено");
+        patchActive({ note_text: event.target.value }, gettext("Збережено"));
       }
     });
 
@@ -1030,7 +1036,7 @@ if (viewer) {
     });
 
     async function moveActiveTo(groupId) {
-      await patchActive({ group: groupId }, "Тему змінено");
+      await patchActive({ group: groupId }, gettext("Тему змінено"));
       // Нотатка, що вийшла з показаної теми, зникає, а поповер закривається в refresh().
       renderPopoverTopics(annotations.get(activeId));
     }
@@ -1130,7 +1136,7 @@ if (viewer) {
     viewer.replaceChildren();
     const message = document.createElement("div");
     message.className = "alert alert-danger m-4";
-    message.textContent = `Не вдалося відкрити документ: ${error.message}`;
+    message.textContent = interpolate(gettext("Не вдалося відкрити документ: %(error)s"), { error: error.message }, true);
     viewer.append(message);
   }
 }

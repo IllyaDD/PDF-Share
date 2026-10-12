@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% load crispy_forms_tags %}
 
-{% block title %}Редагування профілю — PDF+{% endblock %}
+{% block title %}{% translate "Редагування профілю" %} — PDF+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-12 col-md-8 col-lg-6">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <h1 class="h4 mb-4">Редагування профілю</h1>
+        <h1 class="h4 mb-4">{% translate "Редагування профілю" %}</h1>
 
         {% crispy form %}
 
-        <a href="{% url 'accounts:profile' %}" class="btn btn-link px-0 mt-2">Назад до профілю</a>
+        <a href="{% url 'accounts:profile' %}" class="btn btn-link px-0 mt-2">{% translate "Назад до профілю" %}</a>
       </div>
     </div>
   </div>

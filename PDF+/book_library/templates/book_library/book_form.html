@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block title %}{{ page_title }} — PDF+{% endblock %}
 
@@ -18,7 +19,7 @@
     const promptEl = zone.querySelector('[data-dropzone-prompt]');
 
     const formatSize = (bytes) => {
-      const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+      const units = ['{{ _("Б")|escapejs }}', '{{ _("КБ")|escapejs }}', '{{ _("МБ")|escapejs }}', '{{ _("ГБ")|escapejs }}'];
       let value = bytes, unit = 0;
       while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
       return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
@@ -28,7 +29,7 @@
       if (!file) return;
       nameEl.textContent = file.name;
       sizeEl.textContent = formatSize(file.size);
-      promptEl.textContent = 'Обрати інший файл';
+      promptEl.textContent = '{{ _("Обрати інший файл")|escapejs }}';
       zone.classList.add('has-file');
     };
 
@@ -86,12 +87,12 @@
     const lock = () => {
       busy = true;
       submit.disabled = true;
-      submit.value = 'Завантаження…';
+      submit.value = '{{ _("Завантаження…")|escapejs }}';
       input.disabled = true;
       zone.classList.add('is-uploading');
       box.classList.remove('d-none');
       status.className = 'small text-body-secondary mt-2 mb-0';
-      status.textContent = 'Завантаження…';
+      status.textContent = '{{ _("Завантаження…")|escapejs }}';
       setBar(0);
     };
 
@@ -123,17 +124,17 @@
         if (!e.lengthComputable) return;
         const percent = (e.loaded / e.total) * 100;
         setBar(percent);
-        status.textContent = `Завантаження… ${Math.round(percent)}%`;
+        status.textContent = `{{ _("Завантаження…")|escapejs }} ${Math.round(percent)}%`;
       });
 
       xhr.upload.addEventListener('load', () => {
         setBar(100, 'progress-bar-striped progress-bar-animated');
-        status.textContent = 'Обробка файлу…';
+        status.textContent = '{{ _("Обробка файлу…")|escapejs }}';
       });
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 400) {
-          unlock('Сервер відхилив завантаження. Спробуйте ще раз.');
+          unlock('{{ _("Сервер відхилив завантаження. Спробуйте ще раз.")|escapejs }}');
           return;
         }
 
@@ -148,7 +149,7 @@
       });
 
       ['error', 'abort', 'timeout'].forEach((name) => {
-        xhr.addEventListener(name, () => unlock("Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз."));
+        xhr.addEventListener(name, () => unlock('{{ _("Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз.")|escapejs }}'));
       });
 
       xhr.send(data);

@@ -7,6 +7,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Коментарі, docstring-и, `verbose_name`, повідомлення користувачу й текст у шаблонах — українською.
 Ідентифікатори, назви полів і URL-неймспейси — англійською. Тримайся цього поділу в новому коді.
 
+Інтерфейс двомовний (uk/en). Користувацький текст — **українські msgid**, загорнуті для
+перекладу: `{% translate %}` / `{% blocktranslate %}` у шаблонах (`_("…")` в аргументах
+include і фільтрів), `gettext_lazy as _` у формах і моделях, `gettext as _` у в'юхах і
+валідаторах, `gettext()`/`interpolate()` у `reader.js` (каталог — `JavaScriptCatalog`,
+підключений у `book_reader.html`). f-рядки не перекладаються — `_("… %(x)s") % {...}`.
+Не пиши `x, _ = …` у модулях з `_` — локальне `_` ламає `_()` у всій функції.
+Каталогу `uk` нема навмисно: msgid і є український текст. Переклад лише в `PDF+/locale/en`;
+після зміни рядків — `makemessages` + `compilemessages` (див. нижче), `.mo` комітяться.
+Рядки помилок `api/` (JWT-клієнт) не перекладаються — це контракт, а не інтерфейс.
+
 ## Команди
 
 Залежності — `uv` (`pyproject.toml` + `uv.lock`) у корені. Django-проєкт — у підтеці `PDF+/`,
@@ -18,6 +28,16 @@ cd PDF+
 cp .env_example .env                         # SECRET_KEY, PG_*, DEBUG=true обов'язкові
 uv run python manage.py migrate
 uv run python manage.py runserver
+```
+
+Переклади (потрібен GNU gettext — `brew install gettext`):
+
+```bash
+cd PDF+
+uv run python manage.py makemessages -l en --ignore='static/vendor/*' --ignore='media/*'
+uv run python manage.py makemessages -d djangojs -l en --ignore='static/vendor/*' --ignore='media/*'
+# заповнити msgstr у locale/en/LC_MESSAGES/*.po (нові записи — порожні або fuzzy)
+uv run python manage.py compilemessages
 ```
 
 Тести (Django-раннер, не pytest — pytest у залежностях нема):

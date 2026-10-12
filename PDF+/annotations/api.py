@@ -6,6 +6,7 @@ visible_books() — книга, відкрита за посиланням, до
 """
 
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.parsers import JSONParser
@@ -56,7 +57,7 @@ class ReaderApiView(APIView):
 
     def json_object(self):
         if not isinstance(self.request.data, dict):
-            raise PayloadError("очікується JSON-об'єкт")
+            raise PayloadError(_("очікується JSON-об'єкт"))
         return self.request.data
 
 

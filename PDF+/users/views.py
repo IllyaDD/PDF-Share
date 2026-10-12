@@ -16,6 +16,7 @@ from django.contrib.auth.views import (
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext as _
 from django.views import View
 
 from book_sharing_settings.oauth import oauth
@@ -61,7 +62,7 @@ def register_view(request):
             samesite="Lax",
             secure=not settings.DEBUG,
         )
-        messages.success(request, "Реєстрація успішна!")
+        messages.success(request, _("Реєстрація успішна!"))
         return response
 
     return render(request, "users/register.html", {"form": form})
@@ -103,14 +104,14 @@ class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):
     success_url = reverse_lazy("accounts:profile")
 
     def form_valid(self, form):
-        messages.success(self.request, "Пароль змінено.")
+        messages.success(self.request, _("Пароль змінено."))
         return super().form_valid(form)
 
 
 def logout_view(request):
     if request.method == "POST":
         logout(request)
-        messages.success(request, "Ви вийшли з акаунта.")
+        messages.success(request, _("Ви вийшли з акаунта."))
     return redirect("book_library:home")
 
 
@@ -159,7 +160,7 @@ class GoogleCallbackView(View):
         )
         messages.success(
             request,
-            "Реєстрація успішна!" if created else "Вітаємо знову!",
+            _("Реєстрація успішна!") if created else _("Вітаємо знову!"),
         )
         return response
 
@@ -174,7 +175,7 @@ def edit_profile_view(request):
     form = ProfileForm(request.POST if request.method == "POST" else None, instance=request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Профіль успішно оновлено!")
+        messages.success(request, _("Профіль успішно оновлено!"))
         return redirect("accounts:profile")
     return render(request, "users/edit_profile.html", {"form": form})
 
@@ -183,6 +184,6 @@ def edit_profile_view(request):
 def delete_profile_view(request):
     if request.method == "POST":
         request.user.delete()
-        messages.success(request, "Акаунт видалено.")
+        messages.success(request, _("Акаунт видалено."))
         return redirect("book_library:home")
     return redirect("accounts:profile")

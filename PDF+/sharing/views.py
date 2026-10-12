@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from annotations.models import Layer
 from book_library.access import remember_share_token
@@ -23,7 +24,7 @@ def group_list_view(request):
                 owner=request.user
             ),
             "create_url": reverse("sharing:group_create"),
-            "page_title": "Групи",
+            "page_title": _("Групи"),
         },
     )
 
@@ -34,13 +35,13 @@ def group_detail_view(request, pk):
     is_owner = group.owner_id == request.user.pk
     is_member = GroupMembership.objects.filter(group=group, user=request.user).exists()
     if not (is_owner or is_member):
-        messages.error(request, "Немає доступу до цієї групи.")
+        messages.error(request, _("Немає доступу до цієї групи."))
         return redirect("sharing:group_list")
 
     form = MembershipForm(request.POST if request.method == "POST" else None, group=group) if is_owner else None
     if is_owner and request.method == "POST" and form.is_valid():
         GroupMembership.objects.create(group=group, user=form.cleaned_user)
-        messages.success(request, "Учасника додано.")
+        messages.success(request, _("Учасника додано."))
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -53,11 +54,11 @@ def group_detail_view(request, pk):
             "accesses": GroupAccess.objects.filter(group=group).select_related("book", "folder"),
             "membership_form": form,
             "crumbs": [
-                {"url": reverse("sharing:group_list"), "label": "Групи"},
+                {"url": reverse("sharing:group_list"), "label": _("Групи")},
                 {"url": "", "label": group.name},
             ],
             "page_title": group.name,
-            "page_subtitle": f"Вчитель: {group.owner.username}",
+            "page_subtitle": _("Вчитель: %(teacher)s") % {"teacher": group.owner.username},
         },
     )
 
@@ -70,7 +71,7 @@ def group_create_view(request):
         group.owner = request.user
         group.invite_token = secrets.token_urlsafe(32)
         group.save()
-        messages.success(request, "Групу створено. Поділіться посиланням для приєднання з учнями.")
+        messages.success(request, _("Групу створено. Поділіться посиланням для приєднання з учнями."))
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -78,8 +79,8 @@ def group_create_view(request):
         "sharing/group_form.html",
         {
             "form": form,
-            "page_title": "Нова група",
-            "form_title": "Нова група",
+            "page_title": _("Нова група"),
+            "form_title": _("Нова група"),
             "cancel_url": reverse("sharing:group_list"),
         },
     )
@@ -92,7 +93,7 @@ def group_edit_view(request, pk):
 
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Групу оновлено.")
+        messages.success(request, _("Групу оновлено."))
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -100,8 +101,8 @@ def group_edit_view(request, pk):
         "sharing/group_form.html",
         {
             "form": form,
-            "page_title": "Редагування групи",
-            "form_title": f"Група «{group.name}»",
+            "page_title": _("Редагування групи"),
+            "form_title": _("Група «%(name)s»") % {"name": group.name},
             "cancel_url": reverse("sharing:group_detail", args=[group.pk]),
         },
     )
@@ -112,7 +113,7 @@ def group_delete_view(request, pk):
     group = get_object_or_404(Group, pk=pk, owner=request.user)
     if request.method == "POST":
         group.delete()
-        messages.success(request, "Групу видалено.")
+        messages.success(request, _("Групу видалено."))
     return redirect("sharing:group_list")
 
 
@@ -123,11 +124,11 @@ def group_invite_view(request, pk):
         action = request.POST.get("action")
         if action == "regenerate":
             group.regenerate_invite_token()
-            messages.success(request, "Посилання для приєднання оновлено. Старе більше не діє.")
+            messages.success(request, _("Посилання для приєднання оновлено. Старе більше не діє."))
         elif action == "disable":
             group.invite_token = None
             group.save(update_fields=["invite_token"])
-            messages.success(request, "Посилання для приєднання вимкнено.")
+            messages.success(request, _("Посилання для приєднання вимкнено."))
     return redirect("sharing:group_detail", pk=group.pk)
 
 
@@ -141,16 +142,16 @@ def group_join_view(request, token):
         return render(request, "sharing/group_join.html", {"group": group})
 
     if group.owner_id == request.user.pk:
-        messages.info(request, "Ви власник цієї групи.")
+        messages.info(request, _("Ви власник цієї групи."))
         return redirect("sharing:group_detail", pk=group.pk)
 
     if GroupMembership.objects.filter(group=group, user=request.user).exists():
-        messages.info(request, f"Ви вже в групі «{group.name}».")
+        messages.info(request, _("Ви вже в групі «%(name)s».") % {"name": group.name})
         return redirect("sharing:group_detail", pk=group.pk)
 
     if request.method == "POST":
         GroupMembership.objects.create(group=group, user=request.user)
-        messages.success(request, f"Ви приєдналися до групи «{group.name}».")
+        messages.success(request, _("Ви приєдналися до групи «%(name)s».") % {"name": group.name})
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(request, "sharing/group_join.html", {"group": group})
@@ -162,7 +163,7 @@ def membership_remove_view(request, pk):
     group_pk = membership.group_id
     if request.method == "POST":
         membership.delete()
-        messages.success(request, "Учасника видалено з групи.")
+        messages.success(request, _("Учасника видалено з групи."))
     return redirect("sharing:group_detail", pk=group_pk)
 
 
@@ -180,7 +181,7 @@ def access_create_view(request):
         access = form.save(commit=False)
         access.granted_by = request.user
         access.save()
-        messages.success(request, "Доступ надано.")
+        messages.success(request, _("Доступ надано."))
         return redirect("sharing:group_detail", pk=access.group_id)
 
     return render(
@@ -188,9 +189,9 @@ def access_create_view(request):
         "sharing/access_form.html",
         {
             "form": form,
-            "page_title": "Надати доступ",
-            "form_title": "Надати доступ групі",
-            "form_hint": "Оберіть групу і матеріал — книгу або теку — зі своєї бібліотеки.",
+            "page_title": _("Надати доступ"),
+            "form_title": _("Надати доступ групі"),
+            "form_hint": _("Оберіть групу і матеріал — книгу або теку — зі своєї бібліотеки."),
             "cancel_url": reverse("sharing:group_list"),
         },
     )
@@ -202,7 +203,7 @@ def access_delete_view(request, pk):
     group_pk = access.group_id
     if request.method == "POST":
         access.delete()
-        messages.success(request, "Доступ відкликано.")
+        messages.success(request, _("Доступ відкликано."))
     return redirect("sharing:group_detail", pk=group_pk)
 
 
@@ -216,7 +217,7 @@ def link_list_view(request):
             .select_related("book", "folder")
             .prefetch_related("note_groups"),
             "create_url": reverse("sharing:link_create"),
-            "page_title": "Посилання",
+            "page_title": _("Посилання"),
         },
     )
 
@@ -236,7 +237,7 @@ def link_create_view(request):
         link.token = secrets.token_urlsafe(32)
         link.save()
         form.save_m2m()
-        messages.success(request, "Посилання створено.")
+        messages.success(request, _("Посилання створено."))
         return redirect("sharing:link_list")
 
     return render(
@@ -244,9 +245,9 @@ def link_create_view(request):
         "sharing/link_form.html",
         {
             "form": form,
-            "page_title": "Нове посилання",
-            "form_title": "Нове посилання",
-            "form_hint": "Оберіть книгу або теку, до якої відкриваєте доступ.",
+            "page_title": _("Нове посилання"),
+            "form_title": _("Нове посилання"),
+            "form_hint": _("Оберіть книгу або теку, до якої відкриваєте доступ."),
             "cancel_url": reverse("sharing:link_list"),
         },
     )
@@ -257,7 +258,7 @@ def link_delete_view(request, pk):
     link = get_object_or_404(ShareLink, pk=pk, created_by=request.user)
     if request.method == "POST":
         link.delete()
-        messages.success(request, "Посилання відкликано.")
+        messages.success(request, _("Посилання відкликано."))
     return redirect("sharing:link_list")
 
 
@@ -267,9 +268,9 @@ def share_view(request, token):
     error = None
     layer = None
     if link is None:
-        error = "Посилання не існує або було відкликане."
+        error = _("Посилання не існує або було відкликане.")
     elif link.is_expired:
-        error = "Термін дії посилання минув."
+        error = _("Термін дії посилання минув.")
     else:
         remember_share_token(request.session, token)
         if link.include_annotations and link.book_id:

@@ -1,6 +1,7 @@
+{% load i18n %}
 <div class="text-center text-body-secondary py-5">
   <i class="bi {{ icon|default:'bi-inbox' }} display-5 d-block mb-3 opacity-50"></i>
-  <p class="h6 mb-1 text-body">{{ title|default:"Поки що порожньо" }}</p>
+  <p class="h6 mb-1 text-body">{{ title|default:_("Поки що порожньо") }}</p>
   {% if text %}<p class="small mb-3">{{ text }}</p>{% endif %}
   {% if action_url and action_label %}
     <a href="{{ action_url }}" class="btn btn-primary btn-sm">{{ action_label }}</a>

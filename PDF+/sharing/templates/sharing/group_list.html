@@ -1,18 +1,19 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Групи — PDF+{% endblock %}
+{% block title %}{% translate "Групи" %} — PDF+{% endblock %}
 
 {% block page_actions %}
   {% if user.role == 'teacher' %}
     <a href="{% url 'sharing:group_create' %}" class="btn btn-primary">
-      <i class="bi bi-plus-lg me-1"></i>Нова група
+      <i class="bi bi-plus-lg me-1"></i>{% translate "Нова група" %}
     </a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
 {% if owned_groups %}
-  <h2 class="h6 text-body-secondary text-uppercase mb-3">Мої групи</h2>
+  <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Мої групи" %}</h2>
   <div class="list-group mb-4 shadow-sm">
     {% for group in owned_groups %}
       <div class="list-group-item d-flex align-items-center gap-3">
@@ -21,23 +22,23 @@
           <a href="{% url 'sharing:group_detail' group.pk %}"
              class="text-decoration-none text-body fw-medium d-block text-truncate">{{ group.name }}</a>
           <span class="small text-body-secondary">
-            {{ group.memberships.count }} учасників · {{ group.accesses.count }} матеріалів
+            {% blocktranslate with members=group.memberships.count materials=group.accesses.count %}{{ members }} учасників · {{ materials }} матеріалів{% endblocktranslate %}
           </span>
         </div>
         <div class="dropdown">
-          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="Дії з групою">
+          <button class="btn btn-sm btn-light" data-bs-toggle="dropdown" aria-label="{% translate "Дії з групою" %}">
             <i class="bi bi-three-dots"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'sharing:group_edit' group.pk %}">Перейменувати</a></li>
+            <li><a class="dropdown-item" href="{% url 'sharing:group_edit' group.pk %}">{% translate "Перейменувати" %}</a></li>
             <li><hr class="dropdown-divider"></li>
             <li>
               <button type="button" class="dropdown-item text-danger"
                       data-bs-toggle="modal" data-bs-target="#confirmModal"
                       data-action="{% url 'sharing:group_delete' group.pk %}"
-                      data-title="Видалити групу «{{ group.name }}»?"
-                      data-text="Учасники втратять доступ до наданих через цю групу матеріалів.">
-                Видалити
+                      data-title="{% blocktranslate with name=group.name %}Видалити групу «{{ name }}»?{% endblocktranslate %}"
+                      data-text="{% translate "Учасники втратять доступ до наданих через цю групу матеріалів." %}">
+                {% translate "Видалити" %}
               </button>
             </li>
           </ul>
@@ -48,7 +49,7 @@
 {% endif %}
 
 {% if member_groups %}
-  <h2 class="h6 text-body-secondary text-uppercase mb-3">Я учасник</h2>
+  <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Я учасник" %}</h2>
   <div class="list-group shadow-sm">
     {% for group in member_groups %}
       <a href="{% url 'sharing:group_detail' group.pk %}"
@@ -56,7 +57,7 @@
         <i class="bi bi-people fs-4 text-secondary"></i>
         <div class="min-w-0">
           <div class="fw-medium text-truncate">{{ group.name }}</div>
-          <div class="small text-body-secondary">Вчитель: {{ group.owner.username }}</div>
+          <div class="small text-body-secondary">{% blocktranslate with teacher=group.owner.username %}Вчитель: {{ teacher }}{% endblocktranslate %}</div>
         </div>
       </a>
     {% endfor %}
@@ -64,6 +65,6 @@
 {% endif %}
 
 {% if not owned_groups and not member_groups %}
-  {% include "partials/empty_state.html" with icon="bi-mortarboard" title="Груп немає" text="Групи дають класу доступ до ваших матеріалів одним рухом." action_url=create_url action_label="Створити групу" %}
+  {% include "partials/empty_state.html" with icon="bi-mortarboard" title=_("Груп немає") text=_("Групи дають класу доступ до ваших матеріалів одним рухом.") action_url=create_url action_label=_("Створити групу") %}
 {% endif %}
 {% endblock %}

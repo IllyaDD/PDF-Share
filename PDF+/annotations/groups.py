@@ -2,11 +2,13 @@
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from .models import Layer, NoteGroup
 from .validators import PayloadError, parse_group_id
 
-DUPLICATE_NAME = "name: тема з такою назвою вже є"
+DUPLICATE_NAME = gettext_lazy("name: тема з такою назвою вже є")
 
 # Дубль ловить UniqueConstraint, а не попередня перевірка: між перевіркою й INSERT інший
 # запит (подвійний Enter, паралельний пуш) встигає створити ту саму тему. Savepoint
@@ -14,7 +16,7 @@ DUPLICATE_NAME = "name: тема з такою назвою вже є"
 
 
 def create_note_group(book, owner, name):
-    layer, _ = Layer.objects.get_or_create(book=book, owner=owner)
+    layer, _created = Layer.objects.get_or_create(book=book, owner=owner)
     try:
         with transaction.atomic():
             return NoteGroup.objects.create(layer=layer, name=name)
@@ -52,9 +54,9 @@ def group_fields(payload, book_id, owner, client_groups=None, released_ids=froze
         try:
             group = client_groups[payload["group_client_id"]]
         except (KeyError, TypeError):
-            raise PayloadError("group_client_id: такої теми нема в цьому пуші")
+            raise PayloadError(_("group_client_id: такої теми нема в цьому пуші"))
         if group.layer.book_id != book_id:
-            raise PayloadError("group_client_id: тема з іншої книги")
+            raise PayloadError(_("group_client_id: тема з іншої книги"))
         return {"group": group}
 
     if "group" not in payload:
@@ -66,5 +68,5 @@ def group_fields(payload, book_id, owner, client_groups=None, released_ids=froze
         pk=group_id, layer__book_id=book_id, layer__owner=owner
     ).first()
     if group is None:
-        raise PayloadError("group: теми нема або вона з іншої книги")
+        raise PayloadError(_("group: теми нема або вона з іншої книги"))
     return {"group": group}

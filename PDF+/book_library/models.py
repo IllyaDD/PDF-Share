@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Folder(models.Model):
@@ -21,7 +22,7 @@ class Folder(models.Model):
     name = models.CharField(max_length=255)
     is_catalog = models.BooleanField(
         default=False,
-        help_text="Тека каталогу: разом з усім вкладеним доступна кожному користувачу.",
+        help_text=_("Тека каталогу: разом з усім вкладеним доступна кожному користувачу."),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -69,7 +70,7 @@ class Book(models.Model):
     file = models.FileField(upload_to=book_upload_path)
     cover = models.FileField(upload_to=cover_upload_path, blank=True)
     page_count = models.PositiveIntegerField(default=0)
-    file_size = models.PositiveIntegerField(default=0, help_text="Розмір файлу в байтах")
+    file_size = models.PositiveIntegerField(default=0, help_text=_("Розмір файлу в байтах"))
     extracted_text = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,7 +97,7 @@ class ReadingProgress(models.Model):
     )
     last_page = models.PositiveIntegerField()
     read_at = models.DateTimeField(
-        help_text="Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша.",
+        help_text=_("Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша."),
     )
     updated_at = models.DateTimeField(auto_now=True)
 
