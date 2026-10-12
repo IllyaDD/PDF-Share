@@ -14,6 +14,12 @@
     </a>
 
     <div class="ms-auto d-flex align-items-center gap-2">
+      {# Іконка показує тему, на яку перемкне клік: місяць — у світлій, сонце — у темній. #}
+      <button type="button" class="btn btn-light btn-sm theme-toggle" data-theme-toggle aria-pressed="false"
+              title="{% translate "Темна тема" %}" aria-label="{% translate "Темна тема" %}">
+        <i class="bi bi-moon-stars-fill theme-icon-dark" aria-hidden="true"></i>
+        <i class="bi bi-sun-fill theme-icon-light" aria-hidden="true"></i>
+      </button>
       <form method="post" action="{% url 'set_language' %}" class="m-0">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">

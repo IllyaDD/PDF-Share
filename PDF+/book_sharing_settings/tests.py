@@ -248,3 +248,22 @@ class LanguageSwitchTests(TestCase):
             PayloadError, "name: the topic name cannot be empty"
         ):
             parse_group_name("   ")
+
+
+class ThemeToggleTests(TestCase):
+    """Перемикач теми: сама тема ставиться в браузері, сервер лише віддає кнопку й скрипт."""
+
+    def test_toggle_and_script_on_every_page(self):
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, "data-theme-toggle")
+        self.assertContains(response, "js/theme.js")
+
+    def test_theme_script_loads_before_stylesheets(self):
+        # Скрипт після CSS дав би спалах світлої теми перед перемиканням на темну.
+        html = self.client.get(reverse("book_library:home")).content.decode()
+        self.assertLess(html.index("js/theme.js"), html.index("bootstrap.min.css"))
+
+    def test_toggle_label_is_translated(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, 'aria-label="Dark theme"')

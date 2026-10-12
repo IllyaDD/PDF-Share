@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 10:51+0000\n"
+"POT-Creation-Date: 2026-10-12 19:35+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -324,8 +324,8 @@ msgid "— корінь бібліотеки —"
 msgstr "— library root —"
 
 #: book_library/forms.py:67 book_library/forms.py:106
-#: book_library/templates/book_library/book_detail.html:174
-#: sharing/forms.py:28 users/forms.py:75
+#: book_library/templates/book_library/book_detail.html:174 sharing/forms.py:28
+#: users/forms.py:75
 msgid "Зберегти"
 msgstr "Save"
 
@@ -381,8 +381,7 @@ msgid "Розмір файлу в байтах"
 msgstr "File size in bytes"
 
 #: book_library/models.py:100
-msgid ""
-"Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша."
+msgid "Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша."
 msgstr "When the reader was on this page; decides which position is newer."
 
 #: book_library/pdf.py:47
@@ -793,7 +792,7 @@ msgstr "Log in to highlight this book."
 
 #: book_library/templates/book_library/book_reader.html:184
 #: book_library/templates/book_library/home.html:16
-#: sharing/templates/sharing/group_join.html:35 templates/nav.html:48
+#: sharing/templates/sharing/group_join.html:35 templates/nav.html:57
 #: users/forms.py:56 users/templates/users/password_reset_complete.html:13
 #: users/templates/users/register.html:25
 msgid "Увійти"
@@ -822,9 +821,8 @@ msgid "Готово"
 msgstr "Done"
 
 #: book_library/templates/book_library/catalog.html:4
-#: book_library/templates/book_library/library.html:25
-#: book_library/views.py:46 book_library/views.py:204
-#: templates/partials/sidebar.html:17
+#: book_library/templates/book_library/library.html:25 book_library/views.py:46
+#: book_library/views.py:204 templates/partials/sidebar.html:17
 msgid "Каталог"
 msgstr "Catalog"
 
@@ -1548,7 +1546,7 @@ msgstr "The link has expired."
 msgid "Django site admin"
 msgstr ""
 
-#: templates/base.html:58
+#: templates/base.html:60
 msgid "Навігація"
 msgstr "Navigation"
 
@@ -1556,24 +1554,28 @@ msgstr "Navigation"
 msgid "Меню"
 msgstr "Menu"
 
-#: templates/nav.html:20
+#: templates/nav.html:19
+msgid "Темна тема"
+msgstr "Dark theme"
+
+#: templates/nav.html:26
 msgid "Мова інтерфейсу"
 msgstr "Interface language"
 
-#: templates/nav.html:36 templates/partials/sidebar.html:36
+#: templates/nav.html:45 templates/partials/sidebar.html:36
 #: users/templates/users/profile.html:4
 msgid "Профіль"
 msgstr "Profile"
 
-#: templates/nav.html:37
+#: templates/nav.html:46
 msgid "Редагувати профіль"
 msgstr "Edit profile"
 
-#: templates/nav.html:42
+#: templates/nav.html:51
 msgid "Вийти"
 msgstr "Log out"
 
-#: templates/nav.html:49 users/templates/users/register.html:5
+#: templates/nav.html:58 users/templates/users/register.html:5
 msgid "Реєстрація"
 msgstr "Sign up"
 
@@ -1786,8 +1788,8 @@ msgid ""
 "Якщо акаунт із такою адресою існує, ми надіслали на неї лист із посиланням "
 "для встановлення нового пароля. Посилання діє добу."
 msgstr ""
-"If an account with this address exists, we have sent it an email with a link"
-" to set a new password. The link is valid for 24 hours."
+"If an account with this address exists, we have sent it an email with a link "
+"to set a new password. The link is valid for 24 hours."
 
 #: users/templates/users/password_reset_done.html:19
 msgid ""
@@ -1830,8 +1832,7 @@ msgid "Видалення акаунта"
 msgstr "Delete account"
 
 #: users/templates/users/profile.html:41
-msgid ""
-"Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації."
+msgid "Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації."
 msgstr ""
 "Your folders, books and annotations are permanently deleted together with "
 "the account."
