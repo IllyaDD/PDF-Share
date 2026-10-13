@@ -1,7 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from decouple import config
+from decouple import Csv, config
 from django.contrib.messages import constants as messages
 from django.urls import reverse_lazy
 
@@ -12,7 +12,19 @@ SECRET_KEY = config("SECRET_KEY")
 
 DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+# На проді — домен сайту; порожній список при DEBUG=false дає 400 на кожен запит.
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+# Повні origin-и зі схемою: https://example.com
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
+
+if not DEBUG:
+    # nginx термінує TLS і передає схему заголовком. Без цього build_absolute_uri
+    # збирає http://-адреси, і Google OAuth відхиляє redirect_uri.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Починати з години; 31536000 — лише коли HTTPS перевірено, бо браузер запам'ятає.
+    SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=3600, cast=int)
 
 
 INSTALLED_APPS = [
@@ -122,6 +134,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+# Сюди збирає collectstatic; на проді цю теку віддає nginx.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 MEDIA_URL = 'media/'
@@ -309,7 +323,8 @@ if SENTRY_DSN:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         environment=config("SENTRY_ENVIRONMENT", default="production"),
-        release=config("VERCEL_GIT_COMMIT_SHA", default=None),
+        # Хеш коміту; deploy-скрипт передає `git rev-parse HEAD`.
+        release=config("SENTRY_RELEASE", default=None),
         integrations=[
             DjangoIntegration(),
             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
