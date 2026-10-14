@@ -1,0 +1,12 @@
+# Проксі перед Django. DOMAIN і ACME_EMAIL приходять з .env через compose.yaml.
+# TLS-сертифікат Caddy отримує й продовжує сам; X-Forwarded-Proto передає теж сам —
+# на нього спирається SECURE_PROXY_SSL_HEADER у settings.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:8000
+}

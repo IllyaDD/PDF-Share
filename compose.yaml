@@ -1,0 +1,64 @@
+# Прод-стек: Caddy (TLS) → gunicorn/Django → Postgres. PDF і обкладинки — у R2.
+#
+# ${...} підставляються з .env у корені — на сервері це symlink: ln -s PDF+/.env .env
+# Міграції — окремим кроком у deploy.sh, не при старті контейнера.
+
+name: pdfplus
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB:?PG_DB не задано в .env}
+      POSTGRES_USER: ${PG_USER:?PG_USER не задано в .env}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD не задано в .env}
+      # Та сама локаль, що локально: з C кирилиця не складається в lower()/ILIKE.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=uk-UA"
+    volumes:
+      # З Postgres 18 образ тримає дані в /var/lib/postgresql/18/docker —
+      # монтувати батьківську теку, а не старий шлях .../data.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    image: pdfplus-web
+    restart: unless-stopped
+    env_file: PDF+/.env
+    environment:
+      PG_HOST: db
+      PG_PORT: "5432"
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Портів назовні нема: доступ лише через proxy.
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN не задано в .env}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL не задано в .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Сертифікати. Без volume Caddy перевипускав би їх після кожного
+      # перезапуску й міг упертися в ліміти Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
