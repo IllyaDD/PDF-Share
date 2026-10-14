@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# compose бере ${PG_*}, ${DOMAIN} тощо з .env у корені, а налаштування Django
+# compose бере ${PG_*}, ${CLOUDFLARE_TUNNEL_TOKEN} тощо з .env у корені, а налаштування Django
 # лежать у PDF+/.env — symlink тримає їх в одному файлі.
 if [[ ! -f .env ]]; then
     echo "Нема .env у корені. Один раз виконай: ln -s PDF+/.env .env" >&2

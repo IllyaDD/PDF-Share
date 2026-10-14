@@ -1,4 +1,6 @@
-# Прод-стек: Caddy (TLS) → gunicorn/Django → Postgres. PDF і обкладинки — у R2.
+# Прод-стек: Cloudflare Tunnel → gunicorn/Django → Postgres. PDF і обкладинки — у R2.
+# TLS закінчується на Cloudflare; назовні не публікується жоден порт — сервер у домашній
+# мережі, а 80/443 на ньому можуть бути зайняті іншими проєктами.
 #
 # ${...} підставляються з .env у корені — на сервері це symlink: ln -s PDF+/.env .env
 # Міграції — окремим кроком у deploy.sh, не при старті контейнера.
@@ -37,28 +39,32 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Портів назовні нема: доступ лише через proxy.
+    # Портів назовні нема: доступ лише через tunnel.
 
-  proxy:
-    image: caddy:2
+  tunnel:
+    # Версію фіксуємо: оновлення cloudflared — свідомий крок, а не сюрприз при pull.
+    image: cloudflare/cloudflared:2026.2.0
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"   # HTTP/3
+    # http2 замість QUIC за замовчуванням: на домашньому Wi-Fi/роутері QUIC (UDP) рвався
+    # з «timeout: no recent network activity» — так падав тунель Prompt-trainer.
+    command: tunnel --protocol http2 --metrics 0.0.0.0:2000 run
     environment:
-      DOMAIN: ${DOMAIN:?DOMAIN не задано в .env}
-      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL не задано в .env}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      # Сертифікати. Без volume Caddy перевипускав би їх після кожного
-      # перезапуску й міг упертися в ліміти Let's Encrypt.
-      - caddy_data:/data
-      - caddy_config:/config
+      # Маршрут pdf-share.website → http://web:8000 задається в кабінеті Cloudflare
+      # (Zero Trust → Tunnels → Public hostname), токен лише прив'язує конектор.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN не задано в .env}
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:2000", "ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    deploy:
+      # Два конектори одного тунелю: Cloudflare шле трафік через живий, якщо другий
+      # завис чи перезапускається. Кожен тримає по 4 з'єднання до різних дата-центрів.
+      replicas: 2
     depends_on:
-      - web
+      web:
+        condition: service_healthy
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
