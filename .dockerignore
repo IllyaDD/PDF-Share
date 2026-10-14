@@ -1,0 +1,27 @@
+# Секрети передаються в контейнер під час запуску (env_file), а не вшиваються в образ.
+**/.env
+**/.env.*
+
+.git
+.venv
+**/__pycache__
+**/*.py[oc]
+
+# Файли користувачів живуть у R2; статику collectstatic збирає всередині build.
+PDF+/media
+PDF+/staticfiles
+
+# Локальні інструменти
+**/.omc
+**/.ruff_cache
+.claude
+.playwright-mcp
+.superpowers
+docs
+
+# Сам Docker-обвіс у образі не потрібен
+Dockerfile
+.dockerignore
+compose.yaml
+Caddyfile
+deploy.sh

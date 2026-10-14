@@ -2,6 +2,7 @@ import json
 import shutil
 import tempfile
 from datetime import timedelta
+from unittest import mock
 
 from annotations.models import Annotation, Layer
 from annotations.validators import PayloadError, parse_group_name
@@ -10,6 +11,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import Group as AuthGroup
 from django.core import mail
+from django.db import OperationalError
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -267,3 +269,35 @@ class ThemeToggleTests(TestCase):
         self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
         response = self.client.get(reverse("book_library:home"))
         self.assertContains(response, 'aria-label="Dark theme"')
+
+
+class HealthCheckTests(TestCase):
+    """/health/ для healthcheck-у Docker: живий процес + доступна БД."""
+
+    def test_ok_when_database_reachable(self):
+        response = self.client.get("/health/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+        self.assertIn("no-store", response["Cache-Control"])
+
+    @override_settings(ALLOWED_HOSTS=["pdfplus.example.com"])
+    def test_ignores_allowed_hosts(self):
+        # Healthcheck у контейнері ходить на localhost, а не на домен сайту.
+        response = self.client.get("/health/", HTTP_HOST="localhost:8000")
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(ALLOWED_HOSTS=["pdfplus.example.com"])
+    def test_other_paths_still_check_host(self):
+        response = self.client.get("/", HTTP_HOST="localhost:8000")
+        self.assertEqual(response.status_code, 400)
+
+    def test_unavailable_when_database_down(self):
+        with mock.patch(
+            "book_sharing_settings.health._ping_database",
+            side_effect=OperationalError("connection refused: secret-host"),
+        ), self.assertLogs("book_sharing_settings.health", "WARNING"):
+            response = self.client.get("/health/")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"status": "unavailable"})
+        self.assertNotContains(response, "secret-host", status_code=503)
