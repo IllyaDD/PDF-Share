@@ -212,3 +212,6 @@ share-посилання з `include_annotations` (шар автора поси�
 - Sentry ініціалізується лише за непорожнього `SENTRY_DSN`; локально й у тестах DSN
   порожній і жодного мережевого трафіку нема. `send_default_pii=False` — не вмикай без причини.
 - Редиректи за `?next=` проходять через `_safe_next()` (`url_has_allowed_host_and_scheme`).
+- `/health/` (healthcheck Docker) — це `HealthCheckMiddleware` (`book_sharing_settings/health.py`),
+  а не в'юха: він **перший** у `MIDDLEWARE`, щоб відповідати до перевірки `ALLOWED_HOSTS`
+  (контейнер ходить на `localhost`). Нові middleware ставити після нього.

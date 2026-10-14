@@ -53,7 +53,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Першим: відповідає на /health/ до перевірки ALLOWED_HOSTS (див. health.py).
+    'book_sharing_settings.health.HealthCheckMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Статика з процесу gunicorn: окремого nginx для /static/ нема.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -134,7 +138,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-# Сюди збирає collectstatic; на проді цю теку віддає nginx.
+# Сюди збирає collectstatic (у Docker — під час build); віддає WhiteNoise.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
@@ -146,25 +150,35 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 
 USE_R2 = config("USE_R2", default=False, cast=bool)
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    # На проді — хешовані імена + gzip і кеш на рік. Manifest вимагає
+    # collectstatic, тому з DEBUG=true (runserver, локальні тести) — звичайне сховище.
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
+    },
+}
+
 if USE_R2:
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "bucket_name": config("R2_BUCKET"),
-                "access_key": config("R2_ACCESS_KEY_ID"),
-                "secret_key": config("R2_SECRET_ACCESS_KEY"),
-                "endpoint_url": f"https://{config('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com",
-                "region_name": "auto",
-                "signature_version": "s3v4",
-                "default_acl": None,
-                "querystring_auth": True,
-                "querystring_expire": config("R2_URL_EXPIRE", default=3600, cast=int),
-                "file_overwrite": False,
-            },
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": config("R2_BUCKET"),
+            "access_key": config("R2_ACCESS_KEY_ID"),
+            "secret_key": config("R2_SECRET_ACCESS_KEY"),
+            "endpoint_url": f"https://{config('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com",
+            "region_name": "auto",
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "querystring_auth": True,
+            "querystring_expire": config("R2_URL_EXPIRE", default=3600, cast=int),
+            "file_overwrite": False,
         },
     }
 
