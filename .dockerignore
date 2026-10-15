@@ -10,6 +10,7 @@
 # Файли користувачів живуть у R2; статику collectstatic збирає всередині build.
 PDF+/media
 PDF+/staticfiles
+backups
 
 # Локальні інструменти
 **/.omc
