@@ -1,0 +1,4 @@
+# Мітки self-hosted runner'а, щоб actionlint не вважав їх помилкою.
+self-hosted-runner:
+  labels:
+    - pdfplus-prod

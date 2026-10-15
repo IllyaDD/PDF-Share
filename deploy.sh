@@ -14,13 +14,22 @@ if [[ ! -f .env ]]; then
     exit 1
 fi
 
-git pull --ff-only
+# CD передає DEPLOY_SHA — коміт, що пройшов CI. git pull узяв би свіжіший master,
+# який міг прилетіти за цей час і ще не перевірений.
+if [[ -n "${DEPLOY_SHA:-}" ]]; then
+    git fetch --quiet origin
+    git merge --ff-only "$DEPLOY_SHA"
+else
+    git pull --ff-only
+fi
 export SENTRY_RELEASE="$(git rev-parse HEAD)"
 
 docker compose build web
 # Якщо міграція впаде, set -e зупинить скрипт до up — старий контейнер працює далі.
 docker compose run --rm web python manage.py migrate --noinput
-docker compose up -d --remove-orphans
+# --wait: без нього up повертає 0 одразу, навіть якщо gunicorn потім не підніметься.
+# Healthcheck web — /health/ з Dockerfile; не дочекались — скрипт падає, CD червоний.
+docker compose up -d --remove-orphans --wait --wait-timeout 120
 docker image prune -f
 
 docker compose ps

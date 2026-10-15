@@ -1,0 +1,113 @@
+# Перевірки на кожен PR і push у master — на хмарних раннерах GitHub; секретів тут нема.
+# Після зеленого CI на master — деплой на self-hosted runner на сервері.
+#
+# Репозиторій публічний, а на pull_request GitHub бере workflow з самого PR — форк може
+# дописати свій job з runs-on: self-hosted. Захист — Settings → Actions → General →
+# «Require approval for all external contributors»: чужий PR не стартує без схвалення.
+# Перед схваленням дивитись diff .github/ — job на сервері має доступ до .env і Docker.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+# Новий push у PR скасовує застарілий прогін. На master — ні: інакше наступний merge
+# обірвав би деплой посеред міграції.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_DB: ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # Та сама локаль, що на проді (compose.yaml): з C кирилиця не складається в lower()/ILIKE.
+          POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=uk-UA"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      SECRET_KEY: ci-only-not-a-secret
+      # Як локально: з DEBUG=false статика йде через Manifest-сховище, яке вимагає collectstatic.
+      DEBUG: "true"
+      PG_DB: ci
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_HOST: localhost
+      PG_PORT: "5432"
+      # Явно, хоча це й default: тести з файлами не мають піти в R2.
+      USE_R2: "false"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Залежності
+        run: uv sync --frozen
+
+      - name: Ruff (лише F — unused/undefined)
+        run: uvx ruff check PDF+ --select F
+
+      - name: Забуті міграції
+        working-directory: PDF+
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Тести
+        working-directory: PDF+
+        run: uv run python manage.py test --parallel
+
+  docker:
+    # Образ має збиратися: Dockerfile і .dockerignore ламаються непомітно, бо локально
+    # їх ніхто не збирає. Push нікуди не йде — образ будує сам сервер у deploy.sh.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [test, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # Мітка pdfplus-prod задається при реєстрації runner'а на сервері.
+    runs-on: [self-hosted, pdfplus-prod]
+    environment:
+      name: production
+      url: https://pdf-share.website
+    # Деплої по черзі; старіший, що чекає, замінюється новішим.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    timeout-minutes: 20
+    steps:
+      # Без checkout: код на сервер тягне сам deploy.sh у ~/pdfplus, як і при ручному деплої.
+      - name: deploy.sh
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: ~/pdfplus/deploy.sh
