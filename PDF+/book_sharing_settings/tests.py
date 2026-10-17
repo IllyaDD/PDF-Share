@@ -1,4 +1,5 @@
 import json
+import atexit
 import shutil
 import tempfile
 from datetime import timedelta
@@ -22,10 +23,9 @@ from .dashboard import dashboard_callback
 from .testing import FILESYSTEM_STORAGES
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
-
-
-def tearDownModule():
-    shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+# Не tearDownModule: за --parallel на Linux (fork) теку ділять усі воркери, і той, що
+# закінчив свій клас, видаляв її з-під інших. За fork atexit спрацьовує лише в батьківському процесі.
+atexit.register(shutil.rmtree, TEST_MEDIA_ROOT, ignore_errors=True)
 
 
 class AdminRegistrationTests(TestCase):

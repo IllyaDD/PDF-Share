@@ -22,3 +22,8 @@ dependencies = [
     "sentry-sdk[django]>=2.69.2",
     "whitenoise>=6.12.0",
 ]
+
+[dependency-groups]
+dev = [
+    "tblib>=3.2.2",
+]

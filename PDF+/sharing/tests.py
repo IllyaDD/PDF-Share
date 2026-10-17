@@ -19,6 +19,7 @@ def make_book(owner, title="Книга"):
     )
 
 
+import atexit
 import shutil
 import tempfile
 
@@ -26,10 +27,9 @@ from book_sharing_settings.testing import FILESYSTEM_STORAGES
 from django.test import override_settings
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="pdfplus-test-media-")
-
-
-def tearDownModule():
-    shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+# Не tearDownModule: за --parallel на Linux (fork) теку ділять усі воркери, і той, що
+# закінчив свій клас, видаляв її з-під інших. За fork atexit спрацьовує лише в батьківському процесі.
+atexit.register(shutil.rmtree, TEST_MEDIA_ROOT, ignore_errors=True)
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
