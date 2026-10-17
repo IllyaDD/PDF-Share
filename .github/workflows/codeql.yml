@@ -1,0 +1,54 @@
+# Статичний аналіз безпеки. Результати — у вкладці Security → Code scanning, не в логах.
+# Окремо від ci.yml і не в needs деплою: блокувати має правило гілки
+# «Require code scanning results» на PR, а не вже змерджений push у master.
+#
+# actions — аналіз самих workflow-ів: ін'єкції ${{ github.event.* }} у run:, небезпечні
+# тригери, широкі permissions. Головний ризик тут — self-hosted runner у публічному репо.
+
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  # Раз на тиждень: нові правила CodeQL знаходять проблеми і в коді, який не змінювався.
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Збірка не потрібна жодній із мов — аналіз іде по вихідних текстах.
+        language: [python, javascript-typescript, actions]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # Вендорений PDF.js — не наш код; його алерти лише засмічують Security tab.
+          config: |
+            paths-ignore:
+              - PDF+/static/vendor
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
