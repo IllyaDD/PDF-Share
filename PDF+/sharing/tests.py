@@ -51,11 +51,17 @@ class GroupPageTests(TestCase):
         self.assertContains(response, "Нова група")
         self.assertContains(response, "10-А")
 
-    def test_student_sees_group_without_create_button(self):
+    def test_student_sees_create_button(self):
+        # Роль не обмежує можливостей: створити групу може кожен.
         self.client.force_login(self.student)
         response = self.client.get(reverse("sharing:group_list"))
         self.assertContains(response, "10-А")
-        self.assertNotContains(response, "Нова група")
+        self.assertContains(response, "Нова група")
+
+    def test_student_can_create_group(self):
+        self.client.force_login(self.student)
+        self.client.post(reverse("sharing:group_create"), {"name": "Гурток"})
+        self.assertTrue(Group.objects.filter(owner=self.student, name="Гурток").exists())
 
     def test_group_detail_lists_members(self):
         self.client.force_login(self.teacher)

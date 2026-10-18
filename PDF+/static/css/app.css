@@ -28,6 +28,13 @@
   transform: translateY(-2px);
 }
 
+/* transform на :hover робить картку окремим контекстом накладання, і z-index меню
+   діє лише всередині неї — сусідня картка нижче перекриває відкрите меню. Піднімаємо
+   всю картку, поки її меню відкрите. */
+.entity-card:has(.dropdown-menu.show) {
+  z-index: 2;
+}
+
 .feature-icon {
   width: 2.5rem;
   height: 2.5rem;
