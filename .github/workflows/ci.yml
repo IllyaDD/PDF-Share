@@ -1,5 +1,5 @@
 # Перевірки на кожен PR і push у master — на хмарних раннерах GitHub; секретів тут нема.
-# Після зеленого CI на master — деплой на self-hosted runner на сервері.
+# Після зеленого CI на master деплой запускає окремий cd.yml (workflow_run).
 #
 # Репозиторій публічний, а на pull_request GitHub бере workflow з самого PR — форк може
 # дописати свій job з runs-on: self-hosted. Захист — Settings → Actions → General →
@@ -16,8 +16,8 @@ on:
 permissions:
   contents: read
 
-# Новий push у PR скасовує застарілий прогін. На master — ні: інакше наступний merge
-# обірвав би деплой посеред міграції.
+# Новий push у PR скасовує застарілий прогін. На master — ні: скасований CI не дасть
+# success, і cd.yml пропустив би деплой цього коміту.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -91,23 +91,3 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: [test, docker]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    # Мітка pdfplus-prod задається при реєстрації runner'а на сервері.
-    runs-on: [self-hosted, pdfplus-prod]
-    environment:
-      name: production
-      url: https://pdf-share.website
-    # Деплої по черзі; старіший, що чекає, замінюється новішим.
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    timeout-minutes: 20
-    steps:
-      # Без checkout: код на сервер тягне сам deploy.sh у ~/pdfplus, як і при ручному деплої.
-      - name: deploy.sh
-        env:
-          DEPLOY_SHA: ${{ github.sha }}
-        run: ~/pdfplus/deploy.sh

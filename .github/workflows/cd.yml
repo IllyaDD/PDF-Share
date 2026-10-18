@@ -1,0 +1,43 @@
+# Деплой на self-hosted runner на сервері — після зеленого CI на push у master.
+#
+# Окремий workflow, а не job у ci.yml: на PR він не з'являється навіть як пропущений check,
+# а workflow_run GitHub завжди бере з master — PR не може змінити те, що виконується
+# на сервері. needs між workflow-ами не працює, тому успіх CI перевіряє conclusion.
+
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # event == 'push': branches фільтрує лише назву гілки, а PR з форку з гілки master
+    # теж дав би head_branch == master.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    # Мітка pdfplus-prod задається при реєстрації runner'а на сервері.
+    runs-on: [self-hosted, pdfplus-prod]
+    environment:
+      name: production
+      url: https://pdf-share.website
+    # Деплої по черзі; старіший, що чекає, замінюється новішим. Той, що вже йде,
+    # не обривається — інакше наступний merge зупинив би деплой посеред міграції.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    timeout-minutes: 20
+    steps:
+      # Без checkout: код на сервер тягне сам deploy.sh у ~/pdfplus, як і при ручному деплої.
+      # head_sha, а не github.sha: у workflow_run github.sha — останній коміт master
+      # на момент запуску, а не той, що пройшов CI.
+      - name: deploy.sh
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: ~/pdfplus/deploy.sh
