@@ -26,12 +26,25 @@ class RegistrationTests(TestCase):
                 "password2": "spravzhniy-parol-42",
             },
         )
-        self.assertRedirects(response, reverse("book_library:home"))
+        self.assertRedirects(response, reverse("book_library:welcome"))
 
         user = User.objects.get(username="marichka")
         self.assertEqual(user.role, User.Role.TEACHER)
         self.assertEqual(self.client.session["_auth_user_id"], str(user.pk))
         self.assertEqual(response.cookies["registration_success"].value, "1")
+
+    def test_register_keeps_safe_next_instead_of_welcome(self):
+        response = self.client.post(
+            reverse("accounts:register") + "?next=" + reverse("book_library:catalog"),
+            {
+                "username": "taras",
+                "email": "taras@example.com",
+                "role": User.Role.STUDENT,
+                "password1": "spravzhniy-parol-42",
+                "password2": "spravzhniy-parol-42",
+            },
+        )
+        self.assertRedirects(response, reverse("book_library:catalog"))
 
     def test_duplicate_email_rejected(self):
         User.objects.create_user(

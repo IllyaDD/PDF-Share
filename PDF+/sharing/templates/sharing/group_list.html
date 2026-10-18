@@ -4,11 +4,9 @@
 {% block title %}{% translate "Групи" %} — PDF+{% endblock %}
 
 {% block page_actions %}
-  {% if user.role == 'teacher' %}
-    <a href="{% url 'sharing:group_create' %}" class="btn btn-primary">
-      <i class="bi bi-plus-lg me-1"></i>{% translate "Нова група" %}
-    </a>
-  {% endif %}
+  <a href="{% url 'sharing:group_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>{% translate "Нова група" %}
+  </a>
 {% endblock %}
 
 {% block content %}

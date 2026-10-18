@@ -97,6 +97,11 @@ def home_view(request):
     return render(request, "book_library/home.html", {"continue_reading": continue_reading})
 
 
+def welcome_view(request):
+    """Огляд можливостей для нових користувачів; сюди веде реєстрація без ?next=."""
+    return render(request, "book_library/welcome.html")
+
+
 @login_required
 def library_view(request, pk=None):
     folder = None

@@ -1,0 +1,7 @@
+{% load i18n static %}
+<div class="text-center">
+  <a href="{% url 'accounts:google_login' %}" class="btn btn-outline-secondary btn-google rounded-circle"
+     title="{% translate "Продовжити з Google" %}" aria-label="{% translate "Продовжити з Google" %}">
+    <img src="{% static 'img/google.svg' %}" alt="" width="22" height="22">
+  </a>
+</div>
