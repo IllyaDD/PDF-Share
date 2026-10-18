@@ -17,9 +17,7 @@
           <hr class="flex-grow-1"><span class="px-2 text-body-secondary small">{% translate "або" %}</span><hr class="flex-grow-1">
         </div>
 
-        <a href="{% url 'accounts:google_login' %}" class="btn btn-outline-secondary w-100">
-          {% translate "Продовжити з Google" %}
-        </a>
+        {% include "partials/google_button.html" %}
 
         <p class="text-center text-body-secondary small mt-4 mb-0">
           {% translate "Вже маєте акаунт?" %} <a href="{% url 'accounts:login' %}">{% translate "Увійти" %}</a>
