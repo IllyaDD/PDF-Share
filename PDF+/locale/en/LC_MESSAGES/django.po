@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 19:35+0000\n"
+"POT-Creation-Date: 2026-10-18 13:13+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -15,12 +15,14 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: annotations/api.py:60 annotations/validators.py:124
-#: annotations/validators.py:139 book_library/views.py:408
+#: annotations/validators.py:139 book_library/views.py:413
 msgid "очікується JSON-об'єкт"
 msgstr "a JSON object is expected"
 
-#: annotations/forms.py:13 sharing/templates/sharing/group_list.html:4
-#: sharing/views.py:27 sharing/views.py:57 templates/partials/sidebar.html:24
+#: annotations/forms.py:13
+#: book_library/templates/book_library/welcome_content.html:65
+#: sharing/templates/sharing/group_list.html:4 sharing/views.py:27
+#: sharing/views.py:57 templates/partials/sidebar.html:24
 msgid "Групи"
 msgstr "Groups"
 
@@ -481,6 +483,7 @@ msgstr "p. %(page)s of %(total)s"
 
 #: book_library/templates/book_library/book_detail.html:106
 #: book_library/templates/book_library/home.html:38
+#: book_library/templates/book_library/welcome_content.html:81
 msgid "Прогрес читання"
 msgstr "Reading progress"
 
@@ -791,7 +794,6 @@ msgid "Увійдіть, щоб робити виділення у цій кни
 msgstr "Log in to highlight this book."
 
 #: book_library/templates/book_library/book_reader.html:184
-#: book_library/templates/book_library/home.html:16
 #: sharing/templates/sharing/group_join.html:35 templates/nav.html:57
 #: users/forms.py:56 users/templates/users/password_reset_complete.html:13
 #: users/templates/users/register.html:25
@@ -821,8 +823,11 @@ msgid "Готово"
 msgstr "Done"
 
 #: book_library/templates/book_library/catalog.html:4
-#: book_library/templates/book_library/library.html:25 book_library/views.py:46
-#: book_library/views.py:204 templates/partials/sidebar.html:17
+#: book_library/templates/book_library/library.html:25
+#: book_library/templates/book_library/welcome_content.html:51
+#: book_library/templates/book_library/welcome_content.html:91
+#: book_library/views.py:46 book_library/views.py:209
+#: templates/partials/sidebar.html:17
 msgid "Каталог"
 msgstr "Catalog"
 
@@ -873,7 +878,8 @@ msgstr "To folder"
 #: book_library/templates/book_library/folder_add_books.html:13
 #: book_library/templates/book_library/library.html:21
 #: book_library/templates/book_library/library.html:76
-#: book_library/views.py:440 templates/partials/sidebar.html:43
+#: book_library/templates/book_library/welcome_content.html:23
+#: book_library/views.py:445 templates/partials/sidebar.html:48
 msgid "Завантажити PDF"
 msgstr "Upload PDF"
 
@@ -918,19 +924,18 @@ msgstr ""
 msgid "спільна бібліотека"
 msgstr "shared library"
 
-#: book_library/templates/book_library/home.html:9
+#: book_library/templates/book_library/home.html:13
 msgid "Бібліотека PDF з анотаціями та спільним доступом."
 msgstr "A PDF library with annotations and sharing."
 
-#: book_library/templates/book_library/home.html:12
+#: book_library/templates/book_library/home.html:14
 #, python-format
 msgid "Вітаємо, <strong>%(username)s</strong>."
 msgstr "Welcome, <strong>%(username)s</strong>."
 
-#: book_library/templates/book_library/home.html:15
-#: users/templates/users/register.html:12
-msgid "Створити акаунт"
-msgstr "Create account"
+#: book_library/templates/book_library/home.html:16
+msgid "Що вміє PDF+"
+msgstr "What PDF+ can do"
 
 #: book_library/templates/book_library/home.html:23
 msgid "Продовжити читати"
@@ -938,12 +943,12 @@ msgstr "Continue reading"
 
 #: book_library/templates/book_library/library.html:12
 #: book_library/templates/book_library/library.html:74
-#: book_library/views.py:292
+#: book_library/views.py:297
 msgid "Додати книги"
 msgstr "Add books"
 
 #: book_library/templates/book_library/library.html:17
-#: book_library/views.py:230 book_library/views.py:231
+#: book_library/views.py:235 book_library/views.py:236
 msgid "Нова тека"
 msgstr "New folder"
 
@@ -996,7 +1001,7 @@ msgid "Власник ще нічого сюди не поклав."
 msgstr "The owner has not put anything here yet."
 
 #: book_library/templates/book_library/shared_with_me.html:4
-#: book_library/views.py:177 templates/partials/sidebar.html:12
+#: book_library/views.py:182 templates/partials/sidebar.html:12
 msgid "Поділилися зі мною"
 msgstr "Shared with me"
 
@@ -1009,83 +1014,319 @@ msgid ""
 "Матеріали, до яких вас допустять через групу або посилання, з'являться тут."
 msgstr "Materials shared with you through a group or a link will appear here."
 
+#: book_library/templates/book_library/welcome.html:4
+msgid "ласкаво просимо"
+msgstr "welcome"
+
+#: book_library/templates/book_library/welcome_content.html:5
+msgid "Ласкаво просимо до PDF+"
+msgstr "Welcome to PDF+"
+
+#: book_library/templates/book_library/welcome_content.html:7
+msgid ""
+"Бібліотека PDF для навчання: зберігайте матеріали, читайте їх просто в "
+"браузері, виділяйте важливе, пишіть нотатки й діліться книгами з класом."
+msgstr ""
+"A PDF library for learning: store your materials, read them right in the "
+"browser, highlight what matters, take notes and share books with your class."
+
+#: book_library/templates/book_library/welcome_content.html:12
+msgid "Як почати"
+msgstr "Getting started"
+
+#: book_library/templates/book_library/welcome_content.html:18
+msgid "Завантажте PDF"
+msgstr "Upload a PDF"
+
+#: book_library/templates/book_library/welcome_content.html:20
+msgid ""
+"Перетягніть файл у форму завантаження (до 50 МБ). PDF+ перевірить файл, "
+"порахує сторінки й зробить обкладинку."
+msgstr ""
+"Drag a file into the upload form (up to 50 MB). PDF+ will check the file, "
+"count its pages and make a cover."
+
+#: book_library/templates/book_library/welcome_content.html:32
+msgid "Розкладіть по теках"
+msgstr "Organize into folders"
+
+#: book_library/templates/book_library/welcome_content.html:34
+msgid ""
+"Створюйте теки будь-якої вкладеності — за предметами, класами чи темами — і "
+"переміщуйте книги між ними."
+msgstr ""
+"Create folders nested as deep as you like — by subject, class or topic — and "
+"move books between them."
+
+#: book_library/templates/book_library/welcome_content.html:37
+#: book_library/views.py:157 templates/partials/sidebar.html:7
+msgid "Моя бібліотека"
+msgstr "My library"
+
+#: book_library/templates/book_library/welcome_content.html:46
+msgid "Читайте й виділяйте"
+msgstr "Read and highlight"
+
+#: book_library/templates/book_library/welcome_content.html:48
+msgid ""
+"Відкрийте книгу в читалці, виділіть фрагмент тексту, оберіть колір і додайте "
+"нотатку."
+msgstr ""
+"Open a book in the reader, select a passage, pick a color and add a note."
+
+#: book_library/templates/book_library/welcome_content.html:60
+msgid "Поділіться"
+msgstr "Share"
+
+#: book_library/templates/book_library/welcome_content.html:62
+msgid ""
+"Відкрийте книгу чи теку групі учнів або надішліть посилання — навіть тому, "
+"хто не має акаунта."
+msgstr ""
+"Give a group of students access to a book or folder, or send a link — even "
+"to someone without an account."
+
+#: book_library/templates/book_library/welcome_content.html:74
+msgid "Бібліотека і читання"
+msgstr "Library and reading"
+
+#: book_library/templates/book_library/welcome_content.html:76
+msgid "Бібліотека й теки"
+msgstr "Library and folders"
+
+#: book_library/templates/book_library/welcome_content.html:76
+msgid ""
+"Дерево тек будь-якої глибини, хлібні крихти й пошук за назвою — у теці він "
+"охоплює все вкладене. Книги можна перейменовувати, переміщувати, замінювати "
+"файл і додавати в теку гуртом."
+msgstr ""
+"A folder tree of any depth, breadcrumbs and title search — inside a folder "
+"it covers everything nested. Books can be renamed, moved, have their file "
+"replaced and be added to a folder in bulk."
+
+#: book_library/templates/book_library/welcome_content.html:77
+msgid "Перевірка файлів"
+msgstr "File checks"
+
+#: book_library/templates/book_library/welcome_content.html:77
+msgid ""
+"Захищені паролем і порожні PDF відхиляються одразу. Якщо документ — скан без "
+"текстового шару, читалка про це попередить: виділяти текст у такому файлі не "
+"вийде."
+msgstr ""
+"Password-protected and empty PDFs are rejected right away. If a document is "
+"a scan without a text layer, the reader will warn you: text in such a file "
+"can't be highlighted."
+
+#: book_library/templates/book_library/welcome_content.html:78
+msgid "Читалка в браузері"
+msgstr "In-browser reader"
+
+#: book_library/templates/book_library/welcome_content.html:78
+msgid ""
+"Нічого не треба завантажувати на пристрій: масштаб від 50 до 300 %, перехід "
+"на потрібну сторінку, сторінки підвантажуються під час гортання."
+msgstr ""
+"Nothing to download to your device: zoom from 50 to 300%, jump to any page, "
+"pages load as you scroll."
+
+#: book_library/templates/book_library/welcome_content.html:79
+msgid "Виділення й нотатки"
+msgstr "Highlights and notes"
+
+#: book_library/templates/book_library/welcome_content.html:79
+msgid ""
+"П'ять кольорів виділення, нотатка до кожного фрагмента, бічна панель зі "
+"списком і фільтром за кольором. Ваші виділення бачите лише ви, а сам файл не "
+"змінюється."
+msgstr ""
+"Five highlight colors, a note on every passage, a side panel with a list and "
+"a color filter. Only you see your highlights, and the file itself is never "
+"modified."
+
+#: book_library/templates/book_library/welcome_content.html:80
+msgid "Теми нотаток"
+msgstr "Note topics"
+
+#: book_library/templates/book_library/welcome_content.html:80
+msgid ""
+"Групуйте нотатки в межах книги за темами: перемикач «Тема» в читалці "
+"визначає, куди йдуть нові виділення. Перейменувати чи видалити тему можна на "
+"сторінці «Мої нотатки»."
+msgstr ""
+"Group a book's notes by topic: the “Topic” switch in the reader decides "
+"where new highlights go. Topics can be renamed or deleted on the “My notes” "
+"page."
+
+#: book_library/templates/book_library/welcome_content.html:81
+msgid ""
+"PDF+ запам'ятовує сторінку, на якій ви зупинилися. Наступного разу книга "
+"відкриється там же, а на головній з'явиться блок «Продовжити читати»."
+msgstr ""
+"PDF+ remembers the page where you stopped. Next time the book opens right "
+"there, and the home page shows a “Continue reading” block."
+
+#: book_library/templates/book_library/welcome_content.html:86
+msgid "Спільна робота"
+msgstr "Working together"
+
+#: book_library/templates/book_library/welcome_content.html:88
+msgid "Групи (класи)"
+msgstr "Groups (classes)"
+
+#: book_library/templates/book_library/welcome_content.html:88
+msgid ""
+"Створіть групу, додайте учнів і відкрийте їй доступ до книги чи теки. Доступ "
+"до теки поширюється на все, що в ній лежить, разом із новими матеріалами."
+msgstr ""
+"Create a group, add students and give it access to a book or folder. Access "
+"to a folder covers everything inside it, including materials added later."
+
+#: book_library/templates/book_library/welcome_content.html:89
+msgid "Шар вчителя"
+msgstr "Teacher layer"
+
+#: book_library/templates/book_library/welcome_content.html:89
+msgid ""
+"Власник групи може опублікувати свої виділення й нотатки до книги для своїх "
+"груп. Учні перемикаються в читалці між своїми нотатками й нотатками вчителя "
+"— чужий шар доступний лише для читання."
+msgstr ""
+"A group owner can publish their highlights and notes on a book to their "
+"groups. Students switch between their own notes and the teacher's in the "
+"reader — the teacher's layer is read-only."
+
+#: book_library/templates/book_library/welcome_content.html:90
+#: sharing/templates/sharing/link_list.html:4
+#: sharing/templates/sharing/link_list.html:20 sharing/views.py:220
+#: templates/partials/sidebar.html:29
+msgid "Посилання"
+msgstr "Links"
+
+#: book_library/templates/book_library/welcome_content.html:90
+msgid ""
+"Посилання на книгу чи теку — безстрокове або з датою завершення. Можна "
+"поділитися лише книгою або книгою з вашими нотатками (за бажанням — тільки "
+"обраними темами). Відкликати посилання можна будь-коли."
+msgstr ""
+"A link to a book or folder — permanent or with an expiry date. Share just "
+"the book or the book with your notes (optionally only selected topics). "
+"Links can be revoked at any time."
+
+#: book_library/templates/book_library/welcome_content.html:91
+msgid ""
+"Спільні матеріали, які адміністратор відкрив для всіх зареєстрованих "
+"користувачів. Пошук у каталозі охоплює весь його вміст."
+msgstr ""
+"Shared materials an administrator has opened to all registered users. "
+"Catalog search covers all of its contents."
+
+#: book_library/templates/book_library/welcome_content.html:101
+msgid "Вчитель чи учень?"
+msgstr "Teacher or student?"
+
+#: book_library/templates/book_library/welcome_content.html:103
+msgid ""
+"Роль у профілі не обмежує можливостей: завантажувати книги, створювати групи "
+"й ділитися може кожен. Хто що бачить, визначає власник матеріалу."
+msgstr ""
+"The role in your profile doesn't limit what you can do: anyone can upload "
+"books, create groups and share. The owner of a material decides who sees it."
+
+#: book_library/templates/book_library/welcome_content.html:112
+msgid "Ваші файли — приватні"
+msgstr "Your files are private"
+
+#: book_library/templates/book_library/welcome_content.html:114
+msgid ""
+"Книги лежать у приватному сховищі. Без вашого дозволу — групи чи посилання — "
+"їх ніхто не побачить, а посилання можна відкликати."
+msgstr ""
+"Books are kept in private storage. Nobody sees them without your permission "
+"— a group or a link — and links can be revoked."
+
+#: book_library/templates/book_library/welcome_content.html:125
+msgid "Завантажити першу книгу"
+msgstr "Upload your first book"
+
+#: book_library/templates/book_library/welcome_content.html:128
+#: users/templates/users/register.html:12
+msgid "Створити акаунт"
+msgstr "Create account"
+
 #: book_library/views.py:74
 msgid "Усюди"
 msgstr "Everywhere"
 
-#: book_library/views.py:152 templates/partials/sidebar.html:7
-msgid "Моя бібліотека"
-msgstr "My library"
-
-#: book_library/views.py:205
+#: book_library/views.py:210
 msgid "Матеріали, доступні всім користувачам"
 msgstr "Materials available to all users"
 
-#: book_library/views.py:222
+#: book_library/views.py:227
 msgid "Теку створено."
 msgstr "Folder created."
 
-#: book_library/views.py:244
+#: book_library/views.py:249
 msgid "Теку оновлено."
 msgstr "Folder updated."
 
-#: book_library/views.py:252
+#: book_library/views.py:257
 msgid "Редагування теки"
 msgstr "Edit folder"
 
-#: book_library/views.py:253
+#: book_library/views.py:258
 #, python-format
 msgid "Тека «%(name)s»"
 msgstr "Folder “%(name)s”"
 
-#: book_library/views.py:265
+#: book_library/views.py:270
 msgid "Теку видалено."
 msgstr "Folder deleted."
 
-#: book_library/views.py:293
+#: book_library/views.py:298
 #, python-format
 msgid "Додати книги до «%(name)s»"
 msgstr "Add books to “%(name)s”"
 
-#: book_library/views.py:411
+#: book_library/views.py:416
 msgid "тіло запиту не є коректним JSON"
 msgstr "the request body is not valid JSON"
 
-#: book_library/views.py:431
+#: book_library/views.py:436
 #, python-format
 msgid "«%(title)s» завантажено: %(pages)s с."
 msgstr "“%(title)s” uploaded: %(pages)s p."
 
-#: book_library/views.py:439
+#: book_library/views.py:444
 msgid "Завантаження PDF"
 msgstr "Upload PDF"
 
-#: book_library/views.py:441
+#: book_library/views.py:446
 msgid "Приймаються файли у форматі PDF."
 msgstr "PDF files are accepted."
 
-#: book_library/views.py:454
+#: book_library/views.py:459
 msgid "Книгу оновлено."
 msgstr "Book updated."
 
-#: book_library/views.py:462
+#: book_library/views.py:467
 msgid "Редагування книги"
 msgstr "Edit book"
 
-#: book_library/views.py:475
+#: book_library/views.py:480
 msgid "Книгу видалено."
 msgstr "Book deleted."
 
-#: book_library/views.py:490
+#: book_library/views.py:495
 msgid "Некоректна тека."
 msgstr "Invalid folder."
 
-#: book_library/views.py:497
+#: book_library/views.py:502
 #, python-format
 msgid "«%(title)s» перенесено до теки «%(folder)s»."
 msgstr "“%(title)s” moved to folder “%(folder)s”."
 
-#: book_library/views.py:500
+#: book_library/views.py:505
 #, python-format
 msgid "«%(title)s» прибрано з теки."
 msgstr "“%(title)s” removed from its folder."
@@ -1367,12 +1608,6 @@ msgstr "Groups give a whole class access to your materials in one step."
 msgid "Створити групу"
 msgstr "Create group"
 
-#: sharing/templates/sharing/link_list.html:4
-#: sharing/templates/sharing/link_list.html:20 sharing/views.py:220
-#: templates/partials/sidebar.html:29
-msgid "Посилання"
-msgstr "Links"
-
 #: sharing/templates/sharing/link_list.html:8 sharing/views.py:248
 #: sharing/views.py:249
 msgid "Нове посилання"
@@ -1651,6 +1886,10 @@ msgstr "Where to search"
 #: templates/partials/search_form.html:21
 msgid "Знайти"
 msgstr "Search"
+
+#: templates/partials/sidebar.html:41
+msgid "Можливості PDF+"
+msgstr "PDF+ features"
 
 #: users/admin.py:23 users/admin.py:24
 msgid "Роль"

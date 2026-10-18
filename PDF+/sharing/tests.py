@@ -230,7 +230,7 @@ class GroupInviteTests(TestCase):
                 "password2": "spravzhniy-parol-42",
             },
         )
-        self.assertRedirects(response, reverse("book_library:home"))
+        self.assertRedirects(response, reverse("book_library:welcome"))
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)

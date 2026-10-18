@@ -1410,7 +1410,9 @@ class ReadingProgressTests(TestCase):
     def test_home_without_progress_or_anonymous_has_no_block(self):
         self.assertNotContains(self.client.get(reverse("book_library:home")), "Продовжити читати")
         self.client.logout()
-        self.assertNotContains(self.client.get(reverse("book_library:home")), "Продовжити читати")
+        # Гостю головна показує огляд можливостей, де «Продовжити читати» згадано в тексті,
+        # тому перевіряємо дані, а не рядок.
+        self.assertFalse(self.client.get(reverse("book_library:home")).context["continue_reading"])
 
     def test_detail_and_reader_show_saved_page(self):
         from .progress import record_progress
@@ -1437,3 +1439,32 @@ class ReadingProgressTests(TestCase):
         response = self.client.get(reverse("book_library:book_reader", args=[self.book.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "data-progress-url")
+
+
+class WelcomePageTests(TestCase):
+    def test_anonymous_sees_features_and_signup(self):
+        response = self.client.get(reverse("book_library:welcome"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Шар вчителя")
+        self.assertContains(response, reverse("accounts:register"))
+        self.assertNotContains(response, reverse("book_library:book_upload"))
+
+    def test_authenticated_gets_first_steps_instead_of_signup(self):
+        user = User.objects.create_user(username="nova", password="parol-parol-1")
+        self.client.force_login(user)
+        response = self.client.get(reverse("book_library:welcome"))
+        self.assertContains(response, reverse("book_library:book_upload"))
+        self.assertNotContains(response, reverse("accounts:register"))
+
+    def test_anonymous_home_is_full_welcome_page(self):
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, "Ласкаво просимо до PDF+")
+        self.assertContains(response, "Шар вчителя")
+        self.assertContains(response, reverse("accounts:register"))
+
+    def test_authenticated_home_links_to_welcome_instead_of_overview(self):
+        user = User.objects.create_user(username="nova", password="parol-parol-1")
+        self.client.force_login(user)
+        response = self.client.get(reverse("book_library:home"))
+        self.assertContains(response, reverse("book_library:welcome"))
+        self.assertNotContains(response, "Шар вчителя")

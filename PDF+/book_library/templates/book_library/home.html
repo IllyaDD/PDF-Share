@@ -4,19 +4,19 @@
 {% block title %}PDF+ — {% translate "спільна бібліотека" %}{% endblock %}
 
 {% block content %}
+{% if not user.is_authenticated %}
+  {# Гість бачить на головній повний огляд можливостей замість короткої шапки. #}
+  {% include "book_library/welcome_content.html" %}
+{% else %}
 <div class="py-5 text-center">
   <h1 class="display-6 fw-semibold">PDF+</h1>
   <p class="lead text-body-secondary">{% translate "Бібліотека PDF з анотаціями та спільним доступом." %}</p>
-
-  {% if user.is_authenticated %}
-    <p class="mb-0">{% blocktranslate with username=user.username %}Вітаємо, <strong>{{ username }}</strong>.{% endblocktranslate %}</p>
-  {% else %}
-    <div class="d-flex gap-2 justify-content-center mt-4">
-      <a href="{% url 'accounts:register' %}" class="btn btn-primary">{% translate "Створити акаунт" %}</a>
-      <a href="{% url 'accounts:login' %}" class="btn btn-outline-secondary">{% translate "Увійти" %}</a>
-    </div>
-  {% endif %}
+  <p class="mb-0">{% blocktranslate with username=user.username %}Вітаємо, <strong>{{ username }}</strong>.{% endblocktranslate %}</p>
+  <a href="{% url 'book_library:welcome' %}" class="d-inline-block small mt-3">
+    <i class="bi bi-question-circle me-1"></i>{% translate "Що вміє PDF+" %}
+  </a>
 </div>
+{% endif %}
 
 {% if continue_reading %}
 <section class="mb-5">

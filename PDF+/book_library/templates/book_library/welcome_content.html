@@ -1,0 +1,130 @@
+{% load i18n %}
+{# Огляд можливостей: сторінка /welcome/ і головна для гостя. #}
+<section class="py-4 py-lg-5 text-center">
+  <i class="bi bi-file-earmark-pdf display-4 text-danger" aria-hidden="true"></i>
+  <h1 class="display-6 fw-semibold mt-2">{% translate "Ласкаво просимо до PDF+" %}</h1>
+  <p class="lead text-body-secondary mx-auto welcome-lead">
+    {% translate "Бібліотека PDF для навчання: зберігайте матеріали, читайте їх просто в браузері, виділяйте важливе, пишіть нотатки й діліться книгами з класом." %}
+  </p>
+</section>
+
+<section class="mb-5">
+  <h2 class="h5 mb-3">{% translate "Як почати" %}</h2>
+  <ol class="list-unstyled row g-3 mb-0">
+    <li class="col-md-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <span class="badge rounded-pill text-bg-primary mb-2">1</span>
+          <h3 class="h6 fw-semibold">{% translate "Завантажте PDF" %}</h3>
+          <p class="small text-body-secondary mb-2">
+            {% translate "Перетягніть файл у форму завантаження (до 50 МБ). PDF+ перевірить файл, порахує сторінки й зробить обкладинку." %}
+          </p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'book_library:book_upload' %}" class="small">{% translate "Завантажити PDF" %} →</a>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    <li class="col-md-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <span class="badge rounded-pill text-bg-primary mb-2">2</span>
+          <h3 class="h6 fw-semibold">{% translate "Розкладіть по теках" %}</h3>
+          <p class="small text-body-secondary mb-2">
+            {% translate "Створюйте теки будь-якої вкладеності — за предметами, класами чи темами — і переміщуйте книги між ними." %}
+          </p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'book_library:library' %}" class="small">{% translate "Моя бібліотека" %} →</a>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    <li class="col-md-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <span class="badge rounded-pill text-bg-primary mb-2">3</span>
+          <h3 class="h6 fw-semibold">{% translate "Читайте й виділяйте" %}</h3>
+          <p class="small text-body-secondary mb-2">
+            {% translate "Відкрийте книгу в читалці, виділіть фрагмент тексту, оберіть колір і додайте нотатку." %}
+          </p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'book_library:catalog' %}" class="small">{% translate "Каталог" %} →</a>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    <li class="col-md-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <span class="badge rounded-pill text-bg-primary mb-2">4</span>
+          <h3 class="h6 fw-semibold">{% translate "Поділіться" %}</h3>
+          <p class="small text-body-secondary mb-2">
+            {% translate "Відкрийте книгу чи теку групі учнів або надішліть посилання — навіть тому, хто не має акаунта." %}
+          </p>
+          {% if user.is_authenticated %}
+            <a href="{% url 'sharing:group_list' %}" class="small">{% translate "Групи" %} →</a>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section class="mb-5">
+  <h2 class="h5 mb-3">{% translate "Бібліотека і читання" %}</h2>
+  <div class="row g-3">
+    {% include "partials/feature_card.html" with icon="bi-folder2-open" title=_("Бібліотека й теки") text=_("Дерево тек будь-якої глибини, хлібні крихти й пошук за назвою — у теці він охоплює все вкладене. Книги можна перейменовувати, переміщувати, замінювати файл і додавати в теку гуртом.") %}
+    {% include "partials/feature_card.html" with icon="bi-shield-check" title=_("Перевірка файлів") text=_("Захищені паролем і порожні PDF відхиляються одразу. Якщо документ — скан без текстового шару, читалка про це попередить: виділяти текст у такому файлі не вийде.") %}
+    {% include "partials/feature_card.html" with icon="bi-book" title=_("Читалка в браузері") text=_("Нічого не треба завантажувати на пристрій: масштаб від 50 до 300 %, перехід на потрібну сторінку, сторінки підвантажуються під час гортання.") %}
+    {% include "partials/feature_card.html" with icon="bi-highlighter" title=_("Виділення й нотатки") text=_("П'ять кольорів виділення, нотатка до кожного фрагмента, бічна панель зі списком і фільтром за кольором. Ваші виділення бачите лише ви, а сам файл не змінюється.") %}
+    {% include "partials/feature_card.html" with icon="bi-tags" title=_("Теми нотаток") text=_("Групуйте нотатки в межах книги за темами: перемикач «Тема» в читалці визначає, куди йдуть нові виділення. Перейменувати чи видалити тему можна на сторінці «Мої нотатки».") %}
+    {% include "partials/feature_card.html" with icon="bi-bookmark-check" title=_("Прогрес читання") text=_("PDF+ запам'ятовує сторінку, на якій ви зупинилися. Наступного разу книга відкриється там же, а на головній з'явиться блок «Продовжити читати».") %}
+  </div>
+</section>
+
+<section class="mb-5">
+  <h2 class="h5 mb-3">{% translate "Спільна робота" %}</h2>
+  <div class="row g-3">
+    {% include "partials/feature_card.html" with icon="bi-mortarboard" title=_("Групи (класи)") text=_("Створіть групу, додайте учнів і відкрийте їй доступ до книги чи теки. Доступ до теки поширюється на все, що в ній лежить, разом із новими матеріалами.") %}
+    {% include "partials/feature_card.html" with icon="bi-person-video3" title=_("Шар вчителя") text=_("Власник групи може опублікувати свої виділення й нотатки до книги для своїх груп. Учні перемикаються в читалці між своїми нотатками й нотатками вчителя — чужий шар доступний лише для читання.") %}
+    {% include "partials/feature_card.html" with icon="bi-link-45deg" title=_("Посилання") text=_("Посилання на книгу чи теку — безстрокове або з датою завершення. Можна поділитися лише книгою або книгою з вашими нотатками (за бажанням — тільки обраними темами). Відкликати посилання можна будь-коли.") %}
+    {% include "partials/feature_card.html" with icon="bi-collection" title=_("Каталог") text=_("Спільні матеріали, які адміністратор відкрив для всіх зареєстрованих користувачів. Пошук у каталозі охоплює весь його вміст.") %}
+  </div>
+</section>
+
+<section class="mb-5">
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="alert alert-info h-100 mb-0 d-flex gap-3">
+        <i class="bi bi-person-badge fs-4" aria-hidden="true"></i>
+        <div>
+          <h2 class="h6 fw-semibold">{% translate "Вчитель чи учень?" %}</h2>
+          <p class="small mb-0">
+            {% translate "Роль у профілі не обмежує можливостей: завантажувати книги, створювати групи й ділитися може кожен. Хто що бачить, визначає власник матеріалу." %}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="alert alert-secondary h-100 mb-0 d-flex gap-3">
+        <i class="bi bi-lock fs-4" aria-hidden="true"></i>
+        <div>
+          <h2 class="h6 fw-semibold">{% translate "Ваші файли — приватні" %}</h2>
+          <p class="small mb-0">
+            {% translate "Книги лежать у приватному сховищі. Без вашого дозволу — групи чи посилання — їх ніхто не побачить, а посилання можна відкликати." %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="text-center pb-4">
+  {% if user.is_authenticated %}
+    <a href="{% url 'book_library:book_upload' %}" class="btn btn-primary">
+      <i class="bi bi-upload me-1"></i> {% translate "Завантажити першу книгу" %}
+    </a>
+  {% else %}
+    <a href="{% url 'accounts:register' %}" class="btn btn-primary">{% translate "Створити акаунт" %}</a>
+  {% endif %}
+</div>

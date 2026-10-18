@@ -6,6 +6,7 @@ app_name = "book_library"
 
 urlpatterns = [
     path("", views.home_view, name="home"),
+    path("welcome/", views.welcome_view, name="welcome"),
 
     path("library/", views.library_view, name="library"),
     path("library/folder/<int:pk>/", views.library_view, name="folder"),

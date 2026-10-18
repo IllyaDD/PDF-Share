@@ -51,7 +51,7 @@ def register_view(request):
         if not url_has_allowed_host_and_scheme(
             next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
         ):
-            next_url = reverse("book_library:home")
+            next_url = reverse("book_library:welcome")
 
         response = redirect(next_url)
         response.set_cookie(
@@ -149,7 +149,7 @@ class GoogleCallbackView(View):
 
         login(request, user, backend=MODEL_BACKEND)
 
-        response = redirect("book_library:home")
+        response = redirect("book_library:welcome" if created else "book_library:home")
         response.set_cookie(
             key="google_registration_success",
             value="1",
