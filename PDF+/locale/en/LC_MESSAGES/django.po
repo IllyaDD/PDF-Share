@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 13:13+0000\n"
+"POT-Creation-Date: 2026-10-20 14:38+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -96,7 +96,7 @@ msgstr "New topic name"
 
 #: annotations/templates/annotations/annotation_list.html:31
 #: sharing/templates/sharing/group_detail.html:11
-#: sharing/templates/sharing/group_list.html:33
+#: sharing/templates/sharing/group_list.html:31
 #: templates/partials/folder_card.html:27
 msgid "Перейменувати"
 msgstr "Rename"
@@ -172,7 +172,7 @@ msgstr "The highlight and its comment will be deleted."
 #: annotations/templates/annotations/partials/annotation_item.html:31
 #: book_library/templates/book_library/book_detail.html:261
 #: sharing/templates/sharing/group_detail.html:43
-#: sharing/templates/sharing/group_list.html:41
+#: sharing/templates/sharing/group_list.html:39
 #: templates/partials/book_card.html:71
 #: templates/partials/confirm_modal.html:16
 #: templates/partials/confirm_modal.html:31
@@ -327,7 +327,7 @@ msgstr "— library root —"
 
 #: book_library/forms.py:67 book_library/forms.py:106
 #: book_library/templates/book_library/book_detail.html:174 sharing/forms.py:28
-#: users/forms.py:75
+#: users/forms.py:68
 msgid "Зберегти"
 msgstr "Save"
 
@@ -421,7 +421,7 @@ msgid "Читати"
 msgstr "Read"
 
 #: book_library/templates/book_library/book_detail.html:19
-#: templates/partials/book_card.html:41 users/templates/users/profile.html:20
+#: templates/partials/book_card.html:41 users/templates/users/profile.html:19
 msgid "Редагувати"
 msgstr "Edit"
 
@@ -753,7 +753,7 @@ msgstr "Create"
 #: templates/partials/confirm_modal.html:13
 #: templates/partials/form_card.html:12 templates/partials/move_modal.html:26
 #: users/templates/users/password_change_form.html:16
-#: users/templates/users/profile.html:63
+#: users/templates/users/profile.html:62
 msgid "Скасувати"
 msgstr "Cancel"
 
@@ -795,8 +795,8 @@ msgstr "Log in to highlight this book."
 
 #: book_library/templates/book_library/book_reader.html:184
 #: sharing/templates/sharing/group_join.html:35 templates/nav.html:57
-#: users/forms.py:56 users/templates/users/password_reset_complete.html:13
-#: users/templates/users/register.html:25
+#: users/forms.py:49 users/templates/users/password_reset_complete.html:13
+#: users/templates/users/register.html:23
 msgid "Увійти"
 msgstr "Log in"
 
@@ -1222,16 +1222,16 @@ msgstr ""
 "Catalog search covers all of its contents."
 
 #: book_library/templates/book_library/welcome_content.html:101
-msgid "Вчитель чи учень?"
-msgstr "Teacher or student?"
+msgid "Однакові можливості для всіх"
+msgstr "Same features for everyone"
 
 #: book_library/templates/book_library/welcome_content.html:103
 msgid ""
-"Роль у профілі не обмежує можливостей: завантажувати книги, створювати групи "
-"й ділитися може кожен. Хто що бачить, визначає власник матеріалу."
+"Завантажувати книги, створювати групи й ділитися може кожен. Хто що бачить, "
+"визначає власник матеріалу."
 msgstr ""
-"The role in your profile doesn't limit what you can do: anyone can upload "
-"books, create groups and share. The owner of a material decides who sees it."
+"Anyone can upload books, create groups and share. The owner of a material "
+"decides who sees it."
 
 #: book_library/templates/book_library/welcome_content.html:112
 msgid "Ваші файли — приватні"
@@ -1547,7 +1547,7 @@ msgid "На головну"
 msgstr "Go home"
 
 #: sharing/templates/sharing/group_join.html:25
-#: sharing/templates/sharing/group_list.html:60 sharing/views.py:61
+#: sharing/templates/sharing/group_list.html:58 sharing/views.py:61
 #, python-format
 msgid "Вчитель: %(teacher)s"
 msgstr "Teacher: %(teacher)s"
@@ -1560,51 +1560,51 @@ msgstr "Join group"
 msgid "Щоб приєднатися, увійдіть або створіть акаунт."
 msgstr "Log in or create an account to join."
 
-#: sharing/templates/sharing/group_join.html:36 users/forms.py:43
-#: users/templates/users/login.html:29
+#: sharing/templates/sharing/group_join.html:36 users/forms.py:36
+#: users/templates/users/login.html:27
 msgid "Зареєструватися"
 msgstr "Sign up"
 
-#: sharing/templates/sharing/group_list.html:9 sharing/views.py:82
+#: sharing/templates/sharing/group_list.html:8 sharing/views.py:82
 #: sharing/views.py:83
 msgid "Нова група"
 msgstr "New group"
 
-#: sharing/templates/sharing/group_list.html:16
+#: sharing/templates/sharing/group_list.html:14
 msgid "Мої групи"
 msgstr "My groups"
 
-#: sharing/templates/sharing/group_list.html:25
+#: sharing/templates/sharing/group_list.html:23
 #, python-format
 msgid "%(members)s учасників · %(materials)s матеріалів"
 msgstr "Members: %(members)s · Materials: %(materials)s"
 
-#: sharing/templates/sharing/group_list.html:29
+#: sharing/templates/sharing/group_list.html:27
 msgid "Дії з групою"
 msgstr "Group actions"
 
-#: sharing/templates/sharing/group_list.html:39
+#: sharing/templates/sharing/group_list.html:37
 #, python-format
 msgid "Видалити групу «%(name)s»?"
 msgstr "Delete group “%(name)s”?"
 
-#: sharing/templates/sharing/group_list.html:40
+#: sharing/templates/sharing/group_list.html:38
 msgid "Учасники втратять доступ до наданих через цю групу матеріалів."
 msgstr "Members will lose access to materials shared through this group."
 
-#: sharing/templates/sharing/group_list.html:52
+#: sharing/templates/sharing/group_list.html:50
 msgid "Я учасник"
 msgstr "Member of"
 
-#: sharing/templates/sharing/group_list.html:68
+#: sharing/templates/sharing/group_list.html:66
 msgid "Груп немає"
 msgstr "No groups"
 
-#: sharing/templates/sharing/group_list.html:68
+#: sharing/templates/sharing/group_list.html:66
 msgid "Групи дають класу доступ до ваших матеріалів одним рухом."
 msgstr "Groups give a whole class access to your materials in one step."
 
-#: sharing/templates/sharing/group_list.html:68
+#: sharing/templates/sharing/group_list.html:66
 msgid "Створити групу"
 msgstr "Create group"
 
@@ -1858,6 +1858,10 @@ msgstr "Delete folder “%(name)s”?"
 msgid "Вкладені теки та книги буде видалено разом з нею."
 msgstr "Nested folders and books will be deleted with it."
 
+#: templates/partials/google_button.html:4
+msgid "Продовжити з Google"
+msgstr "Continue with Google"
+
 #: templates/partials/messages.html:7
 msgid "Закрити"
 msgstr "Close"
@@ -1891,37 +1895,21 @@ msgstr "Search"
 msgid "Можливості PDF+"
 msgstr "PDF+ features"
 
-#: users/admin.py:23 users/admin.py:24
-msgid "Роль"
-msgstr "Role"
-
 #: users/forms.py:20
 msgid "На цю адресу зіставляється акаунт при вході через Google."
 msgstr "Google sign-in matches your account by this address."
 
-#: users/forms.py:23
-msgid "Я реєструюсь як"
-msgstr "I am signing up as"
-
-#: users/forms.py:87
+#: users/forms.py:80
 msgid "Надіслати посилання"
 msgstr "Send link"
 
-#: users/forms.py:100
+#: users/forms.py:93
 msgid "Зберегти пароль"
 msgstr "Save password"
 
-#: users/forms.py:114 users/templates/users/profile.html:18
+#: users/forms.py:107 users/templates/users/profile.html:17
 msgid "Змінити пароль"
 msgstr "Change password"
-
-#: users/models.py:9
-msgid "Вчитель"
-msgstr "Teacher"
-
-#: users/models.py:10
-msgid "Учень"
-msgstr "Student"
 
 #: users/templates/users/edit_profile.html:5
 #: users/templates/users/edit_profile.html:12
@@ -1978,11 +1966,7 @@ msgstr "Forgot your password?"
 msgid "або"
 msgstr "or"
 
-#: users/templates/users/login.html:25 users/templates/users/register.html:21
-msgid "Продовжити з Google"
-msgstr "Continue with Google"
-
-#: users/templates/users/login.html:29
+#: users/templates/users/login.html:27
 msgid "Немає акаунта?"
 msgstr "Don't have an account?"
 
@@ -2058,41 +2042,41 @@ msgstr ""
 "Signed up with Google? No need to reset your password — <a "
 "href=\"%(google_url)s\">log in with Google</a>."
 
-#: users/templates/users/profile.html:25
+#: users/templates/users/profile.html:24
 msgid "Ім'я"
 msgstr "Name"
 
-#: users/templates/users/profile.html:31
+#: users/templates/users/profile.html:30
 msgid "Зареєстровано"
 msgstr "Joined"
 
-#: users/templates/users/profile.html:39
+#: users/templates/users/profile.html:38
 msgid "Видалення акаунта"
 msgstr "Delete account"
 
-#: users/templates/users/profile.html:41
+#: users/templates/users/profile.html:40
 msgid "Разом з акаунтом безповоротно видаляються ваші теки, книги та анотації."
 msgstr ""
 "Your folders, books and annotations are permanently deleted together with "
 "the account."
 
-#: users/templates/users/profile.html:45
+#: users/templates/users/profile.html:44
 msgid "Видалити акаунт"
 msgstr "Delete account"
 
-#: users/templates/users/profile.html:56
+#: users/templates/users/profile.html:55
 msgid "Видалити акаунт?"
 msgstr "Delete account?"
 
-#: users/templates/users/profile.html:60
+#: users/templates/users/profile.html:59
 msgid "Дію не можна скасувати. Усі ваші дані буде видалено назавжди."
 msgstr "This cannot be undone. All your data will be deleted forever."
 
-#: users/templates/users/profile.html:66
+#: users/templates/users/profile.html:65
 msgid "Видалити назавжди"
 msgstr "Delete forever"
 
-#: users/templates/users/register.html:25
+#: users/templates/users/register.html:23
 msgid "Вже маєте акаунт?"
 msgstr "Already have an account?"
 

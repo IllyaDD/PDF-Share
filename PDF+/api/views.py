@@ -24,7 +24,7 @@ class TokenPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         user = self.user
-        data["user"] = {"id": user.pk, "username": user.username, "role": user.role}
+        data["user"] = {"id": user.pk, "username": user.username}
         return data
 
 

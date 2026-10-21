@@ -52,7 +52,6 @@ class ApiTestCase(TestCase):
             username="vchytel",
             email="vchytel@example.com",
             password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.client = APIClient()
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.user)}")
@@ -70,7 +69,7 @@ class TokenTests(ApiTestCase):
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["user"], {"id": self.user.pk, "username": "uchen", "role": "student"})
+        self.assertEqual(data["user"], {"id": self.user.pk, "username": "uchen"})
         self.assertEqual(AccessToken(data["access"])["user_id"], str(self.user.pk))
         self.assertEqual(RefreshToken(data["refresh"])["user_id"], str(self.user.pk))
 

@@ -1,9 +1,3 @@
-# Деплой на self-hosted runner на сервері — після зеленого CI на push у master.
-#
-# Окремий workflow, а не job у ci.yml: на PR він не з'являється навіть як пропущений check,
-# а workflow_run GitHub завжди бере з master — PR не може змінити те, що виконується
-# на сервері. needs між workflow-ами не працює, тому успіх CI перевіряє conclusion.
-
 name: CD
 
 on:
@@ -27,7 +21,7 @@ jobs:
     environment:
       name: production
       url: https://pdf-share.website
-    # Деплої по черзі; старіший, що чекає, замінюється новішим. Той, що вже йде,
+    # Деплої по черзі; старіший, що чекає, замінюється новішим
     # не обривається — інакше наступний merge зупинив би деплой посеред міграції.
     concurrency:
       group: deploy-production

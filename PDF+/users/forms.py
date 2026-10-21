@@ -19,16 +19,10 @@ class RegistrationForm(UserCreationForm):
         label="Email",
         help_text=_("На цю адресу зіставляється акаунт при вході через Google."),
     )
-    role = forms.ChoiceField(
-        label=_("Я реєструюсь як"),
-        choices=User.Role.choices,
-        initial=User.Role.STUDENT,
-        widget=forms.RadioSelect,
-    )
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "email", "role")
+        fields = ("username", "email")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +31,6 @@ class RegistrationForm(UserCreationForm):
         self.helper.layout = Layout(
             "username",
             "email",
-            "role",
             "password1",
             "password2",
             Submit("submit", _("Зареєструватися"), css_class="btn btn-primary w-100 mt-3"),

@@ -91,16 +91,17 @@ class DashboardTests(TestCase):
         from book_library.tests import make_pdf
 
         self.teacher = User.objects.create_user(
-            username="t", email="t@example.com", password="parol-parol-42", role=User.Role.TEACHER
+            username="t", email="t@example.com", password="parol-parol-42"
         )
         self.student = User.objects.create_user(
-            username="s", email="s@example.com", password="parol-parol-42", role=User.Role.STUDENT
+            username="s", email="s@example.com", password="parol-parol-42"
         )
         self.folder = Folder.objects.create(owner=self.teacher, name="Тека")
         self.book = Book.objects.create(owner=self.teacher, title="Книга", file=make_pdf(), page_count=1)
         layer = Layer.objects.create(book=self.book, owner=self.student)
         Annotation.objects.create(layer=layer, page_number=1, coords=[])
-        Group.objects.create(owner=self.teacher, name="Клас")
+        group = Group.objects.create(owner=self.teacher, name="Клас")
+        GroupMembership.objects.create(group=group, user=self.student)
         ShareLink.objects.create(book=self.book, token="live", created_by=self.teacher)
         ShareLink.objects.create(
             book=self.book,
@@ -115,8 +116,9 @@ class DashboardTests(TestCase):
 
     def test_stats_count_business_objects(self):
         stats = {item["title"]: item["value"] for item in self._context()["stats"]}
-        self.assertEqual(stats["Teachers"], 1)
-        self.assertEqual(stats["Students"], 1)
+        self.assertEqual(stats["Users"], 2)
+        self.assertEqual(stats["Group owners"], 1)
+        self.assertEqual(stats["Group members"], 1)
         self.assertEqual(stats["Books"], 1)
         self.assertEqual(stats["Folders"], 1)
         self.assertEqual(stats["Annotations"], 1)
@@ -145,7 +147,7 @@ class DashboardTests(TestCase):
         )
         self.client.force_login(root)
         response = self.client.get(reverse("admin:index"))
-        self.assertContains(response, "Teachers")
+        self.assertContains(response, "Group owners")
         self.assertContains(response, "Active share links")
         self.assertContains(response, 'data-type="line"')
 

@@ -332,7 +332,6 @@ class GroupAccessVisibilityTests(TestCase):
         self.GroupAccess = GroupAccess
         self.teacher = User.objects.create_user(
             username="vch", email="vch@example.com", password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.student = User.objects.create_user(
             username="uch", email="uch@example.com", password="parol-parol-42"
