@@ -37,7 +37,6 @@ class GroupPageTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
             username="vchytelka", email="v@example.com", password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.student = User.objects.create_user(
             username="uchenytsia", email="u@example.com", password="parol-parol-42"
@@ -120,7 +119,6 @@ class GroupInviteTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
             username="vchytelka", email="v@example.com", password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.newcomer = User.objects.create_user(
             username="novachok", email="n@example.com", password="parol-parol-42"
@@ -218,7 +216,6 @@ class GroupInviteTests(TestCase):
             {
                 "username": "marichka",
                 "email": "marichka@example.com",
-                "role": User.Role.STUDENT,
                 "password1": "spravzhniy-parol-42",
                 "password2": "spravzhniy-parol-42",
             },
@@ -231,7 +228,6 @@ class GroupInviteTests(TestCase):
             {
                 "username": "marichka",
                 "email": "marichka@example.com",
-                "role": User.Role.STUDENT,
                 "password1": "spravzhniy-parol-42",
                 "password2": "spravzhniy-parol-42",
             },
@@ -346,7 +342,6 @@ class GroupAccessTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user(
             username="vchytel2", email="v2@example.com", password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.student = User.objects.create_user(
             username="uchen2", email="u2@example.com", password="parol-parol-42"

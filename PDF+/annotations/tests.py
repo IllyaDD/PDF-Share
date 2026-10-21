@@ -581,7 +581,6 @@ class SharedLayerTestCase(TestCase):
             username="vchytelka",
             email="vchytelka@example.com",
             password="parol-parol-42",
-            role=User.Role.TEACHER,
         )
         self.student = User.objects.create_user(
             username="uchen", email="uchen@example.com", password="parol-parol-42"

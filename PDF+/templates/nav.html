@@ -38,8 +38,8 @@
         <div class="dropdown">
           <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
                   data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
             <span class="d-none d-sm-inline">{{ user.username }}</span>
-            <span class="badge text-bg-secondary">{{ user.get_role_display }}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">{% translate "Профіль" %}</a></li>

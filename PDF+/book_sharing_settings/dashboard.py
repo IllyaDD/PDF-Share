@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from annotations.models import Annotation
 from book_library.models import Book, Folder
-from sharing.models import Group, ShareLink
+from sharing.models import Group, GroupMembership, ShareLink
 from users.models import User
 
 CHART_DAYS = 30
@@ -27,17 +27,16 @@ def environment_callback(request):
 
 
 def _stats():
-    users = User.objects.aggregate(
-        teachers=Count("id", filter=Q(role=User.Role.TEACHER)),
-        students=Count("id", filter=Q(role=User.Role.STUDENT)),
-    )
+    group_owners = Group.objects.values("owner").distinct().count()
+    group_members = GroupMembership.objects.values("user").distinct().count()
     active_links = ShareLink.objects.filter(
         Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now())
     ).count()
 
     return [
-        {"title": "Teachers", "value": users["teachers"], "icon": "school"},
-        {"title": "Students", "value": users["students"], "icon": "person"},
+        {"title": "Users", "value": User.objects.count(), "icon": "person"},
+        {"title": "Group owners", "value": group_owners, "icon": "school"},
+        {"title": "Group members", "value": group_members, "icon": "group"},
         {"title": "Books", "value": Book.objects.count(), "icon": "menu_book"},
         {"title": "Folders", "value": Folder.objects.count(), "icon": "folder"},
         {"title": "Annotations", "value": Annotation.objects.count(), "icon": "ink_highlighter"},

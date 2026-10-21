@@ -61,7 +61,7 @@ A classic monolithic Django project with server-side rendering. Five apps:
 
 | App | Responsibility |
 |---|---|
-| `users` | custom `User` model with a role (teacher / student), registration, password and Google sign-in, profile |
+| `users` | custom `User` model, registration, password and Google sign-in, profile |
 | `book_library` | folders (a tree via a self-FK), books, PDF upload and validation, reader, catalog, access rules |
 | `sharing` | groups (classes), membership, group access to a book or folder, token links |
 | `annotations` | annotation layers (one layer per user and book), highlights with notes, JSON API for the reader |
@@ -81,7 +81,7 @@ Key internal modules:
 ### Users
 
 - Sign up with a password or sign in with Google. A Google account has no password.
-- Roles: teacher and student. The role affects admin statistics; permissions on materials are determined by ownership and sharing, not by role.
+- There are no roles: every user can upload books, create groups and share. Permissions on materials are determined by ownership and sharing.
 - Profile: view, edit, change password, delete account.
 - Password reset by email (`/accounts/password/reset/`): the link is valid for one day and works only once. Google accounts don't receive the email — they have no password. An unknown email gets the same response as a known one, so the form can't be used to check whether an address is registered.
 
@@ -198,7 +198,7 @@ Note topics in sync:
 ### Admin
 
 - Unfold with a custom `AdminSite`. The admin path is set in `.env` (`ADMIN_SITE_URL`), so `/admin/` isn't exposed in production.
-- Dashboard: number of teachers, students, books, folders, annotations, groups, active links. A 30-day chart with three series: new users, books, annotations.
+- Dashboard: number of users, group owners, group members, books, folders, annotations, groups, active links. A 30-day chart with three series: new users, books, annotations.
 - Environment badge (Development / Production).
 - PDF uploads through the admin go through the same validation as on the site.
 
@@ -223,7 +223,7 @@ MAN-PDF-Share-Prod/
 └── PDF+/
     ├── manage.py
     ├── book_sharing_settings/     settings, urls, oauth, admin_site, dashboard
-    ├── users/                     User with a role, registration, Google OAuth
+    ├── users/                     User, registration, Google OAuth
     ├── book_library/              folders, books, pdf.py, access.py, signals.py, reader
     ├── sharing/                   groups, membership, access grants, links
     ├── annotations/               layers, annotations, api.py, validators.py

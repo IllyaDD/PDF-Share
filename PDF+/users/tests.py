@@ -13,7 +13,7 @@ class RegistrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "form-control")
         self.assertContains(response, 'name="username"')
-        self.assertContains(response, 'name="role"')
+        self.assertNotContains(response, 'name="role"')
 
     def test_register_creates_user_and_logs_in(self):
         response = self.client.post(
@@ -21,7 +21,6 @@ class RegistrationTests(TestCase):
             {
                 "username": "marichka",
                 "email": "marichka@example.com",
-                "role": User.Role.TEACHER,
                 "password1": "spravzhniy-parol-42",
                 "password2": "spravzhniy-parol-42",
             },
@@ -29,7 +28,6 @@ class RegistrationTests(TestCase):
         self.assertRedirects(response, reverse("book_library:welcome"))
 
         user = User.objects.get(username="marichka")
-        self.assertEqual(user.role, User.Role.TEACHER)
         self.assertEqual(self.client.session["_auth_user_id"], str(user.pk))
         self.assertEqual(response.cookies["registration_success"].value, "1")
 
@@ -39,7 +37,6 @@ class RegistrationTests(TestCase):
             {
                 "username": "taras",
                 "email": "taras@example.com",
-                "role": User.Role.STUDENT,
                 "password1": "spravzhniy-parol-42",
                 "password2": "spravzhniy-parol-42",
             },
@@ -55,7 +52,6 @@ class RegistrationTests(TestCase):
             {
                 "username": "drugiy",
                 "email": "taken@example.com",
-                "role": User.Role.STUDENT,
                 "password1": "spravzhniy-parol-42",
                 "password2": "spravzhniy-parol-42",
             },
@@ -115,21 +111,6 @@ class ProfileTests(TestCase):
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, "Тарас")
-
-    def test_edit_profile_cannot_change_role(self):
-        self.client.force_login(self.user)
-        self.client.post(
-            reverse("accounts:edit_profile"),
-            {
-                "username": "taras",
-                "first_name": "",
-                "last_name": "",
-                "email": "taras@example.com",
-                "role": User.Role.TEACHER,
-            },
-        )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.role, User.Role.STUDENT)
 
     def test_delete_profile_requires_post(self):
         self.client.force_login(self.user)
