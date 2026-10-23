@@ -22,6 +22,12 @@
   <a class="nav-link rounded d-flex align-items-center gap-2 {% if ns == 'sharing' and url_name|slice:':5' == 'group' %}active{% endif %}"
      href="{% url 'sharing:group_list' %}">
     <i class="bi bi-mortarboard"></i> {% translate "Групи" %}
+    {% with invites=pending_invitations_count %}
+      {% if invites %}
+        <span class="badge rounded-pill text-bg-primary ms-auto"
+              title="{% translate "Нові запрошення" %}">{{ invites }}</span>
+      {% endif %}
+    {% endwith %}
   </a>
 
   <a class="nav-link rounded d-flex align-items-center gap-2 {% if ns == 'sharing' and url_name|slice:':4' == 'link' %}active{% endif %}"

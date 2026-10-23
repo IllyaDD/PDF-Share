@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 14:38+0000\n"
+"POT-Creation-Date: 2026-10-23 10:18+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -21,8 +21,8 @@ msgstr "a JSON object is expected"
 
 #: annotations/forms.py:13
 #: book_library/templates/book_library/welcome_content.html:65
-#: sharing/templates/sharing/group_list.html:4 sharing/views.py:27
-#: sharing/views.py:57 templates/partials/sidebar.html:24
+#: sharing/templates/sharing/group_list.html:4 sharing/views.py:31
+#: sharing/views.py:68 templates/partials/sidebar.html:24
 msgid "Групи"
 msgstr "Groups"
 
@@ -96,7 +96,7 @@ msgstr "New topic name"
 
 #: annotations/templates/annotations/annotation_list.html:31
 #: sharing/templates/sharing/group_detail.html:11
-#: sharing/templates/sharing/group_list.html:31
+#: sharing/templates/sharing/group_list.html:58
 #: templates/partials/folder_card.html:27
 msgid "Перейменувати"
 msgstr "Rename"
@@ -172,7 +172,7 @@ msgstr "The highlight and its comment will be deleted."
 #: annotations/templates/annotations/partials/annotation_item.html:31
 #: book_library/templates/book_library/book_detail.html:261
 #: sharing/templates/sharing/group_detail.html:43
-#: sharing/templates/sharing/group_list.html:39
+#: sharing/templates/sharing/group_list.html:66
 #: templates/partials/book_card.html:71
 #: templates/partials/confirm_modal.html:16
 #: templates/partials/confirm_modal.html:31
@@ -336,8 +336,8 @@ msgid "Назва"
 msgstr "Title"
 
 #: book_library/forms.py:76
-#: book_library/templates/book_library/book_detail.html:44 sharing/forms.py:78
-#: sharing/forms.py:178 templates/partials/move_modal.html:12
+#: book_library/templates/book_library/book_detail.html:44 sharing/forms.py:84
+#: sharing/forms.py:184 templates/partials/move_modal.html:12
 msgid "Тека"
 msgstr "Folder"
 
@@ -535,7 +535,7 @@ msgid "Жодна з ваших груп не має доступу до ціє�
 msgstr "None of your groups has access to this book."
 
 #: book_library/templates/book_library/book_detail.html:180
-#: sharing/views.py:193
+#: sharing/views.py:248
 msgid "Надати доступ групі"
 msgstr "Give a group access"
 
@@ -548,7 +548,7 @@ msgid "Надати групі"
 msgstr "Share with group"
 
 #: book_library/templates/book_library/book_detail.html:200
-#: sharing/forms.py:132 sharing/templates/sharing/group_detail.html:87
+#: sharing/forms.py:138 sharing/templates/sharing/group_detail.html:87
 #: sharing/templates/sharing/link_list.html:80
 msgid "Створити посилання"
 msgstr "Create link"
@@ -879,7 +879,7 @@ msgstr "To folder"
 #: book_library/templates/book_library/library.html:21
 #: book_library/templates/book_library/library.html:76
 #: book_library/templates/book_library/welcome_content.html:23
-#: book_library/views.py:445 templates/partials/sidebar.html:48
+#: book_library/views.py:445 templates/partials/sidebar.html:54
 msgid "Завантажити PDF"
 msgstr "Upload PDF"
 
@@ -902,7 +902,6 @@ msgid "%(pages)s с."
 msgstr "%(pages)s p."
 
 #: book_library/templates/book_library/folder_add_books.html:40
-#: sharing/forms.py:39
 msgid "Додати"
 msgstr "Add"
 
@@ -1198,8 +1197,8 @@ msgstr ""
 
 #: book_library/templates/book_library/welcome_content.html:90
 #: sharing/templates/sharing/link_list.html:4
-#: sharing/templates/sharing/link_list.html:20 sharing/views.py:220
-#: templates/partials/sidebar.html:29
+#: sharing/templates/sharing/link_list.html:20 sharing/views.py:275
+#: templates/partials/sidebar.html:35
 msgid "Посилання"
 msgstr "Links"
 
@@ -1335,89 +1334,101 @@ msgstr "“%(title)s” removed from its folder."
 msgid "Назва групи"
 msgstr "Group name"
 
-#: sharing/forms.py:34
-msgid "Username учасника"
-msgstr "Member's username"
+#: sharing/forms.py:35
+msgid "Username користувача"
+msgstr "User's username"
 
-#: sharing/forms.py:51
+#: sharing/forms.py:40
+msgid "Запросити"
+msgstr "Invite"
+
+#: sharing/forms.py:52
 msgid "Користувача з таким username не знайдено."
 msgstr "No user with this username was found."
 
-#: sharing/forms.py:54
+#: sharing/forms.py:56 sharing/views.py:156
+msgid "Ви власник цієї групи."
+msgstr "You own this group."
+
+#: sharing/forms.py:58
 msgid "Цей користувач уже в групі."
 msgstr "This user is already in the group."
 
-#: sharing/forms.py:77 sharing/forms.py:177
+#: sharing/forms.py:60
+msgid "Цього користувача вже запрошено."
+msgstr "This user has already been invited."
+
+#: sharing/forms.py:83 sharing/forms.py:183
 msgid "Книга"
 msgstr "Book"
 
-#: sharing/forms.py:79
+#: sharing/forms.py:85
 msgid "Що побачить отримувач"
 msgstr "What the recipient will see"
 
-#: sharing/forms.py:80
+#: sharing/forms.py:86
 msgid "Які теми показати"
 msgstr "Which topics to show"
 
-#: sharing/forms.py:81 sharing/templates/sharing/link_list.html:21
+#: sharing/forms.py:87 sharing/templates/sharing/link_list.html:21
 msgid "Діє до"
 msgstr "Valid until"
 
-#: sharing/forms.py:85
+#: sharing/forms.py:91
 msgid "Лише книгу"
 msgstr "Only the book"
 
-#: sharing/forms.py:85
+#: sharing/forms.py:91
 msgid "Книгу з моїми нотатками"
 msgstr "The book with my notes"
 
-#: sharing/forms.py:91
+#: sharing/forms.py:97
 msgid "Нотатки відкриються окремим шаром, лише для читання."
 msgstr "Notes open as a separate read-only layer."
 
-#: sharing/forms.py:92
+#: sharing/forms.py:98
 msgid "Нічого не обрано — усі нотатки книги. Лише для посилання на книгу."
 msgstr "Nothing selected — all notes for the book. Only for links to a book."
 
-#: sharing/forms.py:93
+#: sharing/forms.py:99
 msgid "Порожньо — посилання безстрокове."
 msgstr "Leave empty for a link that never expires."
 
-#: sharing/forms.py:105 sharing/forms.py:106 sharing/forms.py:196
-#: sharing/forms.py:197
+#: sharing/forms.py:111 sharing/forms.py:112 sharing/forms.py:202
+#: sharing/forms.py:203
 msgid "— не обрано —"
 msgstr "— not selected —"
 
-#: sharing/forms.py:138
+#: sharing/forms.py:144
 msgid "Дата завершення не може бути в минулому."
 msgstr "The expiry date cannot be in the past."
 
-#: sharing/forms.py:145 sharing/forms.py:214
+#: sharing/forms.py:151 sharing/forms.py:220
 msgid "Оберіть рівно одне: книгу або теку."
 msgstr "Choose exactly one: a book or a folder."
 
-#: sharing/forms.py:151
+#: sharing/forms.py:157
 msgid "Теми можна обрати лише для посилання на книгу з нотатками."
 msgstr "Topics can be chosen only for a link to a book with notes."
 
-#: sharing/forms.py:154
+#: sharing/forms.py:160
 msgid "Обрані теми мають належати обраній книзі."
 msgstr "The selected topics must belong to the selected book."
 
-#: sharing/forms.py:176
+#: sharing/forms.py:182
 msgid "Група"
 msgstr "Group"
 
-#: sharing/forms.py:179
+#: sharing/forms.py:185
 msgid "Права"
 msgstr "Permission"
 
-#: sharing/forms.py:206 sharing/templates/sharing/group_detail.html:110
-#: sharing/views.py:192
+#: sharing/forms.py:212 sharing/templates/sharing/group_detail.html:136
+#: sharing/views.py:247
 msgid "Надати доступ"
 msgstr "Give access"
 
-#: sharing/forms.py:223
+#: sharing/forms.py:229
 #, python-format
 msgid "Група «%(group)s» уже має доступ до «%(target)s»."
 msgstr "Group “%(group)s” already has access to “%(target)s”."
@@ -1438,11 +1449,11 @@ msgstr "which notes"
 msgid "теми"
 msgstr "topics"
 
-#: sharing/models.py:118
+#: sharing/models.py:156
 msgid "Перегляд"
 msgstr "View"
 
-#: sharing/models.py:119
+#: sharing/models.py:157
 msgid "Редагування"
 msgstr "Edit"
 
@@ -1494,37 +1505,51 @@ msgid "Вимкнути"
 msgstr "Disable"
 
 #: sharing/templates/sharing/group_detail.html:83
-msgid "Посилання вимкнене. Учні можуть вступити лише вручну."
-msgstr "The link is disabled. Students can only be added manually."
+msgid "Посилання вимкнене. Учні можуть вступити лише за запрошенням."
+msgstr "The link is disabled. Students can only join by invitation."
 
 #: sharing/templates/sharing/group_detail.html:98
-msgid "Додати учасника"
-msgstr "Add member"
+msgid "Запросити учасника"
+msgstr "Invite a member"
 
-#: sharing/templates/sharing/group_detail.html:107
+#: sharing/templates/sharing/group_detail.html:100
+msgid ""
+"Користувач отримає запрошення і вступить у групу, лише якщо прийме його."
+msgstr "The user will receive an invitation and will join the group only if they accept it."
+
+#: sharing/templates/sharing/group_detail.html:106
+msgid "Очікують відповіді"
+msgstr "Awaiting response"
+
+#: sharing/templates/sharing/group_detail.html:117
+#: sharing/templates/sharing/group_detail.html:118
+msgid "Скасувати запрошення"
+msgstr "Cancel invitation"
+
+#: sharing/templates/sharing/group_detail.html:133
 msgid "Доступні матеріали"
 msgstr "Available materials"
 
-#: sharing/templates/sharing/group_detail.html:125
+#: sharing/templates/sharing/group_detail.html:151
 msgid "Відкликати доступ?"
 msgstr "Revoke access?"
 
-#: sharing/templates/sharing/group_detail.html:126
+#: sharing/templates/sharing/group_detail.html:152
 #, python-format
 msgid "Учасники групи «%(name)s» більше не бачитимуть цей матеріал."
 msgstr "Members of group “%(name)s” will no longer see this material."
 
-#: sharing/templates/sharing/group_detail.html:127
+#: sharing/templates/sharing/group_detail.html:153
 #: sharing/templates/sharing/link_list.html:69
 #: sharing/templates/sharing/link_list.html:70
 msgid "Відкликати"
 msgstr "Revoke"
 
-#: sharing/templates/sharing/group_detail.html:128
+#: sharing/templates/sharing/group_detail.html:154
 msgid "Відкликати доступ"
 msgstr "Revoke access"
 
-#: sharing/templates/sharing/group_detail.html:134
+#: sharing/templates/sharing/group_detail.html:160
 msgid "Групі ще нічого не надано."
 msgstr "Nothing has been shared with the group yet."
 
@@ -1547,7 +1572,7 @@ msgid "На головну"
 msgstr "Go home"
 
 #: sharing/templates/sharing/group_join.html:25
-#: sharing/templates/sharing/group_list.html:58 sharing/views.py:61
+#: sharing/templates/sharing/group_list.html:85 sharing/views.py:72
 #, python-format
 msgid "Вчитель: %(teacher)s"
 msgstr "Teacher: %(teacher)s"
@@ -1565,51 +1590,68 @@ msgstr "Log in or create an account to join."
 msgid "Зареєструватися"
 msgstr "Sign up"
 
-#: sharing/templates/sharing/group_list.html:8 sharing/views.py:82
-#: sharing/views.py:83
+#: sharing/templates/sharing/group_list.html:8 sharing/views.py:93
+#: sharing/views.py:94
 msgid "Нова група"
 msgstr "New group"
 
 #: sharing/templates/sharing/group_list.html:14
+msgid "Запрошення"
+msgstr "Invitations"
+
+#: sharing/templates/sharing/group_list.html:22
+#, python-format
+msgid "Запрошує: %(inviter)s"
+msgstr "Invited by: %(inviter)s"
+
+#: sharing/templates/sharing/group_list.html:28
+msgid "Прийняти"
+msgstr "Accept"
+
+#: sharing/templates/sharing/group_list.html:32
+msgid "Відхилити"
+msgstr "Decline"
+
+#: sharing/templates/sharing/group_list.html:41
 msgid "Мої групи"
 msgstr "My groups"
 
-#: sharing/templates/sharing/group_list.html:23
+#: sharing/templates/sharing/group_list.html:50
 #, python-format
 msgid "%(members)s учасників · %(materials)s матеріалів"
 msgstr "Members: %(members)s · Materials: %(materials)s"
 
-#: sharing/templates/sharing/group_list.html:27
+#: sharing/templates/sharing/group_list.html:54
 msgid "Дії з групою"
 msgstr "Group actions"
 
-#: sharing/templates/sharing/group_list.html:37
+#: sharing/templates/sharing/group_list.html:64
 #, python-format
 msgid "Видалити групу «%(name)s»?"
 msgstr "Delete group “%(name)s”?"
 
-#: sharing/templates/sharing/group_list.html:38
+#: sharing/templates/sharing/group_list.html:65
 msgid "Учасники втратять доступ до наданих через цю групу матеріалів."
 msgstr "Members will lose access to materials shared through this group."
 
-#: sharing/templates/sharing/group_list.html:50
+#: sharing/templates/sharing/group_list.html:77
 msgid "Я учасник"
 msgstr "Member of"
 
-#: sharing/templates/sharing/group_list.html:66
+#: sharing/templates/sharing/group_list.html:93
 msgid "Груп немає"
 msgstr "No groups"
 
-#: sharing/templates/sharing/group_list.html:66
+#: sharing/templates/sharing/group_list.html:93
 msgid "Групи дають класу доступ до ваших матеріалів одним рухом."
 msgstr "Groups give a whole class access to your materials in one step."
 
-#: sharing/templates/sharing/group_list.html:66
+#: sharing/templates/sharing/group_list.html:93
 msgid "Створити групу"
 msgstr "Create group"
 
-#: sharing/templates/sharing/link_list.html:8 sharing/views.py:248
-#: sharing/views.py:249
+#: sharing/templates/sharing/link_list.html:8 sharing/views.py:303
+#: sharing/views.py:304
 msgid "Нове посилання"
 msgstr "New link"
 
@@ -1689,91 +1731,99 @@ msgstr ""
 "<a href=\"%(register_url)s\">Create an account</a> to take notes in this "
 "book."
 
-#: sharing/views.py:38
+#: sharing/views.py:42
 msgid "Немає доступу до цієї групи."
 msgstr "You have no access to this group."
 
-#: sharing/views.py:44
-msgid "Учасника додано."
-msgstr "Member added."
+#: sharing/views.py:50
+#, python-format
+msgid ""
+"Запрошення надіслано. %(username)s з'явиться серед учасників, коли прийме "
+"його."
+msgstr "Invitation sent. %(username)s will appear among the members once they accept it."
 
-#: sharing/views.py:74
+#: sharing/views.py:85
 msgid "Групу створено. Поділіться посиланням для приєднання з учнями."
 msgstr "Group created. Share the join link with your students."
 
-#: sharing/views.py:96
+#: sharing/views.py:107
 msgid "Групу оновлено."
 msgstr "Group updated."
 
-#: sharing/views.py:104
+#: sharing/views.py:115
 msgid "Редагування групи"
 msgstr "Edit group"
 
-#: sharing/views.py:105
+#: sharing/views.py:116
 #, python-format
 msgid "Група «%(name)s»"
 msgstr "Group “%(name)s”"
 
-#: sharing/views.py:116
+#: sharing/views.py:127
 msgid "Групу видалено."
 msgstr "Group deleted."
 
-#: sharing/views.py:127
+#: sharing/views.py:138
 msgid "Посилання для приєднання оновлено. Старе більше не діє."
 msgstr "The join link was regenerated. The old one no longer works."
 
-#: sharing/views.py:131
+#: sharing/views.py:142
 msgid "Посилання для приєднання вимкнено."
 msgstr "The join link is disabled."
 
-#: sharing/views.py:145
-msgid "Ви власник цієї групи."
-msgstr "You own this group."
-
-#: sharing/views.py:149
+#: sharing/views.py:160
 #, python-format
 msgid "Ви вже в групі «%(name)s»."
 msgstr "You are already in group “%(name)s”."
 
-#: sharing/views.py:154
+#: sharing/views.py:165 sharing/views.py:188
 #, python-format
 msgid "Ви приєдналися до групи «%(name)s»."
 msgstr "You joined group “%(name)s”."
 
-#: sharing/views.py:166
+#: sharing/views.py:200
+#, python-format
+msgid "Запрошення до групи «%(name)s» відхилено."
+msgstr "Invitation to group “%(name)s” declined."
+
+#: sharing/views.py:211
+msgid "Запрошення скасовано."
+msgstr "Invitation cancelled."
+
+#: sharing/views.py:221
 msgid "Учасника видалено з групи."
 msgstr "Member removed from the group."
 
-#: sharing/views.py:184
+#: sharing/views.py:239
 msgid "Доступ надано."
 msgstr "Access granted."
 
-#: sharing/views.py:194
+#: sharing/views.py:249
 msgid "Оберіть групу і матеріал — книгу або теку — зі своєї бібліотеки."
 msgstr ""
 "Choose a group and a material — a book or a folder — from your library."
 
-#: sharing/views.py:206
+#: sharing/views.py:261
 msgid "Доступ відкликано."
 msgstr "Access revoked."
 
-#: sharing/views.py:240
+#: sharing/views.py:295
 msgid "Посилання створено."
 msgstr "Link created."
 
-#: sharing/views.py:250
+#: sharing/views.py:305
 msgid "Оберіть книгу або теку, до якої відкриваєте доступ."
 msgstr "Choose the book or folder you want to share."
 
-#: sharing/views.py:261
+#: sharing/views.py:316
 msgid "Посилання відкликано."
 msgstr "Link revoked."
 
-#: sharing/views.py:271
+#: sharing/views.py:326
 msgid "Посилання не існує або було відкликане."
 msgstr "The link does not exist or has been revoked."
 
-#: sharing/views.py:273
+#: sharing/views.py:328
 msgid "Термін дії посилання минув."
 msgstr "The link has expired."
 
@@ -1797,7 +1847,7 @@ msgstr "Dark theme"
 msgid "Мова інтерфейсу"
 msgstr "Interface language"
 
-#: templates/nav.html:45 templates/partials/sidebar.html:36
+#: templates/nav.html:45 templates/partials/sidebar.html:42
 #: users/templates/users/profile.html:4
 msgid "Профіль"
 msgstr "Profile"
@@ -1891,7 +1941,11 @@ msgstr "Where to search"
 msgid "Знайти"
 msgstr "Search"
 
-#: templates/partials/sidebar.html:41
+#: templates/partials/sidebar.html:28
+msgid "Нові запрошення"
+msgstr "New invitations"
+
+#: templates/partials/sidebar.html:47
 msgid "Можливості PDF+"
 msgstr "PDF+ features"
 
@@ -2103,3 +2157,9 @@ msgstr "Profile updated!"
 #: users/views.py:187
 msgid "Акаунт видалено."
 msgstr "Account deleted."
+
+#~ msgid "Додати учасника"
+#~ msgstr "Add member"
+
+#~ msgid "Учасника додано."
+#~ msgstr "Member added."

@@ -13,6 +13,9 @@ urlpatterns = [
     path("groups/<int:pk>/invite/", views.group_invite_view, name="group_invite"),
     path("groups/join/<str:token>/", views.group_join_view, name="group_join"),
     path("memberships/<int:pk>/remove/", views.membership_remove_view, name="membership_remove"),
+    path("invitations/<int:pk>/accept/", views.invitation_accept_view, name="invitation_accept"),
+    path("invitations/<int:pk>/decline/", views.invitation_decline_view, name="invitation_decline"),
+    path("invitations/<int:pk>/cancel/", views.invitation_cancel_view, name="invitation_cancel"),
 
     path("access/new/", views.access_create_view, name="access_create"),
     path("access/<int:pk>/delete/", views.access_delete_view, name="access_delete"),

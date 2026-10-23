@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from users.models import User
 
-from .models import Group, GroupAccess, GroupMembership, ShareLink
+from .models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 
 
 def make_book(owner, title="Книга"):
@@ -67,19 +67,19 @@ class GroupPageTests(TestCase):
         response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "uchenytsia")
-        self.assertContains(response, "Додати учасника")
+        self.assertContains(response, "Запросити учасника")
 
-    def test_add_member_button_is_outline_only(self):
+    def test_invite_member_button_is_outline_only(self):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
         self.assertContains(response, 'class="btn btn-outline-primary mt-2"')
         self.assertNotContains(response, "btn-primary btn btn-outline-primary")
 
-    def test_member_sees_detail_without_member_form(self):
+    def test_member_sees_detail_without_invitation_form(self):
         self.client.force_login(self.student)
         response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Додати учасника")
+        self.assertNotContains(response, "Запросити учасника")
 
     def test_outsider_redirected(self):
         outsider = User.objects.create_user(
@@ -89,7 +89,7 @@ class GroupPageTests(TestCase):
         response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
         self.assertRedirects(response, reverse("sharing:group_list"))
 
-    def test_add_member_by_username(self):
+    def test_username_creates_invitation_not_membership(self):
         newcomer = User.objects.create_user(
             username="novachok", email="n@example.com", password="parol-parol-42"
         )
@@ -97,9 +97,11 @@ class GroupPageTests(TestCase):
         self.client.post(
             reverse("sharing:group_detail", args=[self.group.pk]), {"username": "novachok"}
         )
-        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=newcomer).exists())
+        self.assertFalse(GroupMembership.objects.filter(group=self.group, user=newcomer).exists())
+        invitation = GroupInvitation.objects.get(group=self.group, user=newcomer)
+        self.assertEqual(invitation.invited_by, self.teacher)
 
-    def test_add_unknown_username_rejected(self):
+    def test_invite_unknown_username_rejected(self):
         self.client.force_login(self.teacher)
         response = self.client.post(
             reverse("sharing:group_detail", args=[self.group.pk]), {"username": "nemaie"}
@@ -113,6 +115,133 @@ class GroupPageTests(TestCase):
         self.client.force_login(self.student)
         response = self.client.get(reverse("book_library:shared_with_me"))
         self.assertContains(response, "Спільна книга")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class GroupInvitationTests(TestCase):
+    def setUp(self):
+        self.teacher = User.objects.create_user(
+            username="vchytelka", email="v@example.com", password="parol-parol-42",
+        )
+        self.invitee = User.objects.create_user(
+            username="novachok", email="n@example.com", password="parol-parol-42"
+        )
+        self.group = Group.objects.create(owner=self.teacher, name="10-А", invite_token="zaproshennia")
+        self.detail_url = reverse("sharing:group_detail", args=[self.group.pk])
+
+    def invite(self):
+        return GroupInvitation.objects.create(group=self.group, user=self.invitee, invited_by=self.teacher)
+
+    def is_member(self, user=None):
+        return GroupMembership.objects.filter(group=self.group, user=user or self.invitee).exists()
+
+    def test_duplicate_invitation_rejected(self):
+        self.invite()
+        self.client.force_login(self.teacher)
+        response = self.client.post(self.detail_url, {"username": "novachok"})
+        self.assertContains(response, "вже запрошено")
+        self.assertEqual(GroupInvitation.objects.filter(group=self.group).count(), 1)
+
+    def test_member_cannot_be_invited(self):
+        GroupMembership.objects.create(group=self.group, user=self.invitee)
+        self.client.force_login(self.teacher)
+        response = self.client.post(self.detail_url, {"username": "novachok"})
+        self.assertContains(response, "уже в групі")
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_owner_cannot_invite_self(self):
+        self.client.force_login(self.teacher)
+        response = self.client.post(self.detail_url, {"username": "vchytelka"})
+        self.assertContains(response, "Ви власник")
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_non_owner_cannot_invite(self):
+        member = User.objects.create_user(username="uchen", email="m@example.com", password="parol-parol-42")
+        GroupMembership.objects.create(group=self.group, user=member)
+        self.client.force_login(member)
+        self.client.post(self.detail_url, {"username": "novachok"})
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_invitation_gives_no_access_until_accepted(self):
+        book = make_book(self.teacher, "Закрита книга")
+        GroupAccess.objects.create(group=self.group, book=book, granted_by=self.teacher)
+        self.invite()
+
+        self.client.force_login(self.invitee)
+        self.assertNotContains(self.client.get(reverse("book_library:shared_with_me")), "Закрита книга")
+        response = self.client.get(self.detail_url)
+        self.assertRedirects(response, reverse("sharing:group_list"))
+
+    def test_invitee_sees_invitation_and_badge(self):
+        self.invite()
+        self.client.force_login(self.invitee)
+        response = self.client.get(reverse("sharing:group_list"))
+        self.assertContains(response, "Запрошення")
+        self.assertContains(response, "Запрошує: vchytelka")
+        self.assertContains(response, "Нові запрошення")
+
+    def test_accept_creates_membership_and_removes_invitation(self):
+        invitation = self.invite()
+        self.client.force_login(self.invitee)
+        response = self.client.post(reverse("sharing:invitation_accept", args=[invitation.pk]))
+        self.assertRedirects(response, self.detail_url)
+        self.assertTrue(self.is_member())
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_accept_requires_post(self):
+        invitation = self.invite()
+        self.client.force_login(self.invitee)
+        self.client.get(reverse("sharing:invitation_accept", args=[invitation.pk]))
+        self.assertFalse(self.is_member())
+        self.assertTrue(GroupInvitation.objects.exists())
+
+    def test_decline_removes_invitation_without_membership(self):
+        invitation = self.invite()
+        self.client.force_login(self.invitee)
+        self.client.post(reverse("sharing:invitation_decline", args=[invitation.pk]))
+        self.assertFalse(self.is_member())
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_other_user_cannot_accept_or_decline(self):
+        invitation = self.invite()
+        stranger = User.objects.create_user(username="chuzhyi", email="c@example.com", password="parol-parol-42")
+        self.client.force_login(stranger)
+        for name in ("sharing:invitation_accept", "sharing:invitation_decline"):
+            response = self.client.post(reverse(name, args=[invitation.pk]))
+            self.assertEqual(response.status_code, 404)
+        self.assertFalse(self.is_member(stranger))
+        self.assertTrue(GroupInvitation.objects.exists())
+
+    def test_owner_cannot_accept_on_behalf_of_invitee(self):
+        invitation = self.invite()
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse("sharing:invitation_accept", args=[invitation.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(self.is_member())
+
+    def test_owner_sees_and_cancels_pending_invitation(self):
+        invitation = self.invite()
+        self.client.force_login(self.teacher)
+        response = self.client.get(self.detail_url)
+        self.assertContains(response, "Очікують відповіді")
+        self.assertContains(response, reverse("sharing:invitation_cancel", args=[invitation.pk]))
+
+        self.client.post(reverse("sharing:invitation_cancel", args=[invitation.pk]))
+        self.assertFalse(GroupInvitation.objects.exists())
+
+    def test_invitee_cannot_cancel_via_owner_endpoint(self):
+        invitation = self.invite()
+        self.client.force_login(self.invitee)
+        response = self.client.post(reverse("sharing:invitation_cancel", args=[invitation.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(GroupInvitation.objects.exists())
+
+    def test_join_link_still_works_and_clears_invitation(self):
+        self.invite()
+        self.client.force_login(self.invitee)
+        self.client.post(reverse("sharing:group_join", args=["zaproshennia"]))
+        self.assertTrue(self.is_member())
+        self.assertFalse(GroupInvitation.objects.exists())
 
 
 class GroupInviteTests(TestCase):

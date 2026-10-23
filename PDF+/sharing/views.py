@@ -2,6 +2,7 @@ import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -9,8 +10,8 @@ from django.utils.translation import gettext as _
 from annotations.models import Layer
 from book_library.access import remember_share_token
 
-from .forms import GroupAccessForm, GroupForm, MembershipForm, ShareLinkForm
-from .models import Group, GroupAccess, GroupMembership, ShareLink
+from .forms import GroupAccessForm, GroupForm, InvitationForm, ShareLinkForm
+from .models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 
 
 @login_required
@@ -19,6 +20,9 @@ def group_list_view(request):
         request,
         "sharing/group_list.html",
         {
+            "invitations": GroupInvitation.objects.filter(user=request.user).select_related(
+                "group", "invited_by"
+            ),
             "owned_groups": Group.objects.filter(owner=request.user),
             "member_groups": Group.objects.filter(memberships__user=request.user).exclude(
                 owner=request.user
@@ -38,10 +42,14 @@ def group_detail_view(request, pk):
         messages.error(request, _("Немає доступу до цієї групи."))
         return redirect("sharing:group_list")
 
-    form = MembershipForm(request.POST if request.method == "POST" else None, group=group) if is_owner else None
+    form = InvitationForm(request.POST if request.method == "POST" else None, group=group) if is_owner else None
     if is_owner and request.method == "POST" and form.is_valid():
-        GroupMembership.objects.create(group=group, user=form.cleaned_user)
-        messages.success(request, _("Учасника додано."))
+        GroupInvitation.objects.create(group=group, user=form.cleaned_user, invited_by=request.user)
+        messages.success(
+            request,
+            _("Запрошення надіслано. %(username)s з'явиться серед учасників, коли прийме його.")
+            % {"username": form.cleaned_user.username},
+        )
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -51,8 +59,11 @@ def group_detail_view(request, pk):
             "group": group,
             "is_owner": is_owner,
             "memberships": GroupMembership.objects.filter(group=group).select_related("user"),
+            "invitations": (
+                GroupInvitation.objects.filter(group=group).select_related("user") if is_owner else []
+            ),
             "accesses": GroupAccess.objects.filter(group=group).select_related("book", "folder"),
-            "membership_form": form,
+            "invitation_form": form,
             "crumbs": [
                 {"url": reverse("sharing:group_list"), "label": _("Групи")},
                 {"url": "", "label": group.name},
@@ -150,11 +161,55 @@ def group_join_view(request, token):
         return redirect("sharing:group_detail", pk=group.pk)
 
     if request.method == "POST":
-        GroupMembership.objects.create(group=group, user=request.user)
+        _join_group(group, request.user)
         messages.success(request, _("Ви приєдналися до групи «%(name)s».") % {"name": group.name})
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(request, "sharing/group_join.html", {"group": group})
+
+
+def _join_group(group, user):
+    """Членство + прибирання запрошення, якщо було: вступ за посиланням теж його «закриває»."""
+    with transaction.atomic():
+        GroupMembership.objects.get_or_create(group=group, user=user)
+        GroupInvitation.objects.filter(group=group, user=user).delete()
+
+
+@login_required
+def invitation_accept_view(request, pk):
+    invitation = get_object_or_404(
+        GroupInvitation.objects.select_related("group"), pk=pk, user=request.user
+    )
+    if request.method != "POST":
+        return redirect("sharing:group_list")
+
+    group = invitation.group
+    _join_group(group, request.user)
+    messages.success(request, _("Ви приєдналися до групи «%(name)s».") % {"name": group.name})
+    return redirect("sharing:group_detail", pk=group.pk)
+
+
+@login_required
+def invitation_decline_view(request, pk):
+    invitation = get_object_or_404(
+        GroupInvitation.objects.select_related("group"), pk=pk, user=request.user
+    )
+    if request.method == "POST":
+        invitation.delete()
+        messages.info(
+            request, _("Запрошення до групи «%(name)s» відхилено.") % {"name": invitation.group.name}
+        )
+    return redirect("sharing:group_list")
+
+
+@login_required
+def invitation_cancel_view(request, pk):
+    invitation = get_object_or_404(GroupInvitation, pk=pk, group__owner=request.user)
+    group_pk = invitation.group_id
+    if request.method == "POST":
+        invitation.delete()
+        messages.success(request, _("Запрошення скасовано."))
+    return redirect("sharing:group_detail", pk=group_pk)
 
 
 @login_required

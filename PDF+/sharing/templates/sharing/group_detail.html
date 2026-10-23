@@ -80,7 +80,7 @@
               </button>
             </form>
           {% else %}
-            <p class="small text-body-secondary mb-3">{% translate "Посилання вимкнене. Учні можуть вступити лише вручну." %}</p>
+            <p class="small text-body-secondary mb-3">{% translate "Посилання вимкнене. Учні можуть вступити лише за запрошенням." %}</p>
             <form method="post" action="{% url 'sharing:group_invite' group.pk %}">
               {% csrf_token %}
               <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-primary">
@@ -92,11 +92,37 @@
       </div>
     {% endif %}
 
-    {% if is_owner and membership_form %}
+    {% if is_owner and invitation_form %}
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-          <h2 class="h6 mb-3">{% translate "Додати учасника" %}</h2>
-          {% crispy membership_form %}
+          <h2 class="h6 mb-2">{% translate "Запросити учасника" %}</h2>
+          <p class="small text-body-secondary mb-2">
+            {% translate "Користувач отримає запрошення і вступить у групу, лише якщо прийме його." %}
+          </p>
+          {% crispy invitation_form %}
+
+          {% if invitations %}
+            <h3 class="h6 small text-body-secondary text-uppercase mt-4 mb-2">
+              {% translate "Очікують відповіді" %} <span class="badge text-bg-secondary">{{ invitations|length }}</span>
+            </h3>
+            <ul class="list-group list-group-flush">
+              {% for invitation in invitations %}
+                <li class="list-group-item px-0 d-flex align-items-center gap-2">
+                  <i class="bi bi-hourglass-split text-body-secondary"></i>
+                  <span class="flex-grow-1 text-truncate small">{{ invitation.user.username }}</span>
+                  <span class="small text-body-secondary text-nowrap">{{ invitation.created_at|date:"d.m.Y" }}</span>
+                  <form method="post" action="{% url 'sharing:invitation_cancel' invitation.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-link text-danger p-0 px-1"
+                            title="{% translate "Скасувати запрошення" %}"
+                            aria-label="{% translate "Скасувати запрошення" %}">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </form>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
         </div>
       </div>
     {% endif %}
