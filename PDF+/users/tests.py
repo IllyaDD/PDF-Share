@@ -43,6 +43,18 @@ class RegistrationTests(TestCase):
         )
         self.assertRedirects(response, reverse("book_library:catalog"))
 
+    def test_register_ignores_external_next(self):
+        response = self.client.post(
+            reverse("accounts:register") + "?next=https://evil.example.com/",
+            {
+                "username": "ostap",
+                "email": "ostap@example.com",
+                "password1": "spravzhniy-parol-42",
+                "password2": "spravzhniy-parol-42",
+            },
+        )
+        self.assertRedirects(response, reverse("book_library:welcome"))
+
     def test_duplicate_email_rejected(self):
         User.objects.create_user(
             username="pershiy", email="taken@example.com", password="parol-parol-1"

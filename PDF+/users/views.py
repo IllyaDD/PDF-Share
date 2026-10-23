@@ -47,13 +47,15 @@ def register_view(request):
         user = form.save()
         login(request, user, backend=MODEL_BACKEND)
 
+        # Редирект лише всередині гілки, де перевірка пройшла: так само, як у _safe_next(),
+        # і саме цю форму розпізнає CodeQL (перезапис змінної в гілці «не пройшла» — ні).
         next_url = request.GET.get("next", "")
-        if not url_has_allowed_host_and_scheme(
+        if next_url and url_has_allowed_host_and_scheme(
             next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
         ):
-            next_url = reverse("book_library:welcome")
-
-        response = redirect(next_url)
+            response = redirect(next_url)
+        else:
+            response = redirect("book_library:welcome")
         response.set_cookie(
             key="registration_success",
             value="1",
