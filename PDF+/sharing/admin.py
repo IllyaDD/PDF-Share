@@ -2,7 +2,7 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import Group, GroupAccess, GroupMembership, ShareLink
+from .models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 
 
 class GroupMembershipInline(TabularInline):
@@ -10,6 +10,13 @@ class GroupMembershipInline(TabularInline):
     extra = 0
     autocomplete_fields = ("user",)
     readonly_fields = ("joined_at",)
+
+
+class GroupInvitationInline(TabularInline):
+    model = GroupInvitation
+    extra = 0
+    autocomplete_fields = ("user", "invited_by")
+    readonly_fields = ("created_at",)
 
 
 class GroupAccessInline(TabularInline):
@@ -25,7 +32,7 @@ class GroupAdmin(ModelAdmin):
     search_fields = ("name", "owner__username", "owner__email")
     autocomplete_fields = ("owner",)
     readonly_fields = ("invite_token", "created_at")
-    inlines = (GroupMembershipInline, GroupAccessInline)
+    inlines = (GroupMembershipInline, GroupInvitationInline, GroupAccessInline)
 
     @display(description="Members")
     def member_count(self, group):

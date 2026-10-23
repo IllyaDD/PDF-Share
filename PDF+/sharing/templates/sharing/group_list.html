@@ -10,6 +10,33 @@
 {% endblock %}
 
 {% block content %}
+{% if invitations %}
+  <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Запрошення" %}</h2>
+  <div class="list-group mb-4 shadow-sm">
+    {% for invitation in invitations %}
+      <div class="list-group-item d-flex flex-wrap align-items-center gap-3">
+        <i class="bi bi-envelope-open fs-4 text-primary"></i>
+        <div class="flex-grow-1 min-w-0">
+          <div class="fw-medium text-truncate">{{ invitation.group.name }}</div>
+          <div class="small text-body-secondary">
+            {% blocktranslate with inviter=invitation.invited_by.username %}Запрошує: {{ inviter }}{% endblocktranslate %}
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <form method="post" action="{% url 'sharing:invitation_accept' invitation.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-primary">{% translate "Прийняти" %}</button>
+          </form>
+          <form method="post" action="{% url 'sharing:invitation_decline' invitation.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary">{% translate "Відхилити" %}</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
 {% if owned_groups %}
   <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Мої групи" %}</h2>
   <div class="list-group mb-4 shadow-sm">
@@ -62,7 +89,7 @@
   </div>
 {% endif %}
 
-{% if not owned_groups and not member_groups %}
+{% if not owned_groups and not member_groups and not invitations %}
   {% include "partials/empty_state.html" with icon="bi-mortarboard" title=_("Груп немає") text=_("Групи дають класу доступ до ваших матеріалів одним рухом.") action_url=create_url action_label=_("Створити групу") %}
 {% endif %}
 {% endblock %}

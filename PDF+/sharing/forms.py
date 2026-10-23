@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from annotations.models import NoteGroup
 from book_library.models import Book, Folder
 
-from .models import Group, GroupAccess, GroupMembership, ShareLink
+from .models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 
 User = get_user_model()
 
@@ -29,19 +29,20 @@ class GroupForm(forms.ModelForm):
         )
 
 
-class MembershipForm(forms.Form):
+class InvitationForm(forms.Form):
+    """Запрошення за username. Додати в групу без згоди не можна — лише запросити."""
 
-    username = forms.CharField(label=_("Username учасника"), max_length=150)
+    username = forms.CharField(label=_("Username користувача"), max_length=150)
 
     def __init__(self, *args, group=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.group = group
-        add_button = Submit("add_member", _("Додати"))
-        add_button.field_classes = "btn btn-outline-primary mt-2"
+        invite_button = Submit("invite_member", _("Запросити"))
+        invite_button.field_classes = "btn btn-outline-primary mt-2"
 
         self.helper = FormHelper()
         self.helper.form_method = "post"
-        self.helper.layout = Layout("username", add_button)
+        self.helper.layout = Layout("username", invite_button)
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -50,8 +51,13 @@ class MembershipForm(forms.Form):
         except User.DoesNotExist:
             raise forms.ValidationError(_("Користувача з таким username не знайдено."))
 
-        if self.group and GroupMembership.objects.filter(group=self.group, user=user).exists():
-            raise forms.ValidationError(_("Цей користувач уже в групі."))
+        if self.group:
+            if user.pk == self.group.owner_id:
+                raise forms.ValidationError(_("Ви власник цієї групи."))
+            if GroupMembership.objects.filter(group=self.group, user=user).exists():
+                raise forms.ValidationError(_("Цей користувач уже в групі."))
+            if GroupInvitation.objects.filter(group=self.group, user=user).exists():
+                raise forms.ValidationError(_("Цього користувача вже запрошено."))
 
         self.cleaned_user = user
         return username

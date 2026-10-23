@@ -112,6 +112,44 @@ class GroupMembership(models.Model):
         return f"{self.user} @ {self.group}"
 
 
+class GroupInvitation(models.Model):
+    """Запрошення в групу за username: членство з'являється лише після згоди запрошеного.
+
+    Прийняття створює `GroupMembership` і видаляє запрошення, відхилення — лише видаляє.
+    Прав на матеріали запрошення не дає: `visible_books()` дивиться тільки на членство.
+    """
+
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="group_invitations",
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sent_group_invitations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "sharing_groupinvitation"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "user"],
+                name="unique_invitation_per_group_user",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} → {self.group}"
+
+
 class GroupAccess(models.Model):
 
     class Permission(models.TextChoices):
