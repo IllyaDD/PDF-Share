@@ -29,7 +29,6 @@
               </div>
               <div class="flex-grow-1 min-w-0">
                 <div class="fw-medium text-truncate">{{ membership.user.username }}</div>
-                <div class="small text-body-secondary">{{ membership.user.email }}</div>
               </div>
               <span class="small text-body-secondary text-nowrap d-none d-sm-inline">
                 {% blocktranslate with date=membership.joined_at|date:"d.m.Y" %}з {{ date }}{% endblocktranslate %}
@@ -143,7 +142,8 @@
             <span class="flex-grow-1 text-truncate small">
               {% if access.book %}{{ access.book.title }}{% else %}{{ access.folder.name }}{% endif %}
             </span>
-            <span class="badge text-bg-light border">{{ access.get_permission_display }}</span>
+            <a href="{% if access.book %}{% url 'book_library:book_detail' access.book.pk %}{% else %}{% url 'book_library:folder' access.folder.pk %}{% endif %}"
+               class="btn btn-sm btn-outline-secondary py-0">{{ access.get_permission_display }}</a>
             {% if is_owner %}
               <button type="button" class="btn btn-sm btn-link text-danger p-0 px-1"
                       data-bs-toggle="modal" data-bs-target="#confirmModal"

@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-23 10:18+0000\n"
+"POT-Creation-Date: 2026-10-23 19:57+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -171,7 +171,7 @@ msgstr "The highlight and its comment will be deleted."
 
 #: annotations/templates/annotations/partials/annotation_item.html:31
 #: book_library/templates/book_library/book_detail.html:261
-#: sharing/templates/sharing/group_detail.html:43
+#: sharing/templates/sharing/group_detail.html:42
 #: sharing/templates/sharing/group_list.html:66
 #: templates/partials/book_card.html:71
 #: templates/partials/confirm_modal.html:16
@@ -548,7 +548,7 @@ msgid "Надати групі"
 msgstr "Share with group"
 
 #: book_library/templates/book_library/book_detail.html:200
-#: sharing/forms.py:138 sharing/templates/sharing/group_detail.html:87
+#: sharing/forms.py:138 sharing/templates/sharing/group_detail.html:86
 #: sharing/templates/sharing/link_list.html:80
 msgid "Створити посилання"
 msgstr "Create link"
@@ -1423,7 +1423,7 @@ msgstr "Group"
 msgid "Права"
 msgstr "Permission"
 
-#: sharing/forms.py:212 sharing/templates/sharing/group_detail.html:136
+#: sharing/forms.py:212 sharing/templates/sharing/group_detail.html:135
 #: sharing/views.py:247
 msgid "Надати доступ"
 msgstr "Give access"
@@ -1461,72 +1461,74 @@ msgstr "Edit"
 msgid "Учасники"
 msgstr "Members"
 
-#: sharing/templates/sharing/group_detail.html:35
+#: sharing/templates/sharing/group_detail.html:34
 #, python-format
 msgid "з %(date)s"
 msgstr "since %(date)s"
 
-#: sharing/templates/sharing/group_detail.html:41
+#: sharing/templates/sharing/group_detail.html:40
 msgid "Видалити учасника?"
 msgstr "Remove member?"
 
-#: sharing/templates/sharing/group_detail.html:42
+#: sharing/templates/sharing/group_detail.html:41
 #, python-format
 msgid "%(username)s втратить доступ до матеріалів групи."
 msgstr "%(username)s will lose access to the group's materials."
 
-#: sharing/templates/sharing/group_detail.html:49
+#: sharing/templates/sharing/group_detail.html:48
 msgid "Учасників ще немає."
 msgstr "No members yet."
 
-#: sharing/templates/sharing/group_detail.html:60
+#: sharing/templates/sharing/group_detail.html:59
 msgid "Посилання для приєднання"
 msgstr "Join link"
 
-#: sharing/templates/sharing/group_detail.html:63
+#: sharing/templates/sharing/group_detail.html:62
 msgid "Хто відкриє це посилання, зможе самостійно вступити в групу."
 msgstr "Anyone who opens this link can join the group."
 
-#: sharing/templates/sharing/group_detail.html:68
+#: sharing/templates/sharing/group_detail.html:67
 msgid "URL для приєднання"
 msgstr "Join URL"
 
-#: sharing/templates/sharing/group_detail.html:69
+#: sharing/templates/sharing/group_detail.html:68
 #: sharing/templates/sharing/link_list.html:47
 msgid "Скопіювати"
 msgstr "Copy"
 
-#: sharing/templates/sharing/group_detail.html:76
+#: sharing/templates/sharing/group_detail.html:75
 msgid "Оновити"
 msgstr "Regenerate"
 
-#: sharing/templates/sharing/group_detail.html:79
+#: sharing/templates/sharing/group_detail.html:78
 msgid "Вимкнути"
 msgstr "Disable"
 
-#: sharing/templates/sharing/group_detail.html:83
+#: sharing/templates/sharing/group_detail.html:82
 msgid "Посилання вимкнене. Учні можуть вступити лише за запрошенням."
 msgstr "The link is disabled. Students can only join by invitation."
 
-#: sharing/templates/sharing/group_detail.html:98
+#: sharing/templates/sharing/group_detail.html:97
 msgid "Запросити учасника"
 msgstr "Invite a member"
 
-#: sharing/templates/sharing/group_detail.html:100
+#: sharing/templates/sharing/group_detail.html:99
 msgid ""
 "Користувач отримає запрошення і вступить у групу, лише якщо прийме його."
-msgstr "The user will receive an invitation and will join the group only if they accept it."
+msgstr ""
+"The user will receive an invitation and will join the group only if they "
+"accept it."
 
-#: sharing/templates/sharing/group_detail.html:106
+#: sharing/templates/sharing/group_detail.html:105
 msgid "Очікують відповіді"
 msgstr "Awaiting response"
 
+#: sharing/templates/sharing/group_detail.html:116
 #: sharing/templates/sharing/group_detail.html:117
-#: sharing/templates/sharing/group_detail.html:118
 msgid "Скасувати запрошення"
 msgstr "Cancel invitation"
 
-#: sharing/templates/sharing/group_detail.html:133
+#: sharing/templates/sharing/group_detail.html:132
 msgid "Доступні матеріали"
 msgstr "Available materials"
 
@@ -1740,7 +1742,9 @@ msgstr "You have no access to this group."
 msgid ""
 "Запрошення надіслано. %(username)s з'явиться серед учасників, коли прийме "
 "його."
-msgstr "Invitation sent. %(username)s will appear among the members once they accept it."
+msgstr ""
+"Invitation sent. %(username)s will appear among the members once they accept "
+"it."
 
 #: sharing/views.py:85
 msgid "Групу створено. Поділіться посиланням для приєднання з учнями."
@@ -1953,15 +1957,15 @@ msgstr "PDF+ features"
 msgid "На цю адресу зіставляється акаунт при вході через Google."
 msgstr "Google sign-in matches your account by this address."
 
-#: users/forms.py:80
+#: users/forms.py:86
 msgid "Надіслати посилання"
 msgstr "Send link"
 
-#: users/forms.py:93
+#: users/forms.py:99
 msgid "Зберегти пароль"
 msgstr "Save password"
 
-#: users/forms.py:107 users/templates/users/profile.html:17
+#: users/forms.py:118 users/templates/users/profile.html:17
 msgid "Змінити пароль"
 msgstr "Change password"
 
@@ -2134,7 +2138,7 @@ msgstr "Delete forever"
 msgid "Вже маєте акаунт?"
 msgstr "Already have an account?"
 
-#: users/views.py:65 users/views.py:163
+#: users/views.py:65 users/views.py:179
 msgid "Реєстрація успішна!"
 msgstr "Signed up successfully!"
 
@@ -2146,15 +2150,23 @@ msgstr "Password changed."
 msgid "Ви вийшли з акаунта."
 msgstr "You have logged out."
 
-#: users/views.py:163
+#: users/views.py:133
+msgid "Google не підтвердив цю адресу пошти. Увійдіть іншим способом."
+msgstr "Google has not verified this email address. Please sign in another way."
+
+#: users/views.py:164
+msgid "Пароль до акаунта скинуто: тепер вхід — через Google."
+msgstr "Your account password has been reset: sign in with Google from now on."
+
+#: users/views.py:179
 msgid "Вітаємо знову!"
 msgstr "Welcome back!"
 
-#: users/views.py:178
+#: users/views.py:194
 msgid "Профіль успішно оновлено!"
 msgstr "Profile updated!"
 
-#: users/views.py:187
+#: users/views.py:203
 msgid "Акаунт видалено."
 msgstr "Account deleted."
 

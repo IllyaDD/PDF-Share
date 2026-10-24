@@ -68,6 +68,12 @@ class ProfileForm(forms.ModelForm):
             Submit("submit", _("Зберегти"), css_class="btn btn-primary mt-3"),
         )
 
+    def save(self, commit=True):
+        if "email" in self.changed_data:
+            # Нову адресу ніхто не підтвердив — див. User.email_verified.
+            self.instance.email_verified = False
+        return super().save(commit)
+
 
 class ResetRequestForm(PasswordResetForm):
 
@@ -92,6 +98,11 @@ class ResetSetPasswordForm(SetPasswordForm):
             "new_password2",
             Submit("submit", _("Зберегти пароль"), css_class="btn btn-primary w-100 mt-3"),
         )
+
+    def save(self, commit=True):
+        # Посилання прийшло листом на цю адресу — власність пошти доведена.
+        self.user.email_verified = True
+        return super().save(commit)
 
 
 class ChangePasswordForm(PasswordChangeForm):

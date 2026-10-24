@@ -69,6 +69,24 @@ class GroupPageTests(TestCase):
         self.assertContains(response, "uchenytsia")
         self.assertContains(response, "Запросити учасника")
 
+    def test_group_detail_hides_member_email(self):
+        self.client.force_login(self.teacher)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertNotContains(response, "u@example.com")
+
+    def test_shared_materials_link_to_book_and_folder(self):
+        book = make_book(self.teacher, title="Алгебра")
+        folder = Folder.objects.create(owner=self.teacher, name="Геометрія")
+        GroupAccess.objects.create(group=self.group, book=book, granted_by=self.teacher)
+        GroupAccess.objects.create(group=self.group, folder=folder, granted_by=self.teacher)
+        self.client.force_login(self.student)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertContains(response, reverse("book_library:book_detail", args=[book.pk]))
+        self.assertContains(response, reverse("book_library:folder", args=[folder.pk]))
+        self.assertEqual(
+            self.client.get(reverse("book_library:book_detail", args=[book.pk])).status_code, 200
+        )
+
     def test_invite_member_button_is_outline_only(self):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
