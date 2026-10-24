@@ -1,7 +1,8 @@
 import re
+from unittest.mock import patch
 
 from django.core import mail
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from .models import User
@@ -202,6 +203,8 @@ class PasswordResetTests(TestCase):
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("novyi-parol-2026"))
+        # Лист дійшов на цю адресу — пошту підтверджено.
+        self.assertTrue(self.user.email_verified)
 
         # Повторно посилання не спрацьовує: хеш пароля змінився, токен недійсний.
         response = self.client.get(reset_path)
@@ -274,3 +277,84 @@ class PasswordChangeTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("accounts:profile"))
         self.assertContains(response, reverse("accounts:password_change"))
+
+
+@patch("users.views.oauth")
+class GoogleCallbackTests(TestCase):
+    """Акаунт шукається за поштою — перевірки проти входу в чужий акаунт."""
+
+    def _callback(self, oauth, **userinfo):
+        info = {"email": "zhertva@example.com", "email_verified": True, "given_name": "Zhertva"}
+        info.update(userinfo)
+        oauth.google.get.return_value.json.return_value = info
+        return self.client.get(reverse("accounts:google_callback"))
+
+    def test_unverified_google_email_rejected(self, oauth):
+        response = self._callback(oauth, email_verified=False)
+        self.assertRedirects(response, reverse("accounts:login"))
+        self.assertFalse(User.objects.filter(email="zhertva@example.com").exists())
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_new_google_user_is_verified(self, oauth):
+        self._callback(oauth)
+        user = User.objects.get(email="zhertva@example.com")
+        self.assertTrue(user.email_verified)
+        self.assertFalse(user.has_usable_password())
+
+    def test_squatted_account_loses_password_and_sessions(self, oauth):
+        # Хтось зареєструвався з чужою адресою і тримає відкриту сесію.
+        squatter = User.objects.create_user(
+            username="atakuvalnyk", email="zhertva@example.com", password="parol-ataky-42"
+        )
+        attacker = Client()
+        attacker.force_login(squatter)
+
+        self._callback(oauth)
+
+        squatter.refresh_from_db()
+        self.assertTrue(squatter.email_verified)
+        self.assertFalse(squatter.has_usable_password())
+        self.assertEqual(self.client.session["_auth_user_id"], str(squatter.pk))
+        # Стара сесія атакувальника більше не автентифікована.
+        response = attacker.get(reverse("accounts:profile"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_verified_account_keeps_password_and_sessions(self, oauth):
+        user = User.objects.create_user(
+            username="zhertva", email="zhertva@example.com", password="parol-parol-42",
+            email_verified=True,
+        )
+        other_device = Client()
+        other_device.force_login(user)
+
+        self._callback(oauth)
+
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("parol-parol-42"))
+        self.assertEqual(other_device.get(reverse("accounts:profile")).status_code, 200)
+
+
+class EmailVerifiedTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="oksana", email="oksana@example.com", password="parol-parol-42",
+            email_verified=True,
+        )
+        self.client.force_login(self.user)
+
+    def _edit(self, email):
+        return self.client.post(
+            reverse("accounts:edit_profile"),
+            {"username": "oksana", "first_name": "", "last_name": "", "email": email},
+        )
+
+    def test_changing_email_drops_verification(self):
+        self._edit("insha@example.com")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "insha@example.com")
+        self.assertFalse(self.user.email_verified)
+
+    def test_same_email_keeps_verification(self):
+        self._edit("oksana@example.com")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.email_verified)

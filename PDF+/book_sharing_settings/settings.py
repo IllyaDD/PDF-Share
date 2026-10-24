@@ -321,6 +321,9 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "UPDATE_LAST_LOGIN": False,
+    # Токен несе хеш пароля: зміна чи скидання пароля відкликає всі видані токени.
+    # Blacklist не ввімкнений, тож іншого способу відкликати refresh достроково нема.
+    "CHECK_REVOKE_TOKEN": True,
 }
 
 API_SYNC_OVERLAP_SECONDS = 5

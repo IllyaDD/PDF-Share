@@ -86,6 +86,21 @@ class TokenTests(ApiTestCase):
         self.assertEqual(AccessToken(data["access"])["user_id"], str(self.user.pk))
         self.assertNotEqual(data["refresh"], refresh)
 
+    def test_password_change_revokes_issued_tokens(self):
+        refresh = str(RefreshToken.for_user(self.user))
+        access = str(AccessToken.for_user(self.user))
+        self.user.set_unusable_password()
+        self.user.save()
+
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        self.assertEqual(client.get(reverse("api:sync")).status_code, 401)
+
+        # Refresh видає нову пару, але access несе старий хеш пароля — теж відкликаний.
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.json().get('access', '')}")
+        self.assertEqual(client.get(reverse("api:sync")).status_code, 401)
+
     def test_wrong_password_rejected(self):
         response = APIClient().post(
             reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}
