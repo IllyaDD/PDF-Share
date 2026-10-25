@@ -1,8 +1,31 @@
 # PDF+
 
+**English** · [Українська](README.uk.md)
+
+[![CI](https://img.shields.io/github/actions/workflow/status/IllyaDD/PDF-Share/ci.yml?branch=master&label=CI&logo=githubactions&logoColor=white)](https://github.com/IllyaDD/PDF-Share/actions/workflows/ci.yml)
+[![CD](https://img.shields.io/github/actions/workflow/status/IllyaDD/PDF-Share/cd.yml?branch=master&label=CD&logo=githubactions&logoColor=white)](https://github.com/IllyaDD/PDF-Share/actions/workflows/cd.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/IllyaDD/PDF-Share/codeql.yml?branch=master&label=CodeQL&logo=github)](https://github.com/IllyaDD/PDF-Share/actions/workflows/codeql.yml)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fpdf-share.website%2Fhealth%2F&label=pdf-share.website&up_message=online&down_message=offline)](https://pdf-share.website)
+
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![Django](https://img.shields.io/badge/Django-6.1-092E20?logo=django&logoColor=white)
+![DRF](https://img.shields.io/badge/DRF-3.18-A30000?logo=django&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-SimpleJWT-000000?logo=jsonwebtokens&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)
+![PyMuPDF](https://img.shields.io/badge/PyMuPDF-1.28-1E88E5)
+![PDF.js](https://img.shields.io/badge/PDF.js-6.3-E66000?logo=mozilla&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES_modules-F7DF1E?logo=javascript&logoColor=black)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Gunicorn](https://img.shields.io/badge/Gunicorn-26-499848?logo=gunicorn&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-R2_%2B_Tunnel-F38020?logo=cloudflare&logoColor=white)
+![Sentry](https://img.shields.io/badge/Sentry-362D59?logo=sentry&logoColor=white)
+![uv](https://img.shields.io/badge/uv-DE5FE9?logo=uv&logoColor=white)
+
 A web application for storing, reading and sharing PDF books in an educational setting.
 A teacher uploads materials, organizes them into folders, and grants access to classes or via a link.
 Students read books right in the browser and make their own highlights with notes without modifying anyone else's files.
+
+Live at [pdf-share.website](https://pdf-share.website). The interface is available in Ukrainian and English.
 
 ## Contents
 
@@ -13,6 +36,7 @@ Students read books right in the browser and make their own highlights with note
 - [Project structure](#project-structure)
 - [Running locally](#running-locally)
 - [Tests](#tests)
+- [CI/CD and deployment](#cicd-and-deployment)
 
 ## Tech stack
 
@@ -21,18 +45,20 @@ Students read books right in the browser and make their own highlights with note
 | Technology | Version | Purpose |
 |---|---|---|
 | Python | 3.13 | application language |
-| Django | 6.1 | web framework, ORM, sessions, authentication, admin |
-| PostgreSQL + psycopg 3 | 3.3 | primary database |
-| PyMuPDF (`pymupdf`) | 1.28 | validating uploaded PDFs: signature, page count, password, presence of a text layer |
+| Django | 6.1 | web framework, ORM, sessions, authentication, admin, i18n |
+| PostgreSQL + psycopg 3 | 18 / 3.3 | primary database (ICU locale `uk-UA`) |
+| PyMuPDF (`pymupdf`) | 1.28 | validating uploaded PDFs (signature, page count, password, text layer) and rendering covers |
 | Authlib | 1.8 | Google sign-in (OpenID Connect, metadata from the discovery document) |
-| django-storages + boto3 | 1.14 | storing PDFs in Cloudflare R2 via the S3-compatible API |
+| django-storages + boto3 | 1.14 | storing PDFs and covers in Cloudflare R2 via the S3-compatible API |
 | django-unfold | 0.106 | modern admin with a dashboard and an activity chart |
 | django-crispy-forms + crispy-bootstrap5 | 2.7 | rendering forms in Bootstrap 5 style |
 | Django REST Framework + simplejwt | 3.18 / 5.5 | REST API with JWT for the mobile / offline client (`api/`) |
+| gunicorn | 26 | WSGI server in production |
+| whitenoise | 6.12 | serving static files without a separate web server |
 | python-decouple | 3.8 | configuration via `.env` |
 | sentry-sdk[django] | 2.69 | error tracking and performance traces in production |
 | uv | — | dependency manager (`pyproject.toml`, `uv.lock`) |
-| ruff | 0.16 | linter |
+| ruff | — | linter (run via `uvx`) |
 
 `django-redis` is also among the dependencies, but the cache is not configured yet. The reader's
 JSON API (`annotations/api.py`) is also built on DRF, but uses session authentication and CSRF instead of JWT.
@@ -42,16 +68,19 @@ JSON API (`annotations/api.py`) is also built on DRF, but uses session authentic
 | Technology | Version | Purpose |
 |---|---|---|
 | Django Templates | — | server-side page rendering, shared `base.html` with a sidebar |
-| Bootstrap 5 + Bootstrap Icons | 5.3 / 1.11 | grid, components, icons (from a CDN) |
+| Bootstrap 5 + Bootstrap Icons | 5.3 / 1.11 | grid, components, light and dark theme, icons (from a CDN) |
 | PDF.js | 6.3 | rendering PDFs into `<canvas>` and a text layer for selection (vendored in `static/vendor/pdfjs`) |
 | Vanilla JS (ES modules) | — | the reader `static/js/reader.js`: pages, zoom, palette, note popup, color filter |
+| Django `JavaScriptCatalog` | — | translations for strings in `reader.js` |
 | Chart.js (via Unfold) | — | activity chart on the admin dashboard |
 
 ### Infrastructure
 
-- **Cloudflare R2** — a private bucket for PDFs. Files are served via short-lived signed URLs, because access to a book is checked by the application, not by the storage. Enabled with `USE_R2=true`; otherwise files live in `PDF+/media/`.
-- **Sentry** — the single error tracker. An empty `SENTRY_DSN` disables the SDK entirely. No PII is sent in events.
-- **Vercel** — the target deployment platform (the Sentry release is taken from `VERCEL_GIT_COMMIT_SHA`).
+- **Own server + Docker Compose** — three services: `db` (Postgres 18), `web` (gunicorn + Django), `tunnel` (two `cloudflared` replicas). No port is exposed to the outside.
+- **Cloudflare Tunnel** — the only way in. TLS terminates at Cloudflare, traffic reaches `web:8000` through the tunnel.
+- **Cloudflare R2** — a private bucket for PDFs, covers and database backups. Files are served via short-lived signed URLs, because access to a book is checked by the application, not by the storage. Enabled with `USE_R2=true`; otherwise files live in `PDF+/media/`.
+- **GitHub Actions** — CI on GitHub's runners, deployment on a self-hosted runner on the server (see [CI/CD and deployment](#cicd-and-deployment)).
+- **Sentry** — the single error tracker and the cron monitor for backups. An empty `SENTRY_DSN` disables the SDK entirely. No PII is sent in events. The release is the commit hash, set by `deploy.sh`.
 - **Google OAuth** — accounts are matched by email, so email is unique in the user model.
 - **SMTP** — password reset emails. Configured via `MAILERS` (Django 6.1); an empty `SMTP_HOST` prints emails to the console.
 
@@ -62,10 +91,11 @@ A classic monolithic Django project with server-side rendering. Five apps:
 | App | Responsibility |
 |---|---|
 | `users` | custom `User` model, registration, password and Google sign-in, profile |
-| `book_library` | folders (a tree via a self-FK), books, PDF upload and validation, reader, catalog, access rules |
-| `sharing` | groups (classes), membership, group access to a book or folder, token links |
-| `annotations` | annotation layers (one layer per user and book), highlights with notes, JSON API for the reader |
+| `book_library` | folders (a tree via a self-FK), books, PDF upload and validation, covers, reader, catalog, access rules, reading progress |
+| `sharing` | groups (classes), invitations, membership, group access to a book or folder, token links |
+| `annotations` | annotation layers (one layer per user and book), highlights with notes, note topics, layer publishing, JSON API for the reader |
 | `api` | DRF REST API: JWT, catalog, book file, delta sync for the offline client |
+
 [![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/illyadd/pdf-share?utm_source=readme&utm_medium=badge)
 
 Key internal modules:
@@ -73,7 +103,10 @@ Key internal modules:
 - `book_library/access.py` — the single place that decides who sees what. All views filter querysets through `visible_books()` / `visible_folders()`.
 - `book_library/pdf.py` — `inspect_pdf()` for both the site form and the admin: the same validation no matter where the file comes from.
 - `book_library/signals.py` — deletes files from storage after `post_delete` and on file replacement (`pre_save`), deferred until the transaction commits.
+- `book_library/progress.py` — `record_progress()` with last-write-wins by the time the reader was on the page.
 - `annotations/validators.py` — strict validation of the reader's payload before writing it into a `JSONField`.
+- `annotations/groups.py` — note topic operations shared by the web and sync.
+- `book_sharing_settings/health.py` — `/health/` for the Docker healthcheck, answered before the `ALLOWED_HOSTS` check.
 - `book_sharing_settings/dashboard.py` — statistics and the 30-day chart for the admin home page.
 
 ## Features
@@ -81,15 +114,19 @@ Key internal modules:
 ### Users
 
 - Sign up with a password or sign in with Google. A Google account has no password.
+- Google sign-in is accepted only for an email Google has verified. If a local account with the same email exists but its address was never confirmed, its password is reset and the account becomes Google-only — so nobody can pre-register someone else's address and read their books later.
+- After sign-up, a welcome page describes what the site can do.
 - There are no roles: every user can upload books, create groups and share. Permissions on materials are determined by ownership and sharing.
 - Profile: view, edit, change password, delete account.
 - Password reset by email (`/accounts/password/reset/`): the link is valid for one day and works only once. Google accounts don't receive the email — they have no password. An unknown email gets the same response as a known one, so the form can't be used to check whether an address is registered.
+- Interface language switch (Ukrainian / English) and a light / dark theme.
 
 ### Library
 
 - A folder tree of arbitrary depth. Breadcrumbs and a full path ("Parent / Child / Grandchild") for folders with the same name.
 - PDF upload via drag-and-drop. 50 MB limit. Files are validated for real: the `%PDF-` signature, parsing with PyMuPDF, rejecting password-protected and empty documents.
-- On upload, the page count, file size, title from the PDF metadata and a text-layer flag are stored (the flag determines whether highlighting will work).
+- The title is entered by the user and is required. On upload, the page count, file size and a text-layer flag are stored (the flag determines whether highlighting will work).
+- A cover is rendered from the first page and shown on book cards. For books uploaded before covers existed: `manage.py render_covers`.
 - The file's storage key is a random UUID, not the user-supplied name.
 - Rename, replace file, move between folders, delete. Bulk-add books to a folder.
 - Case-insensitive title search with Cyrillic support. Inside a folder, search covers the whole subtree.
@@ -101,7 +138,8 @@ An administrator marks a folder with the `is_catalog` flag. It becomes visible, 
 
 ### Sharing
 
-- **Groups (classes).** A teacher creates a group, adds members, and grants the group access to a book or folder. Access to a folder extends to the whole tree beneath it.
+- **Groups (classes).** A teacher creates a group and grants the group access to a book or folder. Access to a folder extends to the whole tree beneath it.
+- **Joining a group only with consent.** The owner can't add someone directly. There are two ways in: an invite link (the token can be regenerated, which invalidates the old link) or an invitation by username, which the user accepts or declines. A pending invitation grants no access. The owner can cancel an invitation and remove a member.
 - **Token links.** The owner creates a link to a book or folder, with or without an expiry date. The token is generated with `secrets.token_urlsafe(32)`. An opened link is remembered in the session, so navigating between books keeps working without re-entering it.
 - **Links with or without notes.** When creating a link, the author chooses "Book only" (default) or "Book with my notes". The latter gives the recipient — even an anonymous one — read-only access to the author's layer on the book (for a folder, on every book in the subtree), and the button on the link page leads straight into that layer. The link does not expose other users' layers on the same book.
 - **Topics in a link.** For a book link with notes, specific topics can be selected — the recipient will see only those (without topic names). Nothing selected means all notes. If all selected topics are deleted, the link will show no notes.
@@ -110,7 +148,7 @@ An administrator marks a folder with the `is_catalog` flag. It becomes visible, 
 ### Reader
 
 - Pages rendered by PDF.js into canvas, lazy-loaded via `IntersectionObserver`.
-- Zoom from 50% to 300%, jump to a page number.
+- Zoom from 50% to 300%, jump to a page number, previous / next page arrows.
 - Text highlighting with a palette of five light colors (`mix-blend-mode: multiply`, text stays readable).
 - A note on each highlight. A side panel listing annotations and a color filter.
 - Note topics within a book: the "Topic" switch in the reader determines where new highlights go and what is shown; a note can be moved to another topic from the popover. Renaming and deleting topics happen on the "My notes" page (notes of a deleted topic become "Ungrouped").
@@ -126,7 +164,7 @@ An administrator marks a folder with the `is_catalog` flag. It becomes visible, 
 
 Reader JSON API (session authentication, CSRF as for forms):
 
-```
+```text
 GET    /api/books/<id>/annotations/     list the current user's annotations
 GET    /api/books/<id>/shared-layers/   teachers' layers published to the user's groups
 POST   /api/books/<id>/annotations/     create a highlight
@@ -147,7 +185,7 @@ and are rotated on every refresh. The blacklist is not enabled: a refresh token 
 Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
 There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
 
-```
+```text
 POST   /api/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
 GET    /api/catalog/books/       catalog, paginated by 50, ?search= by title
@@ -217,25 +255,29 @@ Files in R2 are private. A file link is signed for 3600 s (configurable via `R2_
 
 ## Project structure
 
-```
+```text
 MAN-PDF-Share-Prod/
 ├── pyproject.toml, uv.lock        dependencies
+├── Dockerfile, compose.yaml       production image and stack (db, web, tunnel)
+├── deploy.sh                      server update: build, migrate, up --wait
+├── backup.sh                      hourly pg_dump → R2 + Sentry cron check-in
+├── .github/workflows/             ci.yml, cd.yml, codeql.yml
 └── PDF+/
     ├── manage.py
-    ├── book_sharing_settings/     settings, urls, oauth, admin_site, dashboard
+    ├── book_sharing_settings/     settings, urls, oauth, admin_site, dashboard, health
     ├── users/                     User, registration, Google OAuth
-    ├── book_library/              folders, books, pdf.py, access.py, signals.py, reader
-    ├── sharing/                   groups, membership, access grants, links
-    ├── annotations/               layers, annotations, api.py, validators.py
+    ├── book_library/              folders, books, pdf.py, access.py, signals.py, progress.py, reader
+    ├── sharing/                   groups, invitations, membership, access grants, links
+    ├── annotations/               layers, annotations, topics, api.py, validators.py
     ├── api/                       REST API (JWT), delta sync
+    ├── locale/en/                 English translation (.po / .mo)
     ├── templates/                 base.html, nav, sidebar, partials
     ├── static/
     │   ├── css/app.css
-    │   ├── js/reader.js
+    │   ├── js/reader.js, js/theme.js
     │   └── vendor/pdfjs/
     └── media/                     local PDF storage (without R2)
 ```
-
 
 ## Running locally
 
@@ -250,13 +292,31 @@ uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
+Create the database with an ICU locale (`--locale-provider=icu --icu-locale=uk-UA`), as in production and CI: with the `C` locale, Cyrillic isn't case-folded by `lower()` / `ILIKE`.
+
 Environment variables are described in `PDF+/.env_example`. Google sign-in needs `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`. R2 needs `USE_R2=true` and the `R2_*` keys. Email needs `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `DEFAULT_FROM_EMAIL`.
+
+After changing interface strings, update the translations (requires GNU gettext):
+
+```bash
+cd PDF+
+uv run python manage.py makemessages -l en --ignore='static/vendor/*' --ignore='media/*'
+uv run python manage.py makemessages -d djangojs -l en --ignore='static/vendor/*' --ignore='media/*'
+uv run python manage.py compilemessages
+```
 
 ## Tests
 
 ```bash
 cd PDF+
-uv run python manage.py test
+uv run python manage.py test --parallel
 ```
 
-Tests never touch R2: storage is forced onto a temporary `MEDIA_ROOT` (`book_sharing_settings/testing.py`). Covered: access rules, PDF validation, sharing, annotations, authentication and the admin.
+Tests never touch R2: storage is forced onto a temporary `MEDIA_ROOT` (`book_sharing_settings/testing.py`). Covered: access rules, PDF validation, sharing and invitations, annotations, the REST API and sync, authentication and the admin.
+
+## CI/CD and deployment
+
+- **CI** (`ci.yml`, every PR and push to `master`): `ruff --select F`, a check for missing migrations, tests against Postgres 18, and a Docker image build.
+- **CD** (`cd.yml`): after a green CI on `master`, the self-hosted runner on the server runs `deploy.sh` for exactly the commit that passed CI. The script builds the image, applies migrations as a separate step (if they fail, the old container keeps running) and waits for the `/health/` healthcheck.
+- **CodeQL** (`codeql.yml`): static analysis of Python, JavaScript and the workflows themselves, on every PR and weekly.
+- **Backups**: `backup.sh` from cron makes an hourly `pg_dump`, copies it to R2 and checks in to Sentry Cron — a missed backup raises an alert.
