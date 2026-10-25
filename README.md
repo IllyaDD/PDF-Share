@@ -186,18 +186,18 @@ Issuing and refreshing tokens is limited to 10 requests per minute per IP addres
 There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
 
 ```text
-POST   /api/auth/token/          {username, password} → {access, refresh, user}
-POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
-GET    /api/catalog/books/       catalog, paginated by 50, ?search= by title
-GET    /api/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
-GET    /api/sync/?since=<ISO>    state delta: books, folders, annotations (own),
-                                 deleted_annotation_ids, note_groups (own topics),
-                                 reading_progress, shared_layers, shared_annotations
-                                 (teachers' layers), visible_book_ids, visible_folder_ids,
-                                 server_time
-POST   /api/sync/                batch {note_groups: {create, update, delete},
-                                        annotations: {create, update, delete},
-                                        reading_progress: [{book, last_page, read_at}]}
+POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
+POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
+GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
+GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
+                                    deleted_annotation_ids, note_groups (own topics),
+                                    reading_progress, shared_layers, shared_annotations
+                                    (teachers' layers), visible_book_ids, visible_folder_ids,
+                                    server_time
+POST   /api/v1/sync/                batch {note_groups: {create, update, delete},
+                                           annotations: {create, update, delete},
+                                           reading_progress: [{book, last_page, read_at}]}
 ```
 
 Without `since`, the pull returns the full state. The client stores `server_time` as the next `since`

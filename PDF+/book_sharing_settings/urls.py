@@ -9,7 +9,9 @@ urlpatterns = [
     path('i18n/', include('django.conf.urls.i18n')),
     path('jsi18n/', JavaScriptCatalog.as_view(), name='javascript-catalog'),
     path('accounts/', include('users.urls')),
-    path('api/', include('api.urls')),
+    # Версія в шляху: встановлений застосунок не оновиш примусово, тож несумісні зміни
+    # контракту йдуть у новий префікс, а старий живе, доки ним користуються.
+    path('api/v1/', include('api.urls')),
     path('', include('sharing.urls')),
     path('', include('annotations.urls')),
     path('', include('book_library.urls')),

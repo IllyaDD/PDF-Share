@@ -186,18 +186,18 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 Сесій і CSRF тут нема, тож share-посилання (джерело 3 у моделі доступу) в API не працюють.
 
 ```text
-POST   /api/auth/token/          {username, password} → {access, refresh, user}
-POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
-GET    /api/catalog/books/       каталог, пагінація по 50, ?search= за назвою
-GET    /api/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
-GET    /api/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
-                                 deleted_annotation_ids, note_groups (власні теми),
-                                 reading_progress, shared_layers, shared_annotations
-                                 (шари вчителів), visible_book_ids, visible_folder_ids,
-                                 server_time
-POST   /api/sync/                батч {note_groups: {create, update, delete},
-                                       annotations: {create, update, delete},
-                                       reading_progress: [{book, last_page, read_at}]}
+POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
+POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
+GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
+GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
+                                    deleted_annotation_ids, note_groups (власні теми),
+                                    reading_progress, shared_layers, shared_annotations
+                                    (шари вчителів), visible_book_ids, visible_folder_ids,
+                                    server_time
+POST   /api/v1/sync/                батч {note_groups: {create, update, delete},
+                                          annotations: {create, update, delete},
+                                          reading_progress: [{book, last_page, read_at}]}
 ```
 
 Без `since` pull повертає повний стан. Клієнт зберігає `server_time` як наступний `since`

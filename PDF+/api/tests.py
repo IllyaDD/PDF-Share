@@ -120,6 +120,15 @@ class TokenTests(ApiTestCase):
             self.assertEqual(anonymous.get(reverse(f"api:{name}")).status_code, 401)
 
 
+class VersionPrefixTests(ApiTestCase):
+    # Шляхи захардкоджені навмисно: reverse() пройшов би й після зміни префікса, встановлений застосунок ходить саме на цей рядок.
+    def test_api_lives_under_v1(self):
+        self.assertEqual(self.client.get("/api/v1/sync/").status_code, 200)
+
+    def test_unversioned_path_is_gone(self):
+        self.assertEqual(self.client.get("/api/sync/").status_code, 404)
+
+
 class CatalogTests(ApiTestCase):
     def setUp(self):
         super().setUp()
