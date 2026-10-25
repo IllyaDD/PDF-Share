@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-23 19:57+0000\n"
+"POT-Creation-Date: 2026-10-24 15:59+0000\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -483,7 +483,7 @@ msgstr "p. %(page)s of %(total)s"
 
 #: book_library/templates/book_library/book_detail.html:106
 #: book_library/templates/book_library/home.html:38
-#: book_library/templates/book_library/welcome_content.html:81
+#: book_library/templates/book_library/welcome_content.html:83
 msgid "Прогрес читання"
 msgstr "Reading progress"
 
@@ -825,7 +825,7 @@ msgstr "Done"
 #: book_library/templates/book_library/catalog.html:4
 #: book_library/templates/book_library/library.html:25
 #: book_library/templates/book_library/welcome_content.html:51
-#: book_library/templates/book_library/welcome_content.html:91
+#: book_library/templates/book_library/welcome_content.html:93
 #: book_library/views.py:46 book_library/views.py:209
 #: templates/partials/sidebar.html:17
 msgid "Каталог"
@@ -1117,23 +1117,24 @@ msgstr ""
 "a scan without a text layer, the reader will warn you: text in such a file "
 "can't be highlighted."
 
-#: book_library/templates/book_library/welcome_content.html:78
+#: book_library/templates/book_library/welcome_content.html:79
+#, python-format
+msgid ""
+"Нічого не треба завантажувати на пристрій: масштаб від 50 до 300 %%, перехід "
+"на потрібну сторінку, сторінки підвантажуються під час гортання."
+msgstr ""
+"Nothing to download to your device: zoom from 50 to 300%%, jump to any page, "
+"pages load as you scroll."
+
+#: book_library/templates/book_library/welcome_content.html:80
 msgid "Читалка в браузері"
 msgstr "In-browser reader"
 
-#: book_library/templates/book_library/welcome_content.html:78
-msgid ""
-"Нічого не треба завантажувати на пристрій: масштаб від 50 до 300 %, перехід "
-"на потрібну сторінку, сторінки підвантажуються під час гортання."
-msgstr ""
-"Nothing to download to your device: zoom from 50 to 300%, jump to any page, "
-"pages load as you scroll."
-
-#: book_library/templates/book_library/welcome_content.html:79
+#: book_library/templates/book_library/welcome_content.html:81
 msgid "Виділення й нотатки"
 msgstr "Highlights and notes"
 
-#: book_library/templates/book_library/welcome_content.html:79
+#: book_library/templates/book_library/welcome_content.html:81
 msgid ""
 "П'ять кольорів виділення, нотатка до кожного фрагмента, бічна панель зі "
 "списком і фільтром за кольором. Ваші виділення бачите лише ви, а сам файл не "
@@ -1143,11 +1144,11 @@ msgstr ""
 "a color filter. Only you see your highlights, and the file itself is never "
 "modified."
 
-#: book_library/templates/book_library/welcome_content.html:80
+#: book_library/templates/book_library/welcome_content.html:82
 msgid "Теми нотаток"
 msgstr "Note topics"
 
-#: book_library/templates/book_library/welcome_content.html:80
+#: book_library/templates/book_library/welcome_content.html:82
 msgid ""
 "Групуйте нотатки в межах книги за темами: перемикач «Тема» в читалці "
 "визначає, куди йдуть нові виділення. Перейменувати чи видалити тему можна на "
@@ -1157,7 +1158,7 @@ msgstr ""
 "where new highlights go. Topics can be renamed or deleted on the “My notes” "
 "page."
 
-#: book_library/templates/book_library/welcome_content.html:81
+#: book_library/templates/book_library/welcome_content.html:83
 msgid ""
 "PDF+ запам'ятовує сторінку, на якій ви зупинилися. Наступного разу книга "
 "відкриється там же, а на головній з'явиться блок «Продовжити читати»."
@@ -1165,15 +1166,15 @@ msgstr ""
 "PDF+ remembers the page where you stopped. Next time the book opens right "
 "there, and the home page shows a “Continue reading” block."
 
-#: book_library/templates/book_library/welcome_content.html:86
+#: book_library/templates/book_library/welcome_content.html:88
 msgid "Спільна робота"
 msgstr "Working together"
 
-#: book_library/templates/book_library/welcome_content.html:88
+#: book_library/templates/book_library/welcome_content.html:90
 msgid "Групи (класи)"
 msgstr "Groups (classes)"
 
-#: book_library/templates/book_library/welcome_content.html:88
+#: book_library/templates/book_library/welcome_content.html:90
 msgid ""
 "Створіть групу, додайте учнів і відкрийте їй доступ до книги чи теки. Доступ "
 "до теки поширюється на все, що в ній лежить, разом із новими матеріалами."
@@ -1181,11 +1182,11 @@ msgstr ""
 "Create a group, add students and give it access to a book or folder. Access "
 "to a folder covers everything inside it, including materials added later."
 
-#: book_library/templates/book_library/welcome_content.html:89
+#: book_library/templates/book_library/welcome_content.html:91
 msgid "Шар вчителя"
 msgstr "Teacher layer"
 
-#: book_library/templates/book_library/welcome_content.html:89
+#: book_library/templates/book_library/welcome_content.html:91
 msgid ""
 "Власник групи може опублікувати свої виділення й нотатки до книги для своїх "
 "груп. Учні перемикаються в читалці між своїми нотатками й нотатками вчителя "
@@ -1195,14 +1196,14 @@ msgstr ""
 "groups. Students switch between their own notes and the teacher's in the "
 "reader — the teacher's layer is read-only."
 
-#: book_library/templates/book_library/welcome_content.html:90
+#: book_library/templates/book_library/welcome_content.html:92
 #: sharing/templates/sharing/link_list.html:4
 #: sharing/templates/sharing/link_list.html:20 sharing/views.py:275
 #: templates/partials/sidebar.html:35
 msgid "Посилання"
 msgstr "Links"
 
-#: book_library/templates/book_library/welcome_content.html:90
+#: book_library/templates/book_library/welcome_content.html:92
 msgid ""
 "Посилання на книгу чи теку — безстрокове або з датою завершення. Можна "
 "поділитися лише книгою або книгою з вашими нотатками (за бажанням — тільки "
@@ -1212,7 +1213,7 @@ msgstr ""
 "the book or the book with your notes (optionally only selected topics). "
 "Links can be revoked at any time."
 
-#: book_library/templates/book_library/welcome_content.html:91
+#: book_library/templates/book_library/welcome_content.html:93
 msgid ""
 "Спільні матеріали, які адміністратор відкрив для всіх зареєстрованих "
 "користувачів. Пошук у каталозі охоплює весь його вміст."
@@ -1220,11 +1221,11 @@ msgstr ""
 "Shared materials an administrator has opened to all registered users. "
 "Catalog search covers all of its contents."
 
-#: book_library/templates/book_library/welcome_content.html:101
+#: book_library/templates/book_library/welcome_content.html:103
 msgid "Однакові можливості для всіх"
 msgstr "Same features for everyone"
 
-#: book_library/templates/book_library/welcome_content.html:103
+#: book_library/templates/book_library/welcome_content.html:105
 msgid ""
 "Завантажувати книги, створювати групи й ділитися може кожен. Хто що бачить, "
 "визначає власник матеріалу."
@@ -1232,11 +1233,11 @@ msgstr ""
 "Anyone can upload books, create groups and share. The owner of a material "
 "decides who sees it."
 
-#: book_library/templates/book_library/welcome_content.html:112
+#: book_library/templates/book_library/welcome_content.html:114
 msgid "Ваші файли — приватні"
 msgstr "Your files are private"
 
-#: book_library/templates/book_library/welcome_content.html:114
+#: book_library/templates/book_library/welcome_content.html:116
 msgid ""
 "Книги лежать у приватному сховищі. Без вашого дозволу — групи чи посилання — "
 "їх ніхто не побачить, а посилання можна відкликати."
@@ -1244,11 +1245,11 @@ msgstr ""
 "Books are kept in private storage. Nobody sees them without your permission "
 "— a group or a link — and links can be revoked."
 
-#: book_library/templates/book_library/welcome_content.html:125
+#: book_library/templates/book_library/welcome_content.html:127
 msgid "Завантажити першу книгу"
 msgstr "Upload your first book"
 
-#: book_library/templates/book_library/welcome_content.html:128
+#: book_library/templates/book_library/welcome_content.html:130
 #: users/templates/users/register.html:12
 msgid "Створити акаунт"
 msgstr "Create account"
@@ -2138,35 +2139,36 @@ msgstr "Delete forever"
 msgid "Вже маєте акаунт?"
 msgstr "Already have an account?"
 
-#: users/views.py:65 users/views.py:179
+#: users/views.py:67 users/views.py:181
 msgid "Реєстрація успішна!"
 msgstr "Signed up successfully!"
 
-#: users/views.py:107
+#: users/views.py:109
 msgid "Пароль змінено."
 msgstr "Password changed."
 
-#: users/views.py:114
+#: users/views.py:116
 msgid "Ви вийшли з акаунта."
 msgstr "You have logged out."
 
-#: users/views.py:133
+#: users/views.py:135
 msgid "Google не підтвердив цю адресу пошти. Увійдіть іншим способом."
-msgstr "Google has not verified this email address. Please sign in another way."
+msgstr ""
+"Google has not verified this email address. Please sign in another way."
 
-#: users/views.py:164
+#: users/views.py:166
 msgid "Пароль до акаунта скинуто: тепер вхід — через Google."
 msgstr "Your account password has been reset: sign in with Google from now on."
 
-#: users/views.py:179
+#: users/views.py:181
 msgid "Вітаємо знову!"
 msgstr "Welcome back!"
 
-#: users/views.py:194
+#: users/views.py:196
 msgid "Профіль успішно оновлено!"
 msgstr "Profile updated!"
 
-#: users/views.py:203
+#: users/views.py:205
 msgid "Акаунт видалено."
 msgstr "Account deleted."
 
