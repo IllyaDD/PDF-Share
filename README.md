@@ -211,6 +211,11 @@ In a push, every operation is independent: errors are returned per item in `erro
 resolved as last-write-wins. For reading progress, the winner is determined by `read_at` (when the client
 was on the page), not by when the push arrived: an offline phone won't overwrite a newer position from the web.
 The `reading_progress` in the response is the actual state after merging.
+Every annotation in `annotations.create` requires a client-generated UUID `client_id`; anything else
+is an item error. Creation is idempotent: repeating a push with the same `client_id` (the response was
+lost after the commit) returns the already created annotation unchanged instead of a duplicate. The key
+is unique within your layer on one book. Own annotations in a pull carry `client_id` (`null` for those
+made on the web); `shared_annotations` don't.
 
 Note topics in sync:
 

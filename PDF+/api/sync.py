@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 from annotations.access import shared_annotations as readable_shared_annotations
@@ -175,14 +176,27 @@ def _update_group(user, item):
     return rename_note_group(group, parse_group_name(item.get("name")))
 
 
+def _uuid(value, field):
+    try:
+        return uuid.UUID(value)
+    except (TypeError, ValueError, AttributeError):
+        raise PayloadError(f"{field}: очікується UUID")
+
+
 def _create(user, item, client_groups, released):
     if not isinstance(item, dict):
         raise PayloadError("очікується JSON-об'єкт")
+    client_id = _uuid(item.get("client_id"), "client_id")
     book = _visible_book(user, item)
     fields = parse_new_annotation(item, book.page_count)
     fields.update(group_fields(item, book.pk, user, client_groups, released))
     layer, _ = Layer.objects.get_or_create(book=book, owner=user)
-    return Annotation.objects.create(layer=layer, **fields)
+    # Повтор пушу після обриву мережі (коміт пройшов, відповідь загубилась) повертає вже
+    # створену нотатку, а не дубль. Ключ — у межах шару, тож UUID з іншої книги не зачепить.
+    annotation, _ = Annotation.objects.get_or_create(
+        layer=layer, client_id=client_id, defaults=fields
+    )
+    return annotation
 
 
 def _record_progress(user, item):
@@ -283,7 +297,8 @@ def _push_note_groups(user, ops, errors):
 def _push_annotations(user, ops, client_groups, released, errors):
     def create(item):
         annotation = _create(user, item, client_groups, released)
-        return {"client_id": item.get("client_id"), **AnnotationSerializer(annotation).data}
+        # client_id — як його надіслав клієнт, а не нормалізований UUID: клієнт шукає за своїм рядком.
+        return {**AnnotationSerializer(annotation).data, "client_id": item["client_id"]}
 
     def update(item):
         return AnnotationSerializer(_update(user, item, client_groups, released)).data

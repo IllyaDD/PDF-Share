@@ -38,6 +38,10 @@ def make_book(owner, title, folder=None, page_count=10):
 
 
 RECT = [{"x0": 1, "y0": 2, "x1": 30, "y1": 40}]
+# client_id нотаток у пуші — UUID, згенерований клієнтом.
+A1 = "0b7e1d2c-3f4a-4b5c-8d6e-7f8091a2b3c4"
+A2 = "1c8f2e3d-4a5b-4c6d-9e7f-8091a2b3c4d5"
+A3 = "2d903f4e-5b6c-4d7e-af80-91a2b3c4d5e6"
 
 
 @override_settings(
@@ -335,7 +339,7 @@ class SyncPushTests(ApiTestCase):
             {
                 "create": [
                     {
-                        "client_id": "c-1",
+                        "client_id": A1,
                         "book": self.book.pk,
                         "page_number": 2,
                         "coords": RECT,
@@ -347,10 +351,57 @@ class SyncPushTests(ApiTestCase):
         )
         created = data["created"][0]
         annotation = Annotation.objects.get(pk=created["id"])
-        self.assertEqual(created["client_id"], "c-1")
+        self.assertEqual(created["client_id"], A1)
+        self.assertEqual(str(annotation.client_id), A1)
         self.assertEqual(annotation.layer.owner, self.user)
         self.assertEqual(annotation.color, "#A5D6A7")
         self.assertEqual(data["errors"], [])
+
+    def new_note(self, client_id, book=None, **fields):
+        return {"client_id": client_id, "book": (book or self.book).pk, "page_number": 1,
+                "coords": RECT, "color": "#FFEB3B", **fields}
+
+    def test_repeated_create_is_idempotent(self):
+        # Коміт пройшов, відповідь загубилась — клієнт повторює той самий пуш.
+        first = self.push({"create": [self.new_note(A1, note_text="раз")]})
+        retry = self.push({"create": [self.new_note(A1, note_text="раз")]})
+        self.assertEqual(retry["errors"], [])
+        self.assertEqual(retry["created"][0]["id"], first["created"][0]["id"])
+        self.assertEqual(Annotation.objects.count(), 1)
+
+    def test_repeated_create_returns_original_unchanged(self):
+        # Повтор — це той самий запит, а не правка: змінений вміст не застосовується.
+        first = self.push({"create": [self.new_note(A1, note_text="перша версія")]})
+        retry = self.push({"create": [self.new_note(A1, note_text="інший текст")]})
+        self.assertEqual(retry["created"][0]["id"], first["created"][0]["id"])
+        self.assertEqual(retry["created"][0]["note_text"], "перша версія")
+
+    def test_client_id_is_echoed_as_sent(self):
+        data = self.push({"create": [self.new_note(A1.upper())]})
+        self.assertEqual(data["created"][0]["client_id"], A1.upper())
+        self.assertEqual(str(Annotation.objects.get().client_id), A1)
+
+    def test_same_client_id_in_other_book_is_separate_note(self):
+        other = make_book(self.user, "Друга", page_count=5)
+        data = self.push({"create": [self.new_note(A1), self.new_note(A1, book=other)]})
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(len({c["id"] for c in data["created"]}), 2)
+
+    def test_create_without_uuid_client_id_is_error(self):
+        note = self.new_note(A1)
+        del note["client_id"]
+        data = self.push(
+            {"create": [note, self.new_note("c-1"), self.new_note(42), self.new_note(A2)]}
+        )
+        self.assertEqual([c["client_id"] for c in data["created"]], [A2])
+        self.assertEqual([e["client_id"] for e in data["errors"]], [None, "c-1", 42])
+        self.assertTrue(all("UUID" in e["error"] for e in data["errors"]))
+        self.assertEqual(Annotation.objects.count(), 1)
+
+    def test_pull_exposes_own_client_id(self):
+        self.push({"create": [self.new_note(A1)]})
+        response = self.client.get(reverse("api:sync"))
+        self.assertEqual(response.json()["annotations"][0]["client_id"], A1)
 
     def test_update_and_delete(self):
         target = self.annotate(self.book)
@@ -369,20 +420,17 @@ class SyncPushTests(ApiTestCase):
         data = self.push(
             {
                 "create": [
-                    {"client_id": "bad-book", "book": self.foreign_book.pk, "page_number": 1,
-                     "coords": RECT, "color": "#FFEB3B"},
-                    {"client_id": "bad-page", "book": self.book.pk, "page_number": 99,
-                     "coords": RECT, "color": "#FFEB3B"},
-                    {"client_id": "ok", "book": self.book.pk, "page_number": 1,
-                     "coords": RECT, "color": "#FFEB3B"},
+                    self.new_note(A1, book=self.foreign_book),  # чужа книга
+                    self.new_note(A2, page_number=99),  # нема такої сторінки
+                    self.new_note(A3),
                 ],
                 "update": [{"id": foreign.pk, "note_text": "чуже"}],
             }
         )
-        self.assertEqual([c["client_id"] for c in data["created"]], ["ok"])
+        self.assertEqual([c["client_id"] for c in data["created"]], [A3])
         self.assertEqual(
             {str(e.get("client_id") or e.get("id")) for e in data["errors"]},
-            {"bad-book", "bad-page", str(foreign.pk)},
+            {A1, A2, str(foreign.pk)},
         )
         foreign.refresh_from_db()
         self.assertEqual(foreign.note_text, "")
@@ -543,6 +591,7 @@ class NoteGroupSyncTests(ApiTestCase):
         notes = self.pull()["shared_annotations"]
         self.assertEqual([n["id"] for n in notes], [shared.pk])
         self.assertNotIn("group", notes[0])
+        self.assertNotIn("client_id", notes[0])
 
     def test_push_creates_group_and_annotation_into_it(self):
         data = self.push(
@@ -550,7 +599,7 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": "Офлайн"}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
                     ]
                 },
@@ -570,7 +619,7 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": " Формули "}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
                     ]
                 },
@@ -584,7 +633,7 @@ class NoteGroupSyncTests(ApiTestCase):
         self.assertEqual(annotation.group, self.group)
 
     def new_note_into(self, client_id):
-        return {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+        return {"client_id": A1, "book": self.book.pk, "page_number": 1,
                 "coords": RECT, "color": "#FFEB3B", "group_client_id": client_id}
 
     def test_push_rename_then_create_same_name(self):
@@ -643,15 +692,15 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.other_book.pk, "name": "Інша"}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"},
-                        {"client_id": "a2", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A2, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "nema"},
                     ]
                 },
             }
         )
-        self.assertEqual([e["client_id"] for e in data["errors"]], ["a1", "a2"])
+        self.assertEqual([e["client_id"] for e in data["errors"]], [A1, A2])
         self.assertEqual(Annotation.objects.count(), 1)  # лише self.note
 
     def test_push_update_annotation_group(self):
