@@ -10,7 +10,9 @@ from annotations.models import Annotation, Layer, LayerPublication, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from book_library.progress import record_progress
 from book_sharing_settings.testing import FILESYSTEM_STORAGES
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from google.auth.exceptions import TransportError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -122,6 +124,119 @@ class TokenTests(ApiTestCase):
         anonymous = APIClient()
         for name in ("catalog_books", "sync"):
             self.assertEqual(anonymous.get(reverse(f"api:{name}")).status_code, 401)
+
+
+GOOGLE_CLAIMS = {
+    "email": "zhertva@example.com",
+    "email_verified": True,
+    "given_name": "Zhertva",
+    "aud": "web-client-id",
+}
+
+
+@override_settings(GOOGLE_TOKEN_AUDIENCES=["web-client-id", "ios-client-id"])
+@patch("api.views.id_token.verify_oauth2_token")
+class GoogleTokenTests(ApiTestCase):
+    """Акаунт шукається за поштою — ті самі перевірки, що й у веб-вході через Google."""
+
+    def setUp(self):
+        super().setUp()
+        # Ліміт auth_token спільний для всіх входів, а LocMemCache живе між тестами.
+        cache.clear()
+
+    def exchange(self, verify, claims=None, token="google-id-token"):
+        verify.return_value = {**GOOGLE_CLAIMS, **(claims or {})}
+        return APIClient().post(reverse("api:auth_google"), {"id_token": token}, format="json")
+
+    def test_new_user_gets_token_pair(self, verify):
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()
+        user = User.objects.get(email="zhertva@example.com")
+        self.assertTrue(data["created"])
+        self.assertEqual(data["user"], {"id": user.pk, "username": user.username})
+        self.assertEqual(AccessToken(data["access"])["user_id"], str(user.pk))
+        self.assertEqual(RefreshToken(data["refresh"])["user_id"], str(user.pk))
+        self.assertTrue(user.email_verified)
+        self.assertFalse(user.has_usable_password())
+
+    def test_token_is_checked_against_our_client_ids(self, verify):
+        self.exchange(verify)
+        args, kwargs = verify.call_args
+        self.assertEqual(args[0], "google-id-token")
+        self.assertEqual(kwargs["audience"], ["web-client-id", "ios-client-id"])
+
+    def test_existing_verified_user_logs_into_own_account(self, verify):
+        user = User.objects.create_user(
+            username="zhertva", email="zhertva@example.com", password="parol-parol-42",
+            email_verified=True,
+        )
+        data = self.exchange(verify).json()
+        self.assertFalse(data["created"])
+        self.assertEqual(data["user"]["id"], user.pk)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("parol-parol-42"))
+
+    def test_squatted_account_loses_password_and_tokens(self, verify):
+        # Хтось зареєструвався з чужою адресою і тримає JWT на своєму пристрої.
+        squatter = User.objects.create_user(
+            username="atakuvalnyk", email="zhertva@example.com", password="parol-ataky-42"
+        )
+        attacker = APIClient()
+        attacker.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(squatter)}")
+
+        self.assertEqual(self.exchange(verify).status_code, 200)
+
+        squatter.refresh_from_db()
+        self.assertTrue(squatter.email_verified)
+        self.assertFalse(squatter.has_usable_password())
+        self.assertEqual(attacker.get(reverse("api:sync")).status_code, 401)
+
+    def test_unverified_google_email_rejected(self, verify):
+        for value in (False, "true", None):
+            with self.subTest(email_verified=value):
+                response = self.exchange(verify, {"email_verified": value})
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("access", response.json())
+        self.assertFalse(User.objects.filter(email="zhertva@example.com").exists())
+
+    def test_invalid_token_is_401(self, verify):
+        verify.side_effect = ValueError("Token has wrong audience")
+        response = APIClient().post(reverse("api:auth_google"), {"id_token": "x"}, format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("error", response.json())
+
+    def test_google_unreachable_is_503(self, verify):
+        verify.side_effect = TransportError("certs")
+        response = APIClient().post(reverse("api:auth_google"), {"id_token": "x"}, format="json")
+        self.assertEqual(response.status_code, 503)
+
+    def test_missing_id_token_is_400(self, verify):
+        for body in ({}, {"id_token": ""}, {"id_token": 42}):
+            with self.subTest(body=body):
+                response = APIClient().post(reverse("api:auth_google"), body, format="json")
+                self.assertEqual(response.status_code, 400)
+        verify.assert_not_called()
+
+    @override_settings(GOOGLE_TOKEN_AUDIENCES=[])
+    def test_without_client_ids_endpoint_refuses(self, verify):
+        # Порожній aud = «не перевіряти отримувача» — токен чужого застосунку пройшов би.
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 503)
+        verify.assert_not_called()
+        self.assertFalse(User.objects.filter(email="zhertva@example.com").exists())
+
+    def test_inactive_user_rejected(self, verify):
+        User.objects.create_user(
+            username="zhertva", email="zhertva@example.com", email_verified=True, is_active=False
+        )
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("access", response.json())
+
+    def test_throttled(self, verify):
+        statuses = [self.exchange(verify).status_code for _ in range(11)]
+        self.assertEqual(statuses[-1], 429)
 
 
 class VersionPrefixTests(ApiTestCase):

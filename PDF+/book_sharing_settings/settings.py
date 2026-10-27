@@ -198,6 +198,13 @@ MESSAGE_TAGS = {messages.ERROR: 'danger'}
 
 GOOGLE_OAUTH_CLIENT_ID = config('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_OAUTH_CLIENT_SECRET = config('GOOGLE_OAUTH_CLIENT_SECRET', default='')
+# Client ID застосунків iOS/Android через кому — для api/v1/auth/google/.
+GOOGLE_MOBILE_CLIENT_IDS = config('GOOGLE_MOBILE_CLIENT_IDS', default='', cast=Csv())
+# Допустимі aud ID-токена. Web client ID теж: на Android (і на iOS із serverClientID)
+# токен видається з aud = web client ID, а мобільний ID стоїть лише в azp.
+GOOGLE_TOKEN_AUDIENCES = [
+    client_id for client_id in [GOOGLE_OAUTH_CLIENT_ID, *GOOGLE_MOBILE_CLIENT_IDS] if client_id
+]
 
 
 # Django 6.1 налаштовує пошту через MAILERS; старі EMAIL_HOST/EMAIL_* застарілі,

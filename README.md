@@ -188,6 +188,7 @@ There are no sessions or CSRF here, so share links (source 3 in the access model
 ```text
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
 GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
 GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
 GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
@@ -199,6 +200,14 @@ POST   /api/v1/sync/                batch {note_groups: {create, update, delete}
                                            annotations: {create, update, delete},
                                            reading_progress: [{book, last_page, read_at}]}
 ```
+
+Google accounts have no password, so the app signs in with native Google Sign-In and sends its
+ID token to `auth/google/`. The server checks the signature, expiry and `aud`: the token must be
+issued for the web client ID (`GOOGLE_OAUTH_CLIENT_ID` — on Android and on iOS with `serverClientID`
+it ends up in `aud`) or for one of `GOOGLE_MOBILE_CLIENT_IDS`. With neither set the endpoint returns 503.
+Account linking is the same as on the web (`users/google.py`): an email unverified by Google is 403,
+and an existing account whose address was never confirmed loses its password and previously issued
+tokens. Errors: 400 without `id_token`, 401 for an invalid token, 503 when Google is unreachable.
 
 Without `since`, the pull returns the full state. The client stores `server_time` as the next `since`
 and drops locally everything missing from `visible_*_ids` (revoked access, deleted book).

@@ -188,6 +188,7 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 ```text
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
 GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
 GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
 GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
@@ -199,6 +200,14 @@ POST   /api/v1/sync/                батч {note_groups: {create, update, dele
                                           annotations: {create, update, delete},
                                           reading_progress: [{book, last_page, read_at}]}
 ```
+
+Google-акаунти пароля не мають, тож застосунок входить через нативний Google Sign-In і шле його
+ID-токен на `auth/google/`. Сервер перевіряє підпис, термін дії й `aud`: токен має бути виданий для
+web client ID (`GOOGLE_OAUTH_CLIENT_ID` — на Android і на iOS із `serverClientID` в `aud` стоїть саме він)
+або для одного з `GOOGLE_MOBILE_CLIENT_IDS`. Якщо не задано жодного, ендпоінт відповідає 503.
+Прив'язка акаунта та сама, що й на вебі (`users/google.py`): пошта, не підтверджена Google, — 403,
+а наявний акаунт із непідтвердженою адресою втрачає пароль і видані раніше токени. Помилки: 400 без
+`id_token`, 401 — недійсний токен, 503 — Google недоступний.
 
 Без `since` pull повертає повний стан. Клієнт зберігає `server_time` як наступний `since`
 і викидає локально все, чого нема у `visible_*_ids` (відкликаний доступ, видалена книга).

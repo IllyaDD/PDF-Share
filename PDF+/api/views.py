@@ -1,15 +1,22 @@
 from book_library.access import catalog_folder_ids, visible_books
 from book_library.models import Book
 from book_library.views import _search_titles
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.dateparse import parse_datetime
+from google.auth.exceptions import GoogleAuthError, TransportError
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
 from rest_framework import status
 from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from users.google import UnverifiedEmail, google_account
 
 from .serializers import CatalogBookSerializer
 from .sync import BatchError, pull_state, push_changes
@@ -36,6 +43,56 @@ class ObtainTokenView(TokenObtainPairView):
 
 class RefreshTokenView(TokenRefreshView):
     throttle_classes = [AuthTokenThrottle]
+
+
+class GoogleTokenView(APIView):
+    """ID-токен нативного Google Sign-In → пара JWT. Google-юзер пароля не має."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthTokenThrottle]
+
+    def post(self, request):
+        raw = request.data.get("id_token")
+        if not isinstance(raw, str) or not raw:
+            return Response({"error": "id_token: очікується рядок"}, status=status.HTTP_400_BAD_REQUEST)
+        audiences = settings.GOOGLE_TOKEN_AUDIENCES
+        # Без aud бібліотека не перевіряє отримувача, і токен будь-якого чужого
+        # Google-застосунку відкрив би акаунт. Тому порожній список — відмова, а не пропуск.
+        if not audiences:
+            return Response(
+                {"error": "вхід через Google не налаштований"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            # Підпис ключами Google, iss, exp і aud перевіряє бібліотека.
+            claims = id_token.verify_oauth2_token(raw, google_requests.Request(), audience=audiences)
+        except TransportError:
+            return Response(
+                {"error": "Google тимчасово недоступний"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except (ValueError, GoogleAuthError):
+            return Response(
+                {"error": "id_token: недійсний або прострочений"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        try:
+            user, created, _reset = google_account(claims)
+        except UnverifiedEmail:
+            return Response(
+                {"error": "Google не підтвердив адресу пошти"}, status=status.HTTP_403_FORBIDDEN
+            )
+        if not user.is_active:
+            return Response({"error": "акаунт вимкнено"}, status=status.HTTP_403_FORBIDDEN)
+
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": {"id": user.pk, "username": user.username},
+                "created": created,
+            }
+        )
 
 
 class CatalogBooksView(ListAPIView):
