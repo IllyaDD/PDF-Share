@@ -126,6 +126,47 @@ class TokenTests(ApiTestCase):
             self.assertEqual(anonymous.get(reverse(f"api:{name}")).status_code, 401)
 
 
+class AuthThrottleTests(ApiTestCase):
+    """Ліміт входу рахується за IP клієнта з CF-Connecting-IP, а не за X-Forwarded-For."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+
+    def login(self, ip=None, **headers):
+        if ip:
+            headers["HTTP_CF_CONNECTING_IP"] = ip
+        return APIClient().post(
+            reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, **headers
+        ).status_code
+
+    def test_spoofed_forwarded_for_does_not_reset_limit(self):
+        # Cloudflare дописує справжній IP у кінець XFF клієнта — префікс підробляється.
+        statuses = [
+            self.login("203.0.113.7", HTTP_X_FORWARDED_FOR=f"10.0.0.{i}, 203.0.113.7")
+            for i in range(11)
+        ]
+        self.assertEqual(statuses[:10], [401] * 10)
+        self.assertEqual(statuses[-1], 429)
+
+    def test_each_client_ip_has_own_limit(self):
+        for _ in range(10):
+            self.login("203.0.113.7")
+        self.assertEqual(self.login("203.0.113.7"), 429)
+        self.assertEqual(self.login("203.0.113.8"), 401)
+
+    def test_ipv6_addresses_share_limit_per_64(self):
+        for i in range(10):
+            self.login(f"2001:db8:aa:bb::{i + 1}")
+        self.assertEqual(self.login("2001:db8:aa:bb:ffff::1"), 429)
+        self.assertEqual(self.login("2001:db8:aa:cc::1"), 401)
+
+    def test_without_cloudflare_header_falls_back_to_remote_addr(self):
+        # Локально й у тестах заголовка нема: ключ — REMOTE_ADDR (127.0.0.1).
+        statuses = [self.login() for _ in range(11)]
+        self.assertEqual(statuses[-1], 429)
+
+
 GOOGLE_CLAIMS = {
     "email": "zhertva@example.com",
     "email_verified": True,
@@ -141,7 +182,7 @@ class GoogleTokenTests(ApiTestCase):
 
     def setUp(self):
         super().setUp()
-        # Ліміт auth_token спільний для всіх входів, а LocMemCache живе між тестами.
+        # Ліміт auth_token спільний для всіх входів, а кеш живе між тестами.
         cache.clear()
 
     def exchange(self, verify, claims=None, token="google-id-token"):

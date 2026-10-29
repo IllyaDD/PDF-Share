@@ -305,6 +305,31 @@ UNFOLD = {
 }
 
 
+# Лічильники throttle мають бути спільні для воркерів gunicorn: LocMemCache — свій у кожному
+# процесі, і ліміт множився б на WEB_CONCURRENCY. Порожній REDIS_URL — локально й у тестах.
+REDIS_URL = config("REDIS_URL", default="")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                # Redis упав — вхід працює без ліміту, а не віддає 500 і не висне.
+                "IGNORE_EXCEPTIONS": True,
+                "SOCKET_CONNECT_TIMEOUT": 1,
+                "SOCKET_TIMEOUT": 1,
+            },
+        },
+    }
+    # Проковтнуті помилки йдуть у лог рівня ERROR, а звідти — в Sentry.
+    DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
+else:
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    }
+
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",

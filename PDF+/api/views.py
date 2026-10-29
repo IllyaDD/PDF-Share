@@ -1,3 +1,5 @@
+import ipaddress
+
 from book_library.access import catalog_folder_ids, visible_books
 from book_library.models import Book
 from book_library.views import _search_titles
@@ -24,6 +26,20 @@ from .sync import BatchError, pull_state, push_changes
 
 class AuthTokenThrottle(AnonRateThrottle):
     scope = "auth_token"
+
+    def get_ident(self, request):
+        # X-Forwarded-For не годиться: Cloudflare дописує IP у кінець того, що надіслав клієнт,
+        # і новий префікс щоразу давав би новий ліміт. CF-Connecting-IP Cloudflare перезаписує,
+        # а повз тунель до gunicorn не дістатися — порт назовні не опублікований.
+        ip = request.headers.get("cf-connecting-ip") or request.META.get("REMOTE_ADDR", "")
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return ip
+        # Провайдер видає IPv6 цілою /64: інакше кожна адреса з неї — окремий ліміт.
+        if addr.version == 6:
+            return str(ipaddress.ip_network(f"{addr}/64", strict=False).network_address)
+        return str(addr)
 
 
 class TokenPairSerializer(TokenObtainPairSerializer):
