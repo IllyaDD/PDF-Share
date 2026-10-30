@@ -181,7 +181,9 @@ POST   /books/<id>/progress/            {page} — save the current page (204)
 
 For the mobile / offline client. Header: `Authorization: Bearer <access>`. The token
 is verified by its signature; the server doesn't hit the database. Access tokens live 30 minutes, refresh tokens 30 days,
-and are rotated on every refresh. The blacklist is not enabled: a refresh token can't be revoked early.
+and are rotated on every refresh; the used refresh token goes to the blacklist
+(`rest_framework_simplejwt.token_blacklist`). Logout revokes refresh tokens only: an issued access
+token stays valid until it expires (up to 30 minutes).
 Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
 There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
 
@@ -189,6 +191,11 @@ There are no sessions or CSRF here, so share links (source 3 in the access model
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
 POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
+POST   /api/v1/auth/logout/         {refresh} — log out this device (no access token needed)
+POST   /api/v1/auth/logout/all/     log out every device (204)
+GET    /api/v1/me/                  profile: id, username, email, email_verified,
+                                    first_name, last_name, has_password, date_joined
+DELETE /api/v1/me/                  delete the account with all its data (204)
 GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
 GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
 GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),

@@ -176,8 +176,10 @@ share-посилання з `include_annotations` (шар автора поси�
   Анонім отримує 403, а не редирект на вхід. Формат відповіді — `annotations/serializers.py`
   (короткі ключі `page`/`note`/`text`), він не збігається з `api/serializers.py`.
 - `api/` — DRF + SimpleJWT для мобільного/офлайн-клієнта. Сесій і CSRF нема, тому
-  share-посилання тут не працюють. Blacklist не ввімкнений: refresh відкликати достроково
-  не можна. Google-вхід — `auth/google/` (ID-токен → JWT). Прив'язку акаунта за поштою
+  share-посилання тут не працюють. Blacklist (`token_blacklist`) відкликає лише refresh:
+  `auth/logout/` — цей пристрій, `auth/logout/all/` і `DELETE me/` — усі; access живе до
+  свого `exp`. Refresh, видані до ввімкнення blacklist, не записані в `OutstandingToken` —
+  їх відкликає лише зміна пароля (`CHECK_REVOKE_TOKEN`). Google-вхід — `auth/google/` (ID-токен → JWT). Прив'язку акаунта за поштою
   роби лише через `users/google.google_account()`, спільний з веб-колбеком, інакше
   повернеться захоплення акаунта через непідтверджену пошту. `GOOGLE_TOKEN_AUDIENCES`
   не можна лишати порожнім чи передавати `audience=None`: google-auth тоді не перевіряє

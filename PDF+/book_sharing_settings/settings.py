@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'storages',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
 
     'users',
     'book_library',
@@ -352,10 +353,13 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": True,
+    # Використаний при ротації refresh іде в blacklist: інакше старий токен жив би далі
+    # поруч із новим, і вихід із пристрою (api/v1/auth/logout/) нічого б не відкликав.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "UPDATE_LAST_LOGIN": False,
     # Токен несе хеш пароля: зміна чи скидання пароля відкликає всі видані токени.
-    # Blacklist не ввімкнений, тож іншого способу відкликати refresh достроково нема.
+    # Окремо від blacklist: access він не бачить, а хеш пароля перевіряється на кожен запит.
     "CHECK_REVOKE_TOKEN": True,
 }
 

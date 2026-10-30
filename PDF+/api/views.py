@@ -4,23 +4,35 @@ from book_library.access import catalog_folder_ids, visible_books
 from book_library.models import Book
 from book_library.views import _search_titles
 from django.conf import settings
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from google.auth.exceptions import GoogleAuthError, TransportError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenRefreshSerializer,
+)
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import (
+    TokenBlacklistView,
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 from users.google import UnverifiedEmail, google_account
+from users.models import User
 
-from .serializers import CatalogBookSerializer
+from .serializers import CatalogBookSerializer, MeSerializer
 from .sync import BatchError, pull_state, push_changes
 
 
@@ -57,8 +69,71 @@ class ObtainTokenView(TokenObtainPairView):
     throttle_classes = [AuthTokenThrottle]
 
 
+class RefreshSerializer(TokenRefreshSerializer):
+
+    def validate(self, attrs):
+        try:
+            return super().validate(attrs)
+        except User.DoesNotExist:
+            # simplejwt шукає власника через objects.get() без обробки: refresh видаленого
+            # акаунта давав 500. Пошук іде до ротації, тож нічого не встигає змінитись.
+            raise AuthenticationFailed(
+                self.error_messages["no_active_account"], "no_active_account"
+            ) from None
+
+
 class RefreshTokenView(TokenRefreshView):
+    serializer_class = RefreshSerializer
     throttle_classes = [AuthTokenThrottle]
+
+
+class LogoutView(TokenBlacklistView):
+    """Вихід з пристрою: його refresh іде в blacklist.
+
+    Автентифікація — сам refresh, а не access: той міг уже прострочитись. Виданий access
+    живе до кінця свого строку (до 30 хв), бо перевіряється лише підписом.
+    """
+
+
+def revoke_refresh_tokens(user):
+    """Кладе в blacklist усі ще чинні refresh користувача — вихід на всіх пристроях."""
+    tokens = OutstandingToken.objects.filter(
+        user=user, expires_at__gt=timezone.now(), blacklistedtoken__isnull=True
+    )
+    BlacklistedToken.objects.bulk_create(
+        [BlacklistedToken(token=token) for token in tokens], ignore_conflicts=True
+    )
+
+
+class LogoutAllView(APIView):
+    """Вихід на всіх пристроях — на випадок утраченого телефона.
+
+    Відкликає лише refresh, видані після ввімкнення blacklist: старіші не записані
+    в OutstandingToken. Їх, як і раніше, відкликає зміна пароля.
+    """
+
+    def post(self, request):
+        revoke_refresh_tokens(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MeView(APIView):
+
+    def get(self, request):
+        return Response(MeSerializer(request.user).data)
+
+    def delete(self, request):
+        """Видалення акаунта з застосунку — вимога App Store (5.1.1(v)) і Google Play.
+
+        Те саме, що на вебі (users.views.delete_profile_view): каскад забирає книги, теки,
+        шари й групи, а файли у сховищі прибирають сигнали book_library після коміту.
+        """
+        user = request.user
+        with transaction.atomic():
+            # До видалення: OutstandingToken.user — SET_NULL, потім токени вже не знайти.
+            revoke_refresh_tokens(user)
+            user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class GoogleTokenView(APIView):

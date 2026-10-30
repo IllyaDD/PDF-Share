@@ -1,6 +1,25 @@
 from annotations.models import Annotation, Layer, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from rest_framework import serializers
+from users.models import User
+
+
+class MeSerializer(serializers.ModelSerializer):
+    # Google-акаунт пароля не має: клієнт за цим ховає вхід і зміну пароля.
+    has_password = serializers.BooleanField(source="has_usable_password", read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "email_verified",
+            "first_name",
+            "last_name",
+            "has_password",
+            "date_joined",
+        ]
 
 
 class FolderSerializer(serializers.ModelSerializer):

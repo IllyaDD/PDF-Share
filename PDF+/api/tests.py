@@ -1,4 +1,5 @@
 import atexit
+import os
 import shutil
 import tempfile
 from datetime import timedelta
@@ -17,6 +18,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from sharing.models import Group, GroupAccess, GroupMembership
 from users.models import User
@@ -51,6 +53,8 @@ A3 = "2d903f4e-5b6c-4d7e-af80-91a2b3c4d5e6"
 )
 class ApiTestCase(TestCase):
     def setUp(self):
+        # Ліміт auth_token спільний для входу, refresh і виходу, а кеш живе між тестами.
+        cache.clear()
         self.user = User.objects.create_user(
             username="uchen", email="uchen@example.com", password="parol-parol-42"
         )
@@ -129,10 +133,6 @@ class TokenTests(ApiTestCase):
 class AuthThrottleTests(ApiTestCase):
     """Ліміт входу рахується за IP клієнта з CF-Connecting-IP, а не за X-Forwarded-For."""
 
-    def setUp(self):
-        super().setUp()
-        cache.clear()
-
     def login(self, ip=None, **headers):
         if ip:
             headers["HTTP_CF_CONNECTING_IP"] = ip
@@ -179,11 +179,6 @@ GOOGLE_CLAIMS = {
 @patch("api.views.id_token.verify_oauth2_token")
 class GoogleTokenTests(ApiTestCase):
     """Акаунт шукається за поштою — ті самі перевірки, що й у веб-вході через Google."""
-
-    def setUp(self):
-        super().setUp()
-        # Ліміт auth_token спільний для всіх входів, а кеш живе між тестами.
-        cache.clear()
 
     def exchange(self, verify, claims=None, token="google-id-token"):
         verify.return_value = {**GOOGLE_CLAIMS, **(claims or {})}
@@ -278,6 +273,114 @@ class GoogleTokenTests(ApiTestCase):
     def test_throttled(self, verify):
         statuses = [self.exchange(verify).status_code for _ in range(11)]
         self.assertEqual(statuses[-1], 429)
+
+
+class LogoutTests(ApiTestCase):
+    def refresh(self, token):
+        return APIClient().post(reverse("api:auth_token_refresh"), {"refresh": token})
+
+    def test_logout_revokes_this_device_refresh(self):
+        here = str(RefreshToken.for_user(self.user))
+        other = str(RefreshToken.for_user(self.user))
+
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": here})
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.refresh(here).status_code, 401)
+        self.assertEqual(self.refresh(other).status_code, 200)
+
+    def test_logout_works_without_access_token(self):
+        # Access міг прострочитись — вихід тримається на самому refresh.
+        refresh = str(RefreshToken.for_user(self.user))
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": refresh})
+        self.assertEqual(response.status_code, 200)
+
+    def test_logout_with_invalid_refresh_is_401(self):
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": "ne-token"})
+        self.assertEqual(response.status_code, 401)
+
+    def test_rotated_refresh_is_blacklisted(self):
+        # Без BLACKLIST_AFTER_ROTATION старий refresh жив би поруч із новим.
+        old = str(RefreshToken.for_user(self.user))
+        new = self.refresh(old).json()["refresh"]
+        self.assertEqual(self.refresh(old).status_code, 401)
+        self.assertEqual(self.refresh(new).status_code, 200)
+
+    def test_logout_all_revokes_every_device(self):
+        phone = str(RefreshToken.for_user(self.user))
+        tablet = str(RefreshToken.for_user(self.user))
+        foreign = str(RefreshToken.for_user(self.teacher))
+
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+
+        self.assertEqual(self.refresh(phone).status_code, 401)
+        self.assertEqual(self.refresh(tablet).status_code, 401)
+        self.assertEqual(self.refresh(foreign).status_code, 200)
+
+    def test_logout_all_twice_is_fine(self):
+        RefreshToken.for_user(self.user)
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+
+    def test_logout_all_requires_access_token(self):
+        self.assertEqual(APIClient().post(reverse("api:auth_logout_all")).status_code, 401)
+
+
+class MeTests(ApiTestCase):
+    def test_returns_profile(self):
+        data = self.client.get(reverse("api:me")).json()
+        self.assertEqual(data["id"], self.user.pk)
+        self.assertEqual(data["username"], "uchen")
+        self.assertEqual(data["email"], "uchen@example.com")
+        self.assertFalse(data["email_verified"])
+        self.assertTrue(data["has_password"])
+        self.assertIn("date_joined", data)
+
+    def test_google_user_has_no_password(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.user)}")
+        self.assertFalse(client.get(reverse("api:me")).json()["has_password"])
+
+    def test_requires_token(self):
+        anonymous = APIClient()
+        self.assertEqual(anonymous.get(reverse("api:me")).status_code, 401)
+        self.assertEqual(anonymous.delete(reverse("api:me")).status_code, 401)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_delete_removes_account_and_files(self):
+        book = make_book(self.user, "Моя")
+        path = book.file.path
+        foreign = make_book(self.teacher, "Чужа")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(reverse("api:me"))
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+        self.assertFalse(Book.objects.filter(pk=book.pk).exists())
+        self.assertFalse(os.path.exists(path))
+        self.assertTrue(Book.objects.filter(pk=foreign.pk).exists())
+
+    def test_deleted_account_tokens_stop_working(self):
+        refresh = str(RefreshToken.for_user(self.user))
+        self.client.delete(reverse("api:me"))
+
+        self.assertEqual(self.client.get(reverse("api:sync")).status_code, 401)
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        self.assertEqual(response.status_code, 401)
+
+    def test_refresh_of_untracked_token_after_delete_is_401(self):
+        # Refresh, виданий до ввімкнення blacklist, не записаний в OutstandingToken і не
+        # відкликається — але й не має давати 500, коли власника вже нема.
+        refresh = RefreshToken.for_user(self.user)
+        OutstandingToken.objects.filter(jti=refresh["jti"]).delete()
+        self.user.delete()
+
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": str(refresh)})
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("access", response.json())
 
 
 class VersionPrefixTests(ApiTestCase):

@@ -181,7 +181,9 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 
 Для мобільного / офлайн-клієнта. Заголовок: `Authorization: Bearer <access>`. Токен
 перевіряється за підписом, сервер не ходить у базу. Access-токен живе 30 хвилин, refresh — 30 днів,
-і ротується при кожному оновленні. Blacklist не ввімкнений: refresh-токен не відкликати достроково.
+і ротується при кожному оновленні; використаний refresh іде в blacklist
+(`rest_framework_simplejwt.token_blacklist`). Вихід відкликає лише refresh: виданий access діє
+до кінця свого строку (до 30 хвилин).
 Видача й оновлення токенів обмежені 10 запитами на хвилину з однієї IP-адреси.
 Сесій і CSRF тут нема, тож share-посилання (джерело 3 у моделі доступу) в API не працюють.
 
@@ -189,6 +191,11 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
 POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
 POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
+POST   /api/v1/auth/logout/         {refresh} — вихід з цього пристрою (access не потрібен)
+POST   /api/v1/auth/logout/all/     вихід на всіх пристроях (204)
+GET    /api/v1/me/                  профіль: id, username, email, email_verified,
+                                    first_name, last_name, has_password, date_joined
+DELETE /api/v1/me/                  видалити акаунт з усіма даними (204)
 GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
 GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
 GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
