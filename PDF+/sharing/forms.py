@@ -110,7 +110,10 @@ class ShareLinkForm(forms.ModelForm):
         )
         self.fields["book"].empty_label = _("— не обрано —")
         self.fields["folder"].empty_label = _("— не обрано —")
-        self.fields["expires_at"].widget.attrs["min"] = timezone.now().strftime("%Y-%m-%dT%H:%M")
+        # datetime-local не знає про зони: браузеру потрібен настінний час у TIME_ZONE, а не UTC.
+        self.fields["expires_at"].widget.attrs["min"] = timezone.localtime().strftime(
+            "%Y-%m-%dT%H:%M"
+        )
 
         groups = (
             NoteGroup.objects.none()

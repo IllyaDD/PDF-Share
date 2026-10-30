@@ -130,7 +130,8 @@ LANGUAGES = [
 ]
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
-TIME_ZONE = 'UTC'
+# Зона показу й розбору введеного часу. У базі (timestamptz) час однаково лежить в UTC.
+TIME_ZONE = 'Europe/Kyiv'
 
 USE_I18N = True
 
