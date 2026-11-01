@@ -181,24 +181,40 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 
 Для мобільного / офлайн-клієнта. Заголовок: `Authorization: Bearer <access>`. Токен
 перевіряється за підписом, сервер не ходить у базу. Access-токен живе 30 хвилин, refresh — 30 днів,
-і ротується при кожному оновленні. Blacklist не ввімкнений: refresh-токен не відкликати достроково.
+і ротується при кожному оновленні; використаний refresh іде в blacklist
+(`rest_framework_simplejwt.token_blacklist`). Вихід відкликає лише refresh: виданий access діє
+до кінця свого строку (до 30 хвилин).
 Видача й оновлення токенів обмежені 10 запитами на хвилину з однієї IP-адреси.
 Сесій і CSRF тут нема, тож share-посилання (джерело 3 у моделі доступу) в API не працюють.
 
 ```text
-POST   /api/auth/token/          {username, password} → {access, refresh, user}
-POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
-GET    /api/catalog/books/       каталог, пагінація по 50, ?search= за назвою
-GET    /api/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
-GET    /api/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
-                                 deleted_annotation_ids, note_groups (власні теми),
-                                 reading_progress, shared_layers, shared_annotations
-                                 (шари вчителів), visible_book_ids, visible_folder_ids,
-                                 server_time
-POST   /api/sync/                батч {note_groups: {create, update, delete},
-                                       annotations: {create, update, delete},
-                                       reading_progress: [{book, last_page, read_at}]}
+POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
+POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
+POST   /api/v1/auth/logout/         {refresh} — вихід з цього пристрою (access не потрібен)
+POST   /api/v1/auth/logout/all/     вихід на всіх пристроях (204)
+GET    /api/v1/me/                  профіль: id, username, email, email_verified,
+                                    first_name, last_name, has_password, date_joined
+DELETE /api/v1/me/                  видалити акаунт з усіма даними (204)
+GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
+GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
+GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
+                                    deleted_annotation_ids, note_groups (власні теми),
+                                    reading_progress, shared_layers, shared_annotations
+                                    (шари вчителів), visible_book_ids, visible_folder_ids,
+                                    server_time
+POST   /api/v1/sync/                батч {note_groups: {create, update, delete},
+                                          annotations: {create, update, delete},
+                                          reading_progress: [{book, last_page, read_at}]}
 ```
+
+Google-акаунти пароля не мають, тож застосунок входить через нативний Google Sign-In і шле його
+ID-токен на `auth/google/`. Сервер перевіряє підпис, термін дії й `aud`: токен має бути виданий для
+web client ID (`GOOGLE_OAUTH_CLIENT_ID` — на Android і на iOS із `serverClientID` в `aud` стоїть саме він)
+або для одного з `GOOGLE_MOBILE_CLIENT_IDS`. Якщо не задано жодного, ендпоінт відповідає 503.
+Прив'язка акаунта та сама, що й на вебі (`users/google.py`): пошта, не підтверджена Google, — 403,
+а наявний акаунт із непідтвердженою адресою втрачає пароль і видані раніше токени. Помилки: 400 без
+`id_token`, 401 — недійсний токен, 503 — Google недоступний.
 
 Без `since` pull повертає повний стан. Клієнт зберігає `server_time` як наступний `since`
 і викидає локально все, чого нема у `visible_*_ids` (відкликаний доступ, видалена книга).
@@ -211,6 +227,11 @@ POST   /api/sync/                батч {note_groups: {create, update, delete}
 розв'язуються за last-write-wins. Для прогресу читання переможця визначає `read_at` (коли клієнт
 був на сторінці), а не час приходу push'а: офлайн-телефон не затре новішу позицію з вебу.
 `reading_progress` у відповіді — фактичний стан після злиття.
+Кожна анотація в `annotations.create` мусить мати `client_id` — UUID, згенерований клієнтом; інше
+значення — помилка операції. Створення ідемпотентне: повтор push'а з тим самим `client_id` (відповідь
+загубилась після коміту) повертає вже створену анотацію без змін, а не дубль. Ключ унікальний у межах
+вашого шару на одній книзі. Власні анотації в pull мають `client_id` (`null` — створені на вебі),
+у `shared_annotations` його нема.
 
 Теми нотаток у синку:
 

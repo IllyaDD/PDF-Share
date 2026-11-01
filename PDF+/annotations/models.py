@@ -134,6 +134,9 @@ class Annotation(models.Model):
         blank=True,
         related_name="annotations",
     )
+    # Ключ ідемпотентності пушу синку: повтор того самого create не дублює нотатку.
+    # null — нотатка з вебу, повторів там нема.
+    client_id = models.UUIDField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -142,6 +145,12 @@ class Annotation(models.Model):
         ordering = ["page_number", "created_at"]
         indexes = [
             models.Index(fields=["layer", "page_number"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["layer", "client_id"],
+                name="unique_annotation_client_id_per_layer",
+            )
         ]
 
     def __str__(self):

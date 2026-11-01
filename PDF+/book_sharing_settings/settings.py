@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap5',
     'storages',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
 
     'users',
     'book_library',
@@ -130,7 +131,8 @@ LANGUAGES = [
 ]
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
-TIME_ZONE = 'UTC'
+# Зона показу й розбору введеного часу. У базі (timestamptz) час однаково лежить в UTC.
+TIME_ZONE = 'Europe/Kyiv'
 
 USE_I18N = True
 
@@ -198,6 +200,13 @@ MESSAGE_TAGS = {messages.ERROR: 'danger'}
 
 GOOGLE_OAUTH_CLIENT_ID = config('GOOGLE_OAUTH_CLIENT_ID', default='')
 GOOGLE_OAUTH_CLIENT_SECRET = config('GOOGLE_OAUTH_CLIENT_SECRET', default='')
+# Client ID застосунків iOS/Android через кому — для api/v1/auth/google/.
+GOOGLE_MOBILE_CLIENT_IDS = config('GOOGLE_MOBILE_CLIENT_IDS', default='', cast=Csv())
+# Допустимі aud ID-токена. Web client ID теж: на Android (і на iOS із serverClientID)
+# токен видається з aud = web client ID, а мобільний ID стоїть лише в azp.
+GOOGLE_TOKEN_AUDIENCES = [
+    client_id for client_id in [GOOGLE_OAUTH_CLIENT_ID, *GOOGLE_MOBILE_CLIENT_IDS] if client_id
+]
 
 
 # Django 6.1 налаштовує пошту через MAILERS; старі EMAIL_HOST/EMAIL_* застарілі,
@@ -298,6 +307,31 @@ UNFOLD = {
 }
 
 
+# Лічильники throttle мають бути спільні для воркерів gunicorn: LocMemCache — свій у кожному
+# процесі, і ліміт множився б на WEB_CONCURRENCY. Порожній REDIS_URL — локально й у тестах.
+REDIS_URL = config("REDIS_URL", default="")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                # Redis упав — вхід працює без ліміту, а не віддає 500 і не висне.
+                "IGNORE_EXCEPTIONS": True,
+                "SOCKET_CONNECT_TIMEOUT": 1,
+                "SOCKET_TIMEOUT": 1,
+            },
+        },
+    }
+    # Проковтнуті помилки йдуть у лог рівня ERROR, а звідти — в Sentry.
+    DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
+else:
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    }
+
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -319,10 +353,13 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": True,
+    # Використаний при ротації refresh іде в blacklist: інакше старий токен жив би далі
+    # поруч із новим, і вихід із пристрою (api/v1/auth/logout/) нічого б не відкликав.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "UPDATE_LAST_LOGIN": False,
     # Токен несе хеш пароля: зміна чи скидання пароля відкликає всі видані токени.
-    # Blacklist не ввімкнений, тож іншого способу відкликати refresh достроково нема.
+    # Окремо від blacklist: access він не бачить, а хеш пароля перевіряється на кожен запит.
     "CHECK_REVOKE_TOKEN": True,
 }
 

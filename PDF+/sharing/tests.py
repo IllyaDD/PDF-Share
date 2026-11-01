@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
 from annotations.models import Layer, NoteGroup
 from book_library.models import Book, Folder
@@ -431,7 +432,7 @@ class ShareLinkTests(TestCase):
         self.assertFalse(ShareLink.objects.exists())
 
     def test_link_rejects_past_expiry(self):
-        yesterday = (timezone.now() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        yesterday = (timezone.localtime() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
         response = self.client.post(
             reverse("sharing:link_create"), {"book": self.book.pk, "expires_at": yesterday}
         )
@@ -439,12 +440,31 @@ class ShareLinkTests(TestCase):
         self.assertFalse(ShareLink.objects.exists())
 
     def test_link_accepts_future_expiry(self):
-        tomorrow = (timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
+        tomorrow = (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
         response = self.client.post(
             reverse("sharing:link_create"), {"book": self.book.pk, "expires_at": tomorrow}
         )
         self.assertRedirects(response, reverse("sharing:link_list"))
         self.assertTrue(ShareLink.objects.filter(book=self.book).exists())
+
+    def test_expiry_input_is_kyiv_time(self):
+        # Січень — зимовий час, UTC+2: 18:00 за Києвом = 16:00 UTC.
+        self.client.post(
+            reverse("sharing:link_create"),
+            {"book": self.book.pk, "expires_at": "2099-01-15T18:00"},
+        )
+        expires_at = ShareLink.objects.get(book=self.book).expires_at
+        self.assertEqual(expires_at, datetime(2099, 1, 15, 16, 0, tzinfo=dt_timezone.utc))
+
+    def test_expiry_min_is_local_wall_clock(self):
+        response = self.client.get(reverse("sharing:link_create"))
+        min_attr = response.context["form"].fields["expires_at"].widget.attrs["min"]
+        local_now = timezone.localtime()
+        # Допуск на хвилину: запит міг перетнути межу хвилини.
+        allowed = {
+            (local_now - timedelta(minutes=delta)).strftime("%Y-%m-%dT%H:%M") for delta in (0, 1)
+        }
+        self.assertIn(min_attr, allowed)
 
     def test_link_list_renders_full_url(self):
         ShareLink.objects.create(book=self.book, token="abc123", created_by=self.user)

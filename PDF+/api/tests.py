@@ -1,4 +1,5 @@
 import atexit
+import os
 import shutil
 import tempfile
 from datetime import timedelta
@@ -10,11 +11,14 @@ from annotations.models import Annotation, Layer, LayerPublication, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from book_library.progress import record_progress
 from book_sharing_settings.testing import FILESYSTEM_STORAGES
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from google.auth.exceptions import TransportError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from sharing.models import Group, GroupAccess, GroupMembership
 from users.models import User
@@ -38,6 +42,10 @@ def make_book(owner, title, folder=None, page_count=10):
 
 
 RECT = [{"x0": 1, "y0": 2, "x1": 30, "y1": 40}]
+# client_id нотаток у пуші — UUID, згенерований клієнтом.
+A1 = "0b7e1d2c-3f4a-4b5c-8d6e-7f8091a2b3c4"
+A2 = "1c8f2e3d-4a5b-4c6d-9e7f-8091a2b3c4d5"
+A3 = "2d903f4e-5b6c-4d7e-af80-91a2b3c4d5e6"
 
 
 @override_settings(
@@ -45,6 +53,8 @@ RECT = [{"x0": 1, "y0": 2, "x1": 30, "y1": 40}]
 )
 class ApiTestCase(TestCase):
     def setUp(self):
+        # Ліміт auth_token спільний для входу, refresh і виходу, а кеш живе між тестами.
+        cache.clear()
         self.user = User.objects.create_user(
             username="uchen", email="uchen@example.com", password="parol-parol-42"
         )
@@ -118,6 +128,268 @@ class TokenTests(ApiTestCase):
         anonymous = APIClient()
         for name in ("catalog_books", "sync"):
             self.assertEqual(anonymous.get(reverse(f"api:{name}")).status_code, 401)
+
+
+class AuthThrottleTests(ApiTestCase):
+    """Ліміт входу рахується за IP клієнта з CF-Connecting-IP, а не за X-Forwarded-For."""
+
+    def login(self, ip=None, **headers):
+        if ip:
+            headers["HTTP_CF_CONNECTING_IP"] = ip
+        return APIClient().post(
+            reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, **headers
+        ).status_code
+
+    def test_spoofed_forwarded_for_does_not_reset_limit(self):
+        # Cloudflare дописує справжній IP у кінець XFF клієнта — префікс підробляється.
+        statuses = [
+            self.login("203.0.113.7", HTTP_X_FORWARDED_FOR=f"10.0.0.{i}, 203.0.113.7")
+            for i in range(11)
+        ]
+        self.assertEqual(statuses[:10], [401] * 10)
+        self.assertEqual(statuses[-1], 429)
+
+    def test_each_client_ip_has_own_limit(self):
+        for _ in range(10):
+            self.login("203.0.113.7")
+        self.assertEqual(self.login("203.0.113.7"), 429)
+        self.assertEqual(self.login("203.0.113.8"), 401)
+
+    def test_ipv6_addresses_share_limit_per_64(self):
+        for i in range(10):
+            self.login(f"2001:db8:aa:bb::{i + 1}")
+        self.assertEqual(self.login("2001:db8:aa:bb:ffff::1"), 429)
+        self.assertEqual(self.login("2001:db8:aa:cc::1"), 401)
+
+    def test_without_cloudflare_header_falls_back_to_remote_addr(self):
+        # Локально й у тестах заголовка нема: ключ — REMOTE_ADDR (127.0.0.1).
+        statuses = [self.login() for _ in range(11)]
+        self.assertEqual(statuses[-1], 429)
+
+
+GOOGLE_CLAIMS = {
+    "email": "zhertva@example.com",
+    "email_verified": True,
+    "given_name": "Zhertva",
+    "aud": "web-client-id",
+}
+
+
+@override_settings(GOOGLE_TOKEN_AUDIENCES=["web-client-id", "ios-client-id"])
+@patch("api.views.id_token.verify_oauth2_token")
+class GoogleTokenTests(ApiTestCase):
+    """Акаунт шукається за поштою — ті самі перевірки, що й у веб-вході через Google."""
+
+    def exchange(self, verify, claims=None, token="google-id-token"):
+        verify.return_value = {**GOOGLE_CLAIMS, **(claims or {})}
+        return APIClient().post(reverse("api:auth_google"), {"id_token": token}, format="json")
+
+    def test_new_user_gets_token_pair(self, verify):
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()
+        user = User.objects.get(email="zhertva@example.com")
+        self.assertTrue(data["created"])
+        self.assertEqual(data["user"], {"id": user.pk, "username": user.username})
+        self.assertEqual(AccessToken(data["access"])["user_id"], str(user.pk))
+        self.assertEqual(RefreshToken(data["refresh"])["user_id"], str(user.pk))
+        self.assertTrue(user.email_verified)
+        self.assertFalse(user.has_usable_password())
+
+    def test_token_is_checked_against_our_client_ids(self, verify):
+        self.exchange(verify)
+        args, kwargs = verify.call_args
+        self.assertEqual(args[0], "google-id-token")
+        self.assertEqual(kwargs["audience"], ["web-client-id", "ios-client-id"])
+
+    def test_existing_verified_user_logs_into_own_account(self, verify):
+        user = User.objects.create_user(
+            username="zhertva", email="zhertva@example.com", password="parol-parol-42",
+            email_verified=True,
+        )
+        data = self.exchange(verify).json()
+        self.assertFalse(data["created"])
+        self.assertEqual(data["user"]["id"], user.pk)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("parol-parol-42"))
+
+    def test_squatted_account_loses_password_and_tokens(self, verify):
+        # Хтось зареєструвався з чужою адресою і тримає JWT на своєму пристрої.
+        squatter = User.objects.create_user(
+            username="atakuvalnyk", email="zhertva@example.com", password="parol-ataky-42"
+        )
+        attacker = APIClient()
+        attacker.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(squatter)}")
+
+        self.assertEqual(self.exchange(verify).status_code, 200)
+
+        squatter.refresh_from_db()
+        self.assertTrue(squatter.email_verified)
+        self.assertFalse(squatter.has_usable_password())
+        self.assertEqual(attacker.get(reverse("api:sync")).status_code, 401)
+
+    def test_unverified_google_email_rejected(self, verify):
+        for value in (False, "true", None):
+            with self.subTest(email_verified=value):
+                response = self.exchange(verify, {"email_verified": value})
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("access", response.json())
+        self.assertFalse(User.objects.filter(email="zhertva@example.com").exists())
+
+    def test_invalid_token_is_401(self, verify):
+        verify.side_effect = ValueError("Token has wrong audience")
+        response = APIClient().post(reverse("api:auth_google"), {"id_token": "x"}, format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("error", response.json())
+
+    def test_google_unreachable_is_503(self, verify):
+        verify.side_effect = TransportError("certs")
+        response = APIClient().post(reverse("api:auth_google"), {"id_token": "x"}, format="json")
+        self.assertEqual(response.status_code, 503)
+
+    def test_missing_id_token_is_400(self, verify):
+        for body in ({}, {"id_token": ""}, {"id_token": 42}):
+            with self.subTest(body=body):
+                response = APIClient().post(reverse("api:auth_google"), body, format="json")
+                self.assertEqual(response.status_code, 400)
+        verify.assert_not_called()
+
+    @override_settings(GOOGLE_TOKEN_AUDIENCES=[])
+    def test_without_client_ids_endpoint_refuses(self, verify):
+        # Порожній aud = «не перевіряти отримувача» — токен чужого застосунку пройшов би.
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 503)
+        verify.assert_not_called()
+        self.assertFalse(User.objects.filter(email="zhertva@example.com").exists())
+
+    def test_inactive_user_rejected(self, verify):
+        User.objects.create_user(
+            username="zhertva", email="zhertva@example.com", email_verified=True, is_active=False
+        )
+        response = self.exchange(verify)
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("access", response.json())
+
+    def test_throttled(self, verify):
+        statuses = [self.exchange(verify).status_code for _ in range(11)]
+        self.assertEqual(statuses[-1], 429)
+
+
+class LogoutTests(ApiTestCase):
+    def refresh(self, token):
+        return APIClient().post(reverse("api:auth_token_refresh"), {"refresh": token})
+
+    def test_logout_revokes_this_device_refresh(self):
+        here = str(RefreshToken.for_user(self.user))
+        other = str(RefreshToken.for_user(self.user))
+
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": here})
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.refresh(here).status_code, 401)
+        self.assertEqual(self.refresh(other).status_code, 200)
+
+    def test_logout_works_without_access_token(self):
+        # Access міг прострочитись — вихід тримається на самому refresh.
+        refresh = str(RefreshToken.for_user(self.user))
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": refresh})
+        self.assertEqual(response.status_code, 200)
+
+    def test_logout_with_invalid_refresh_is_401(self):
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": "ne-token"})
+        self.assertEqual(response.status_code, 401)
+
+    def test_rotated_refresh_is_blacklisted(self):
+        # Без BLACKLIST_AFTER_ROTATION старий refresh жив би поруч із новим.
+        old = str(RefreshToken.for_user(self.user))
+        new = self.refresh(old).json()["refresh"]
+        self.assertEqual(self.refresh(old).status_code, 401)
+        self.assertEqual(self.refresh(new).status_code, 200)
+
+    def test_logout_all_revokes_every_device(self):
+        phone = str(RefreshToken.for_user(self.user))
+        tablet = str(RefreshToken.for_user(self.user))
+        foreign = str(RefreshToken.for_user(self.teacher))
+
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+
+        self.assertEqual(self.refresh(phone).status_code, 401)
+        self.assertEqual(self.refresh(tablet).status_code, 401)
+        self.assertEqual(self.refresh(foreign).status_code, 200)
+
+    def test_logout_all_twice_is_fine(self):
+        RefreshToken.for_user(self.user)
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+        self.assertEqual(self.client.post(reverse("api:auth_logout_all")).status_code, 204)
+
+    def test_logout_all_requires_access_token(self):
+        self.assertEqual(APIClient().post(reverse("api:auth_logout_all")).status_code, 401)
+
+
+class MeTests(ApiTestCase):
+    def test_returns_profile(self):
+        data = self.client.get(reverse("api:me")).json()
+        self.assertEqual(data["id"], self.user.pk)
+        self.assertEqual(data["username"], "uchen")
+        self.assertEqual(data["email"], "uchen@example.com")
+        self.assertFalse(data["email_verified"])
+        self.assertTrue(data["has_password"])
+        self.assertIn("date_joined", data)
+
+    def test_google_user_has_no_password(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.user)}")
+        self.assertFalse(client.get(reverse("api:me")).json()["has_password"])
+
+    def test_requires_token(self):
+        anonymous = APIClient()
+        self.assertEqual(anonymous.get(reverse("api:me")).status_code, 401)
+        self.assertEqual(anonymous.delete(reverse("api:me")).status_code, 401)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_delete_removes_account_and_files(self):
+        book = make_book(self.user, "Моя")
+        path = book.file.path
+        foreign = make_book(self.teacher, "Чужа")
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(reverse("api:me"))
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+        self.assertFalse(Book.objects.filter(pk=book.pk).exists())
+        self.assertFalse(os.path.exists(path))
+        self.assertTrue(Book.objects.filter(pk=foreign.pk).exists())
+
+    def test_deleted_account_tokens_stop_working(self):
+        refresh = str(RefreshToken.for_user(self.user))
+        self.client.delete(reverse("api:me"))
+
+        self.assertEqual(self.client.get(reverse("api:sync")).status_code, 401)
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        self.assertEqual(response.status_code, 401)
+
+    def test_refresh_of_untracked_token_after_delete_is_401(self):
+        # Refresh, виданий до ввімкнення blacklist, не записаний в OutstandingToken і не
+        # відкликається — але й не має давати 500, коли власника вже нема.
+        refresh = RefreshToken.for_user(self.user)
+        OutstandingToken.objects.filter(jti=refresh["jti"]).delete()
+        self.user.delete()
+
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": str(refresh)})
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("access", response.json())
+
+
+class VersionPrefixTests(ApiTestCase):
+    # Шляхи захардкоджені навмисно: reverse() пройшов би й після зміни префікса, встановлений застосунок ходить саме на цей рядок.
+    def test_api_lives_under_v1(self):
+        self.assertEqual(self.client.get("/api/v1/sync/").status_code, 200)
+
+    def test_unversioned_path_is_gone(self):
+        self.assertEqual(self.client.get("/api/sync/").status_code, 404)
 
 
 class CatalogTests(ApiTestCase):
@@ -326,7 +598,7 @@ class SyncPushTests(ApiTestCase):
             {
                 "create": [
                     {
-                        "client_id": "c-1",
+                        "client_id": A1,
                         "book": self.book.pk,
                         "page_number": 2,
                         "coords": RECT,
@@ -338,10 +610,57 @@ class SyncPushTests(ApiTestCase):
         )
         created = data["created"][0]
         annotation = Annotation.objects.get(pk=created["id"])
-        self.assertEqual(created["client_id"], "c-1")
+        self.assertEqual(created["client_id"], A1)
+        self.assertEqual(str(annotation.client_id), A1)
         self.assertEqual(annotation.layer.owner, self.user)
         self.assertEqual(annotation.color, "#A5D6A7")
         self.assertEqual(data["errors"], [])
+
+    def new_note(self, client_id, book=None, **fields):
+        return {"client_id": client_id, "book": (book or self.book).pk, "page_number": 1,
+                "coords": RECT, "color": "#FFEB3B", **fields}
+
+    def test_repeated_create_is_idempotent(self):
+        # Коміт пройшов, відповідь загубилась — клієнт повторює той самий пуш.
+        first = self.push({"create": [self.new_note(A1, note_text="раз")]})
+        retry = self.push({"create": [self.new_note(A1, note_text="раз")]})
+        self.assertEqual(retry["errors"], [])
+        self.assertEqual(retry["created"][0]["id"], first["created"][0]["id"])
+        self.assertEqual(Annotation.objects.count(), 1)
+
+    def test_repeated_create_returns_original_unchanged(self):
+        # Повтор — це той самий запит, а не правка: змінений вміст не застосовується.
+        first = self.push({"create": [self.new_note(A1, note_text="перша версія")]})
+        retry = self.push({"create": [self.new_note(A1, note_text="інший текст")]})
+        self.assertEqual(retry["created"][0]["id"], first["created"][0]["id"])
+        self.assertEqual(retry["created"][0]["note_text"], "перша версія")
+
+    def test_client_id_is_echoed_as_sent(self):
+        data = self.push({"create": [self.new_note(A1.upper())]})
+        self.assertEqual(data["created"][0]["client_id"], A1.upper())
+        self.assertEqual(str(Annotation.objects.get().client_id), A1)
+
+    def test_same_client_id_in_other_book_is_separate_note(self):
+        other = make_book(self.user, "Друга", page_count=5)
+        data = self.push({"create": [self.new_note(A1), self.new_note(A1, book=other)]})
+        self.assertEqual(data["errors"], [])
+        self.assertEqual(len({c["id"] for c in data["created"]}), 2)
+
+    def test_create_without_uuid_client_id_is_error(self):
+        note = self.new_note(A1)
+        del note["client_id"]
+        data = self.push(
+            {"create": [note, self.new_note("c-1"), self.new_note(42), self.new_note(A2)]}
+        )
+        self.assertEqual([c["client_id"] for c in data["created"]], [A2])
+        self.assertEqual([e["client_id"] for e in data["errors"]], [None, "c-1", 42])
+        self.assertTrue(all("UUID" in e["error"] for e in data["errors"]))
+        self.assertEqual(Annotation.objects.count(), 1)
+
+    def test_pull_exposes_own_client_id(self):
+        self.push({"create": [self.new_note(A1)]})
+        response = self.client.get(reverse("api:sync"))
+        self.assertEqual(response.json()["annotations"][0]["client_id"], A1)
 
     def test_update_and_delete(self):
         target = self.annotate(self.book)
@@ -360,20 +679,17 @@ class SyncPushTests(ApiTestCase):
         data = self.push(
             {
                 "create": [
-                    {"client_id": "bad-book", "book": self.foreign_book.pk, "page_number": 1,
-                     "coords": RECT, "color": "#FFEB3B"},
-                    {"client_id": "bad-page", "book": self.book.pk, "page_number": 99,
-                     "coords": RECT, "color": "#FFEB3B"},
-                    {"client_id": "ok", "book": self.book.pk, "page_number": 1,
-                     "coords": RECT, "color": "#FFEB3B"},
+                    self.new_note(A1, book=self.foreign_book),  # чужа книга
+                    self.new_note(A2, page_number=99),  # нема такої сторінки
+                    self.new_note(A3),
                 ],
                 "update": [{"id": foreign.pk, "note_text": "чуже"}],
             }
         )
-        self.assertEqual([c["client_id"] for c in data["created"]], ["ok"])
+        self.assertEqual([c["client_id"] for c in data["created"]], [A3])
         self.assertEqual(
             {str(e.get("client_id") or e.get("id")) for e in data["errors"]},
-            {"bad-book", "bad-page", str(foreign.pk)},
+            {A1, A2, str(foreign.pk)},
         )
         foreign.refresh_from_db()
         self.assertEqual(foreign.note_text, "")
@@ -534,6 +850,7 @@ class NoteGroupSyncTests(ApiTestCase):
         notes = self.pull()["shared_annotations"]
         self.assertEqual([n["id"] for n in notes], [shared.pk])
         self.assertNotIn("group", notes[0])
+        self.assertNotIn("client_id", notes[0])
 
     def test_push_creates_group_and_annotation_into_it(self):
         data = self.push(
@@ -541,7 +858,7 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": "Офлайн"}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
                     ]
                 },
@@ -561,7 +878,7 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.book.pk, "name": " Формули "}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"}
                     ]
                 },
@@ -575,7 +892,7 @@ class NoteGroupSyncTests(ApiTestCase):
         self.assertEqual(annotation.group, self.group)
 
     def new_note_into(self, client_id):
-        return {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+        return {"client_id": A1, "book": self.book.pk, "page_number": 1,
                 "coords": RECT, "color": "#FFEB3B", "group_client_id": client_id}
 
     def test_push_rename_then_create_same_name(self):
@@ -634,15 +951,15 @@ class NoteGroupSyncTests(ApiTestCase):
                 "note_groups": {"create": [{"client_id": "t1", "book": self.other_book.pk, "name": "Інша"}]},
                 "annotations": {
                     "create": [
-                        {"client_id": "a1", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A1, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "t1"},
-                        {"client_id": "a2", "book": self.book.pk, "page_number": 1,
+                        {"client_id": A2, "book": self.book.pk, "page_number": 1,
                          "coords": RECT, "color": "#FFEB3B", "group_client_id": "nema"},
                     ]
                 },
             }
         )
-        self.assertEqual([e["client_id"] for e in data["errors"]], ["a1", "a2"])
+        self.assertEqual([e["client_id"] for e in data["errors"]], [A1, A2])
         self.assertEqual(Annotation.objects.count(), 1)  # лише self.note
 
     def test_push_update_annotation_group(self):

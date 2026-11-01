@@ -1,5 +1,3 @@
-from random import randint
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -29,16 +27,9 @@ from .forms import (
     ResetRequestForm,
     ResetSetPasswordForm,
 )
-from .models import User
+from .google import UnverifiedEmail, google_account
 
 MODEL_BACKEND = "django.contrib.auth.backends.ModelBackend"
-
-
-def _unique_username(base):
-    username = base
-    while User.objects.filter(username=username).exists():
-        username = f"{base}{randint(1, 9999)}"
-    return username
 
 
 def register_view(request):
@@ -130,40 +121,13 @@ class GoogleCallbackView(View):
             "https://openidconnect.googleapis.com/v1/userinfo", token=token
         ).json()
 
-        # Акаунт шукаємо за поштою, тож непідтверджена Google-адреса дала б вхід у чужий акаунт.
-        if not user_info.get("email_verified"):
+        try:
+            user, created, password_reset = google_account(user_info)
+        except UnverifiedEmail:
             messages.error(request, _("Google не підтвердив цю адресу пошти. Увійдіть іншим способом."))
             return redirect("accounts:login")
-
-        email = user_info["email"]
-        base_name = (
-            user_info.get("given_name")
-            or user_info.get("name")
-            or email.split("@")[0]
-        )
-
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "username": _unique_username(base_name),
-                "first_name": user_info.get("given_name", ""),
-                "last_name": user_info.get("family_name", ""),
-                "email_verified": True,
-            },
-        )
-        if created:
-            user.set_unusable_password()
-            user.save(update_fields=["password"])
-        elif not user.email_verified:
-            # Адресу в акаунт записали без підтвердження — це міг зробити хтось інший, щоб
-            # потім читати чужі книги й нотатки. Новий хеш пароля розлогінює всі інші сесії
-            # (session auth hash) і JWT (CHECK_REVOKE_TOKEN).
-            had_password = user.has_usable_password()
-            user.set_unusable_password()
-            user.email_verified = True
-            user.save(update_fields=["password", "email_verified"])
-            if had_password:
-                messages.info(request, _("Пароль до акаунта скинуто: тепер вхід — через Google."))
+        if password_reset:
+            messages.info(request, _("Пароль до акаунта скинуто: тепер вхід — через Google."))
 
         login(request, user, backend=MODEL_BACKEND)
 

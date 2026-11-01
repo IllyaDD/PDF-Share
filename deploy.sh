@@ -27,6 +27,9 @@ export SENTRY_RELEASE="$(git rev-parse HEAD)"
 docker compose build web
 # Якщо міграція впаде, set -e зупинить скрипт до up — старий контейнер працює далі.
 docker compose run --rm web python manage.py migrate --noinput
+# Кожен вхід і refresh пише рядок у token_blacklist; прострочені вже нічого не відкликають.
+# Окремого планувальника нема, тож чистимо на деплої — він буває частіше, ніж раз на 30 днів.
+docker compose run --rm web python manage.py flushexpiredtokens
 # --wait: без нього up повертає 0 одразу, навіть якщо gunicorn потім не підніметься.
 # Healthcheck web — /health/ з Dockerfile; не дочекались — скрипт падає, CD червоний.
 docker compose up -d --remove-orphans --wait --wait-timeout 120

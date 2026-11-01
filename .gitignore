@@ -21,6 +21,7 @@ staticfiles/
 # Плани й специфікації superpowers — лише локально
 docs/superpowers/
 futureplans.md
+API_update.md
 
 # Дампи бази на сервері (backup.sh)
 /backups/

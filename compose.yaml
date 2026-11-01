@@ -1,4 +1,4 @@
-# Прод-стек: Cloudflare Tunnel → gunicorn/Django → Postgres. PDF і обкладинки — у R2.
+# Прод-стек: Cloudflare Tunnel → gunicorn/Django → Postgres + Redis (кеш). PDF і обкладинки — у R2.
 # TLS закінчується на Cloudflare; назовні не публікується жоден порт — сервер у домашній
 # мережі, а 80/443 на ньому можуть бути зайняті іншими проєктами.
 #
@@ -27,6 +27,19 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    # Кеш Django (зараз — лічильники throttle входу, спільні для воркерів gunicorn).
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    # Лише кеш: на диск нічого не пишемо, при переповненні викидаємо найдавніше використане.
+    # Рестарт скидає лічильники throttle — це прийнятно.
+    command: redis-server --save "" --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   web:
     build: .
     image: pdfplus-web
@@ -35,9 +48,12 @@ services:
     environment:
       PG_HOST: db
       PG_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # Портів назовні нема: доступ лише через tunnel.
 

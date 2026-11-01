@@ -181,24 +181,40 @@ POST   /books/<id>/progress/            {page} — save the current page (204)
 
 For the mobile / offline client. Header: `Authorization: Bearer <access>`. The token
 is verified by its signature; the server doesn't hit the database. Access tokens live 30 minutes, refresh tokens 30 days,
-and are rotated on every refresh. The blacklist is not enabled: a refresh token can't be revoked early.
+and are rotated on every refresh; the used refresh token goes to the blacklist
+(`rest_framework_simplejwt.token_blacklist`). Logout revokes refresh tokens only: an issued access
+token stays valid until it expires (up to 30 minutes).
 Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
 There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
 
 ```text
-POST   /api/auth/token/          {username, password} → {access, refresh, user}
-POST   /api/auth/token/refresh/  {refresh} → {access, refresh}
-GET    /api/catalog/books/       catalog, paginated by 50, ?search= by title
-GET    /api/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
-GET    /api/sync/?since=<ISO>    state delta: books, folders, annotations (own),
-                                 deleted_annotation_ids, note_groups (own topics),
-                                 reading_progress, shared_layers, shared_annotations
-                                 (teachers' layers), visible_book_ids, visible_folder_ids,
-                                 server_time
-POST   /api/sync/                batch {note_groups: {create, update, delete},
-                                        annotations: {create, update, delete},
-                                        reading_progress: [{book, last_page, read_at}]}
+POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
+POST   /api/v1/auth/token/refresh/  {refresh} → {access, refresh}
+POST   /api/v1/auth/google/         {id_token} → {access, refresh, user, created}
+POST   /api/v1/auth/logout/         {refresh} — log out this device (no access token needed)
+POST   /api/v1/auth/logout/all/     log out every device (204)
+GET    /api/v1/me/                  profile: id, username, email, email_verified,
+                                    first_name, last_name, has_password, date_joined
+DELETE /api/v1/me/                  delete the account with all its data (204)
+GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
+GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
+GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
+                                    deleted_annotation_ids, note_groups (own topics),
+                                    reading_progress, shared_layers, shared_annotations
+                                    (teachers' layers), visible_book_ids, visible_folder_ids,
+                                    server_time
+POST   /api/v1/sync/                batch {note_groups: {create, update, delete},
+                                           annotations: {create, update, delete},
+                                           reading_progress: [{book, last_page, read_at}]}
 ```
+
+Google accounts have no password, so the app signs in with native Google Sign-In and sends its
+ID token to `auth/google/`. The server checks the signature, expiry and `aud`: the token must be
+issued for the web client ID (`GOOGLE_OAUTH_CLIENT_ID` — on Android and on iOS with `serverClientID`
+it ends up in `aud`) or for one of `GOOGLE_MOBILE_CLIENT_IDS`. With neither set the endpoint returns 503.
+Account linking is the same as on the web (`users/google.py`): an email unverified by Google is 403,
+and an existing account whose address was never confirmed loses its password and previously issued
+tokens. Errors: 400 without `id_token`, 401 for an invalid token, 503 when Google is unreachable.
 
 Without `since`, the pull returns the full state. The client stores `server_time` as the next `since`
 and drops locally everything missing from `visible_*_ids` (revoked access, deleted book).
@@ -211,6 +227,11 @@ In a push, every operation is independent: errors are returned per item in `erro
 resolved as last-write-wins. For reading progress, the winner is determined by `read_at` (when the client
 was on the page), not by when the push arrived: an offline phone won't overwrite a newer position from the web.
 The `reading_progress` in the response is the actual state after merging.
+Every annotation in `annotations.create` requires a client-generated UUID `client_id`; anything else
+is an item error. Creation is idempotent: repeating a push with the same `client_id` (the response was
+lost after the commit) returns the already created annotation unchanged instead of a duplicate. The key
+is unique within your layer on one book. Own annotations in a pull carry `client_id` (`null` for those
+made on the web); `shared_annotations` don't.
 
 Note topics in sync:
 
