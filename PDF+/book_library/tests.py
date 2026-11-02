@@ -1611,3 +1611,99 @@ class FolderTableTests(TestCase):
         self.client.force_login(self.owner)
         response = self.client.get(reverse("book_library:library"))
         self.assertContains(response, "Підручників: 3 · нотаток: 0")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class FavoriteTests(TestCase):
+    """«Обране»: зірочка ставиться лише на видиму книгу й не відкриває чужого."""
+
+    def setUp(self):
+        from sharing.models import Group, GroupMembership
+
+        self.user = User.objects.create_user(
+            username="zirka", email="zirka@example.com", password="parol-parol-42"
+        )
+        self.stranger = User.objects.create_user(
+            username="inshyi", email="inshyi@example.com", password="parol-parol-42"
+        )
+        self.book = Book.objects.create(owner=self.user, title="Моя книга", file=make_pdf())
+        self.foreign = Book.objects.create(owner=self.stranger, title="Чужа книга", file=make_pdf())
+        self.group = Group.objects.create(owner=self.stranger, name="9-Б")
+        GroupMembership.objects.create(group=self.group, user=self.user)
+        self.client.force_login(self.user)
+
+    def favorite(self, book, value="1", **extra):
+        # extra — заголовки запиту (HTTP_ACCEPT=…).
+        return self.client.post(
+            reverse("book_library:book_favorite", args=[book.pk]), {"favorite": value}, **extra
+        )
+
+    def favorite_ids(self):
+        from .models import Favorite
+
+        return set(Favorite.objects.filter(user=self.user).values_list("book_id", flat=True))
+
+    def test_add_and_remove_redirects_to_next(self):
+        response = self.client.post(
+            reverse("book_library:book_favorite", args=[self.book.pk]),
+            {"favorite": "1", "next": reverse("book_library:library")},
+        )
+        self.assertRedirects(response, reverse("book_library:library"))
+        self.assertEqual(self.favorite_ids(), {self.book.pk})
+
+        self.favorite(self.book, "0")
+        self.assertEqual(self.favorite_ids(), set())
+
+    def test_repeat_is_idempotent(self):
+        self.favorite(self.book)
+        self.favorite(self.book)
+        self.assertEqual(self.favorite_ids(), {self.book.pk})
+
+    def test_json_response_for_fetch(self):
+        response = self.favorite(self.book, HTTP_ACCEPT="application/json")
+        self.assertEqual(response.json(), {"favorite": True})
+        response = self.favorite(self.book, "0", HTTP_ACCEPT="application/json")
+        self.assertEqual(response.json(), {"favorite": False})
+
+    def test_foreign_book_is_404(self):
+        self.assertEqual(self.favorite(self.foreign).status_code, 404)
+        self.assertEqual(self.favorite_ids(), set())
+
+    def test_get_not_allowed_and_anonymous_redirected(self):
+        url = reverse("book_library:book_favorite", args=[self.book.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.client.logout()
+        response = self.client.post(url, {"favorite": "1"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response["Location"])
+
+    def test_page_lists_newest_first(self):
+        second = Book.objects.create(owner=self.user, title="Друга", file=make_pdf())
+        self.favorite(self.book)
+        self.favorite(second)
+        response = self.client.get(reverse("book_library:favorites"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([b.title for b in response.context["books"]], ["Друга", "Моя книга"])
+
+    def test_revoked_access_hides_book(self):
+        from sharing.models import GroupAccess
+
+        access = GroupAccess.objects.create(group=self.group, book=self.foreign, granted_by=self.stranger)
+        self.favorite(self.foreign)
+        response = self.client.get(reverse("book_library:favorites"))
+        self.assertEqual([b.pk for b in response.context["books"]], [self.foreign.pk])
+
+        access.delete()
+        response = self.client.get(reverse("book_library:favorites"))
+        self.assertEqual(response.context["books"], [])
+        self.assertNotContains(response, "Чужа книга")
+
+    def test_empty_state(self):
+        response = self.client.get(reverse("book_library:favorites"))
+        self.assertContains(response, "Тут поки порожньо")
+
+    def test_star_state_on_cards(self):
+        self.favorite(self.book)
+        response = self.client.get(reverse("book_library:library"))
+        self.assertContains(response, 'favorite-toggle" aria-pressed="true"', count=1)
+        self.assertContains(response, reverse("book_library:favorites"))

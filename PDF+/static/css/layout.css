@@ -243,26 +243,9 @@
   color: var(--app-text-muted);
 }
 
-.side-disclaimer {
-  margin-top: auto;
-  padding: .875rem;
-  border-radius: .875rem;
-  background: var(--app-surface);
-  font-size: .75rem;
-  line-height: 1.35;
-  color: var(--bs-secondary-color);
-}
-
 .app-sidebar .side-nav,
 .app-offcanvas .side-nav {
   margin-bottom: 1.5rem;
-}
-
-.side-disclaimer strong {
-  display: block;
-  margin-bottom: .125rem;
-  font-weight: 500;
-  color: var(--bs-body-color);
 }
 
 /* --- Заголовок сторінки --- */

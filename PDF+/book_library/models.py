@@ -122,3 +122,34 @@ class ReadingProgress(models.Model):
         if not page_count:
             return 0
         return min(self.last_page * 100 // page_count, 100)
+
+
+class Favorite(models.Model):
+    """Книга в «Обраному» користувача. Сама прав не дає: читати — через visible_favorites()."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+    book = models.ForeignKey(
+        Book,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "library_favorite"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "book"],
+                name="unique_favorite_per_user_book",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user} ★ {self.book}"

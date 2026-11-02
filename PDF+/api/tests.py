@@ -1020,3 +1020,70 @@ class NoteGroupSyncTests(ApiTestCase):
     def test_bad_note_groups_section_is_400(self):
         response = self.client.post(reverse("api:sync"), {"note_groups": []}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+class FavoriteSyncTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Моя")
+        self.foreign_book = make_book(self.teacher, "Чужа")
+
+    def push(self, favorites):
+        response = self.client.post(reverse("api:sync"), {"favorites": favorites}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def pull_ids(self, since=None):
+        params = {"since": since.isoformat()} if since else {}
+        response = self.client.get(reverse("api:sync"), params)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()["favorite_book_ids"]
+
+    def test_add_then_pull_full_list_even_in_delta(self):
+        since = timezone.now()
+        data = self.push({"add": [self.book.pk]})
+        self.assertEqual(data["favorites"], {"removed": [], "added": [self.book.pk]})
+        self.assertEqual(self.pull_ids(), [self.book.pk])
+        self.assertEqual(self.pull_ids(timezone.now()), [self.book.pk])
+        self.assertEqual(self.pull_ids(since), [self.book.pk])
+
+    def test_add_is_idempotent_and_remove_works(self):
+        self.push({"add": [self.book.pk]})
+        self.push({"add": [self.book.pk]})
+        self.assertEqual(self.pull_ids(), [self.book.pk])
+        self.push({"remove": [self.book.pk]})
+        self.assertEqual(self.pull_ids(), [])
+
+    def test_same_id_in_remove_and_add_is_rejected(self):
+        self.push({"add": [self.book.pk]})
+        data = self.push({"remove": [self.book.pk], "add": [self.book.pk]})
+        self.assertEqual(data["favorites"], {"removed": [], "added": []})
+        self.assertEqual(
+            [e["op"] for e in data["errors"]], ["favorite_remove", "favorite_add"]
+        )
+        # Нічого не застосовано: книга лишилась в обраному, як і була.
+        self.assertEqual(self.pull_ids(), [self.book.pk])
+
+    def test_foreign_book_is_per_item_error(self):
+        data = self.push({"add": [self.foreign_book.pk, self.book.pk, "x"]})
+        self.assertEqual(data["favorites"]["added"], [self.book.pk])
+        self.assertEqual([e["op"] for e in data["errors"]], ["favorite_add", "favorite_add"])
+        self.assertEqual(self.pull_ids(), [self.book.pk])
+
+    def test_revoked_book_hidden_from_pull_but_removable(self):
+        group = Group.objects.create(name="11-Г", owner=self.teacher)
+        GroupMembership.objects.create(group=group, user=self.user)
+        access = GroupAccess.objects.create(group=group, book=self.foreign_book, granted_by=self.teacher)
+        self.push({"add": [self.foreign_book.pk]})
+        self.assertEqual(self.pull_ids(), [self.foreign_book.pk])
+
+        access.delete()
+        self.assertEqual(self.pull_ids(), [])
+        data = self.push({"remove": [self.foreign_book.pk]})
+        self.assertEqual(data["errors"], [])
+
+    def test_malformed_section_is_400(self):
+        response = self.client.post(reverse("api:sync"), {"favorites": []}, format="json")
+        self.assertEqual(response.status_code, 400)
+        response = self.client.post(reverse("api:sync"), {"favorites": {"add": 5}}, format="json")
+        self.assertEqual(response.status_code, 400)

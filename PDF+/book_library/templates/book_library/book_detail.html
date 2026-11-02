@@ -18,6 +18,7 @@
   {% if is_owner %}
     <a href="{% url 'book_library:book_edit' book.pk %}" class="btn btn-outline-secondary">{% translate "Редагувати" %}</a>
   {% endif %}
+  {% include "partials/favorite_button.html" %}
 {% endblock %}
 
 {% block content %}

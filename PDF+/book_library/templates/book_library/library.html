@@ -107,7 +107,12 @@
                       </div>
                     </td>
                   {% endif %}
-                  <td class="text-end">{% include "partials/book_actions.html" %}</td>
+                  <td>
+                    <div class="d-flex justify-content-end align-items-center">
+                      {% include "partials/favorite_button.html" %}
+                      {% include "partials/book_actions.html" %}
+                    </div>
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>

@@ -201,11 +201,12 @@ GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a si
 GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
                                     deleted_annotation_ids, note_groups (own topics),
                                     reading_progress, shared_layers, shared_annotations
-                                    (teachers' layers), visible_book_ids, visible_folder_ids,
-                                    server_time
+                                    (teachers' layers), favorite_book_ids, visible_book_ids,
+                                    visible_folder_ids, server_time
 POST   /api/v1/sync/                batch {note_groups: {create, update, delete},
                                            annotations: {create, update, delete},
-                                           reading_progress: [{book, last_page, read_at}]}
+                                           reading_progress: [{book, last_page, read_at}],
+                                           favorites: {add: [book_id], remove: [book_id]}}
 ```
 
 Google accounts have no password, so the app signs in with native Google Sign-In and sends its
@@ -227,6 +228,10 @@ In a push, every operation is independent: errors are returned per item in `erro
 resolved as last-write-wins. For reading progress, the winner is determined by `read_at` (when the client
 was on the page), not by when the push arrived: an offline phone won't overwrite a newer position from the web.
 The `reading_progress` in the response is the actual state after merging.
+`favorite_book_ids` (books you starred) is sent in full on every pull, like `visible_*_ids`: a book
+missing from it is not a favorite. In a push, `favorites` sets state rather than toggling it, so a
+repeated push is harmless. Send the final state: an id present in both `add` and `remove` is an
+item error and is not applied. Only a visible book can be added.
 Every annotation in `annotations.create` requires a client-generated UUID `client_id`; anything else
 is an item error. Creation is idempotent: repeating a push with the same `client_id` (the response was
 lost after the commit) returns the already created annotation unchanged instead of a duplicate. The key

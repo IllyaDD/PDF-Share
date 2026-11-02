@@ -262,6 +262,45 @@
   margin: -.25rem -.5rem 0 auto;
 }
 
+/* Зірочка «Обране» (partials/favorite_button.html). Обрана — жовта; базовий
+   .btn-icon[aria-pressed="true"] фарбує в синє, тож колір перевизначаємо тут. */
+.favorite-form {
+  display: inline-flex;
+}
+
+.favorite-form .favorite-toggle[aria-pressed="true"] {
+  background: transparent;
+  color: var(--app-accent);
+}
+
+/* На картці зірочка — у куті обкладинки, над ::after назви, що робить клікабельною всю картку. */
+.book-card-favorite {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  z-index: 1;
+}
+
+.book-card-favorite .favorite-toggle,
+.book-card-favorite .favorite-toggle[aria-pressed="true"] {
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
+}
+
+/* Порожня зірочка на кожній картці шумить: де є наведення, показуємо її лише на ньому.
+   На сенсорних екранах наведення нема — там зірочка видна завжди. */
+@media (hover: hover) {
+  .book-card-favorite:not(:has([aria-pressed="true"])) {
+    opacity: 0;
+    transition: opacity .15s ease;
+  }
+
+  .book-card:hover .book-card-favorite,
+  .book-card-favorite:focus-within {
+    opacity: 1;
+  }
+}
+
 .folder-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));

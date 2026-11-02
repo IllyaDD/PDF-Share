@@ -11,6 +11,7 @@ urlpatterns = [
     path("library/", views.library_view, name="library"),
     path("library/folder/<int:pk>/", views.library_view, name="folder"),
     path("recent/", views.recent_view, name="recent"),
+    path("favorites/", views.favorites_view, name="favorites"),
     path("shared/", views.shared_with_me_view, name="shared_with_me"),
     path("catalog/", views.catalog_view, name="catalog"),
 
@@ -23,6 +24,7 @@ urlpatterns = [
     path("books/<int:pk>/", views.book_detail_view, name="book_detail"),
     path("books/<int:pk>/read/", views.book_reader_view, name="book_reader"),
     path("books/<int:pk>/progress/", views.book_progress_view, name="book_progress"),
+    path("books/<int:pk>/favorite/", views.book_favorite_view, name="book_favorite"),
     path("books/<int:pk>/edit/", views.book_edit_view, name="book_edit"),
     path("books/<int:pk>/delete/", views.book_delete_view, name="book_delete"),
     path("books/<int:pk>/move/", views.book_move_view, name="book_move"),
