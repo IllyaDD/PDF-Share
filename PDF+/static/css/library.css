@@ -57,43 +57,33 @@
   background: var(--app-accent);
 }
 
+/* Коло — сам блок, аркуші центровані в ньому. Розміри підібрані так, що найдальший кут
+   повернутого аркуша (~3.2rem від центру) лишається всередині радіуса 4rem. */
 .continue-banner-decor {
   position: relative;
-  flex: 0 0 10rem;
-  height: 7.5rem;
-}
-
-.continue-banner-decor::before {
-  content: "";
-  position: absolute;
-  right: -.5rem;
-  top: 50%;
-  width: 7.5rem;
-  height: 7.5rem;
+  flex: 0 0 8rem;
+  height: 8rem;
   border-radius: 50%;
-  transform: translateY(-50%);
   background: var(--app-banner-circle);
 }
 
 .continue-banner-sheet {
   position: absolute;
-  width: 3.75rem;
-  height: 5rem;
-  border-radius: .5rem;
-  top: .75rem;
+  top: 50%;
+  left: 50%;
+  width: 3rem;
+  height: 4rem;
+  border-radius: .4rem;
 }
 
 .continue-banner-sheet.is-a {
-  left: 1.25rem;
   background: var(--app-sheet-a);
-  transform: rotate(-8deg);
+  transform: translate(-50%, -50%) translate(-.6rem, -.25rem) rotate(-8deg);
 }
 
 .continue-banner-sheet.is-b {
-  left: 2.75rem;
-  top: 1.5rem;
   background: var(--app-sheet-b);
-  transform: rotate(8deg);
+  transform: translate(-50%, -50%) translate(.6rem, .25rem) rotate(8deg);
 }
 
 .continue-banner .btn {
