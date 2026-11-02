@@ -16,6 +16,7 @@
         <span class="progress-fill" style="--progress: {{ progress.percent }}%"></span>
       </div>
     {% endif %}
+    {% include "partials/favorite_button.html" with extra_class="book-card-favorite" %}
   </div>
 
   <div class="book-card-body">

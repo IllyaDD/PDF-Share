@@ -9,6 +9,9 @@
   <a class="side-link {% if url_name == 'recent' %}active{% endif %}" href="{% url 'book_library:recent' %}">
     <i class="bi bi-clock" aria-hidden="true"></i><span>{% translate "Нещодавні" %}</span>
   </a>
+  <a class="side-link {% if url_name == 'favorites' %}active{% endif %}" href="{% url 'book_library:favorites' %}">
+    <i class="bi bi-star" aria-hidden="true"></i><span>{% translate "Обране" %}</span>
+  </a>
   <a class="side-link {% if url_name == 'shared_with_me' %}active{% endif %}" href="{% url 'book_library:shared_with_me' %}">
     <i class="bi bi-share" aria-hidden="true"></i><span>{% translate "Поділилися зі мною" %}</span>
   </a>
@@ -60,9 +63,4 @@
   </a>
 
 </nav>
-
-<div class="side-disclaimer">
-  <strong>{% translate "Учнівський проєкт МАН" %}</strong>
-  <span>{% translate "Не є офіційним продуктом МОН чи Мінцифри. Шрифт e-Ukraine, CC BY 4.0" %}</span>
-</div>
 {% endwith %}

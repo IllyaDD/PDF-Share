@@ -201,11 +201,12 @@ GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 �
 GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
                                     deleted_annotation_ids, note_groups (власні теми),
                                     reading_progress, shared_layers, shared_annotations
-                                    (шари вчителів), visible_book_ids, visible_folder_ids,
-                                    server_time
+                                    (шари вчителів), favorite_book_ids, visible_book_ids,
+                                    visible_folder_ids, server_time
 POST   /api/v1/sync/                батч {note_groups: {create, update, delete},
                                           annotations: {create, update, delete},
-                                          reading_progress: [{book, last_page, read_at}]}
+                                          reading_progress: [{book, last_page, read_at}],
+                                          favorites: {add: [book_id], remove: [book_id]}}
 ```
 
 Google-акаунти пароля не мають, тож застосунок входить через нативний Google Sign-In і шле його
@@ -227,6 +228,10 @@ web client ID (`GOOGLE_OAUTH_CLIENT_ID` — на Android і на iOS із `serve
 розв'язуються за last-write-wins. Для прогресу читання переможця визначає `read_at` (коли клієнт
 був на сторінці), а не час приходу push'а: офлайн-телефон не затре новішу позицію з вебу.
 `reading_progress` у відповіді — фактичний стан після злиття.
+`favorite_book_ids` (книги з зірочкою) щоразу йде повністю, як і `visible_*_ids`: книги, якої нема
+в списку, в обраному нема. У push `favorites` встановлює стан, а не перемикає його, тож повтор push'а
+нічого не ламає. Слати треба фінальний стан: id, що є і в `add`, і в `remove`, — помилка операції,
+і він не застосовується. Додати можна лише видиму книгу.
 Кожна анотація в `annotations.create` мусить мати `client_id` — UUID, згенерований клієнтом; інше
 значення — помилка операції. Створення ідемпотентне: повтор push'а з тим самим `client_id` (відповідь
 загубилась після коміту) повертає вже створену анотацію без змін, а не дубль. Ключ унікальний у межах

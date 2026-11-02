@@ -168,6 +168,16 @@ share-посилання з `include_annotations` (шар автора поси�
 для дельти `api/sync.py`. У `reader.js` прапорець `tracking` вимкнений на старті й під час
 `reflow()`: в'юер у цей момент стоїть на с. 1, і трекер перезаписав би прогрес.
 
+### Обране
+
+`book_library.Favorite` — пара (користувач, книга), прав не дає. Пиши через
+`book_library/favorites.set_favorite()` — «встановити стан», а не перемикач, тож повтор запиту
+чи пушу ідемпотентний. Книги для показу — лише через `visible_books()`: запис про книгу з
+відкликаним доступом лишається в базі, але не показується. Стан зірочки на картках —
+`favorite_book_ids` з контекст-процесора `sidebar` (один запит на сторінку), партіал
+`partials/favorite_button.html`, `js/favorite-toggle.js` підключений у `base.html` один раз.
+У синку `favorite_book_ids` щоразу повний, без тумбстоунів.
+
 ### Два різні API
 
 - `annotations/api.py` — JSON-API читалки на DRF `APIView`, але з `SessionAuthentication`

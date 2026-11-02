@@ -13,7 +13,8 @@ from annotations.validators import (
     parse_page_number,
 )
 from book_library.access import folders_subtree_ids, visible_books, visible_folders
-from book_library.models import Book
+from book_library.favorites import set_favorite, visible_favorites
+from book_library.models import Book, Favorite
 from book_library.progress import record_progress, visible_progress
 from django.conf import settings
 from django.db import transaction
@@ -123,6 +124,9 @@ def pull_state(user, since=None):
         "shared_layers": SharedLayerSerializer(layers, many=True).data,
         "shared_annotations": SharedAnnotationSerializer(changed_shared, many=True).data,
         "reading_progress": ReadingProgressSerializer(changed_progress, many=True).data,
+        # Обране — множина id, щоразу повна (як note_groups): книга, якої нема в списку,
+        # з обраного прибрана, тож тумбстоуни не потрібні.
+        "favorite_book_ids": sorted(visible_favorites(user).values_list("book_id", flat=True)),
         "visible_book_ids": sorted(books.values_list("pk", flat=True)),
         "visible_folder_ids": sorted(folders.values_list("pk", flat=True)),
     }
@@ -320,18 +324,64 @@ def _push_annotations(user, ops, client_groups, released, errors):
     }
 
 
+def _favorite_ops(payload):
+    section = payload.get("favorites", {})
+    if not isinstance(section, dict):
+        raise BatchError("favorites: очікується об'єкт із add/remove")
+    return {name: _ops(section, name, "favorites") for name in ("remove", "add")}
+
+
+def _push_favorites(user, ops, errors):
+    """Клієнт шле фінальний стан: кожен id — лише в одному зі списків.
+
+    Операції — «встановити стан», а не «перемкнути», тож повтор пушу нічого не ламає.
+    Id в обох списках — помилка, і він не застосовується: порядку дій офлайн сервер не
+    знає, а будь-який вибір то губив би останню дію, то перестворював запис.
+    Прибрати можна й книгу, до якої вже нема доступу; додати — лише видиму.
+    """
+    both = {pk for pk in ops["add"] if isinstance(pk, int)} & {
+        pk for pk in ops["remove"] if isinstance(pk, int)
+    }
+
+    def check_conflict(pk, op):
+        if pk in both:
+            raise PayloadError(f"{op}: id є і в add, і в remove")
+
+    def remove(pk):
+        check_conflict(pk, "remove")
+        _int_id(pk, "remove")
+        Favorite.objects.filter(user=user, book_id=pk).delete()
+        return pk
+
+    def add(pk):
+        check_conflict(pk, "add")
+        _int_id(pk, "add")
+        book = visible_books(user).filter(pk=pk).first()
+        if book is None:
+            raise PayloadError("add: книги нема або вона недоступна")
+        set_favorite(user, book, True)
+        return pk
+
+    return {
+        "removed": _each(ops["remove"], "favorite_remove", "book", lambda pk: pk, remove, errors),
+        "added": _each(ops["add"], "favorite_add", "book", lambda pk: pk, add, errors),
+    }
+
+
 @transaction.atomic
 def push_changes(user, payload):
     if not isinstance(payload, dict):
         raise BatchError("очікується JSON-об'єкт")
     annotation_ops = _section(payload, "annotations")
     group_ops = _section(payload, "note_groups")
+    favorite_ops = _favorite_ops(payload)
     progress_items = payload.get("reading_progress", [])
     if not isinstance(progress_items, list):
         raise BatchError("reading_progress: очікується список")
     total = (
         sum(map(len, annotation_ops.values()))
         + sum(map(len, group_ops.values()))
+        + sum(map(len, favorite_ops.values()))
         + len(progress_items)
     )
     if total > MAX_BATCH_OPS:
@@ -345,10 +395,12 @@ def push_changes(user, payload):
         progress_items, "progress", "book", lambda item: _field(item, "book"),
         lambda item: ReadingProgressSerializer(_record_progress(user, item)).data, errors,
     )
+    favorites = _push_favorites(user, favorite_ops, errors)
     return {
         **annotations,
         "reading_progress": progress,
         "note_groups": note_groups,
+        "favorites": favorites,
         "errors": errors,
         "server_time": timezone.now(),
     }

@@ -6,7 +6,7 @@ from unfold.decorators import display
 from annotations.models import Layer
 
 from .forms import BookAdminForm
-from .models import Book, Folder, ReadingProgress
+from .models import Book, Favorite, Folder, ReadingProgress
 
 
 class LayerInline(TabularInline):
@@ -61,6 +61,17 @@ class ReadingProgressAdmin(ModelAdmin):
     search_fields = ("user__username", "book__title")
     readonly_fields = ("user", "book", "last_page", "read_at", "updated_at")
     date_hierarchy = "read_at"
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(ModelAdmin):
+    list_display = ("user", "book", "created_at")
+    search_fields = ("user__username", "book__title")
+    readonly_fields = ("user", "book", "created_at")
+    date_hierarchy = "created_at"
 
     def has_add_permission(self, request):
         return False

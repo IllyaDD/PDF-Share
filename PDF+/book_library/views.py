@@ -31,6 +31,7 @@ from .access import (
     visible_books,
     visible_folders,
 )
+from .favorites import set_favorite, visible_favorites
 from .forms import BookForm, FolderForm
 from .models import Book, Folder, ReadingProgress
 from .progress import record_progress, visible_progress
@@ -210,6 +211,37 @@ def recent_view(request):
             "progress_list": _recent_progress(request)[:RECENT_LIMIT],
             "page_title": _("Нещодавні"),
             "page_subtitle": _("Книги, які ви відкривали останніми"),
+            "library_url": reverse("book_library:library"),
+        },
+    )
+
+
+@login_required
+def favorites_view(request):
+    """Книги з зірочкою, нові зверху. Відкликаний доступ ховає книгу й звідси."""
+    favorites = (
+        visible_favorites(request.user, request.session)
+        .select_related("book__folder__parent__parent")
+        .annotate(
+            note_count=Count(
+                "book__layers__annotations",
+                filter=Q(book__layers__owner=request.user),
+                distinct=True,
+            )
+        )
+        .order_by("-created_at")
+    )
+    books = []
+    for favorite in favorites:
+        favorite.book.note_count = favorite.note_count
+        books.append(favorite.book)
+    return render(
+        request,
+        "book_library/favorites.html",
+        {
+            "books": books,
+            "page_title": _("Обране"),
+            "page_subtitle": _("Книги, позначені зірочкою"),
             "library_url": reverse("book_library:library"),
         },
     )
@@ -556,6 +588,26 @@ def book_progress_view(request, pk):
 
     record_progress(request.user, book, page)
     return HttpResponse(status=204)
+
+
+@login_required
+@require_POST
+def book_favorite_view(request, pk):
+    """Зірочка: favorite=1 ставить, будь-що інше знімає.
+
+    js/favorite-toggle.js шле запит із Accept: application/json і отримує стан без
+    перезавантаження; без JS форма редиректить назад на ?next=.
+    """
+    book = get_object_or_404(visible_books(request.user, request.session), pk=pk)
+    favorite = set_favorite(request.user, book, request.POST.get("favorite") == "1")
+    if "application/json" in request.headers.get("Accept", ""):
+        return JsonResponse({"favorite": favorite})
+
+    if favorite:
+        messages.success(request, _("«%(title)s» додано до обраного.") % {"title": book.title})
+    else:
+        messages.success(request, _("«%(title)s» прибрано з обраного.") % {"title": book.title})
+    return redirect(_safe_next(request, reverse("book_library:book_detail", args=[book.pk])))
 
 
 @login_required
