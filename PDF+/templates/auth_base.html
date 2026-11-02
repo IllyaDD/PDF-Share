@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{# Сторінки входу й реєстрації: без шапки й сайдбару, картка по центру на декоративному тлі. #}
+
+{% block extra_head %}
+  <link href="{% static 'css/auth.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block layout %}
+<main class="auth-page">
+  <div class="auth-decor" aria-hidden="true">
+    <span class="auth-blob is-sun"></span>
+    <span class="auth-blob is-sky"></span>
+    <svg class="auth-star" viewBox="0 0 24 24"><path fill="currentColor" d="m12 1.8 3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 17.9l-6.4 3.5L7 14.3 1.7 9.3l7.2-.9z"/></svg>
+    <div class="auth-sheets"><span class="auth-sheet is-a"></span><span class="auth-sheet is-b"></span></div>
+  </div>
+
+  <div class="auth-prefs">{% include "partials/prefs_controls.html" %}</div>
+
+  <a class="app-brand auth-brand" href="{% url 'book_library:home' %}">
+    {% include "partials/logo.html" %}<span>PDF+</span>
+  </a>
+
+  <div class="auth-card">
+    {% include "partials/messages.html" %}
+    {% block auth_card %}{% endblock %}
+  </div>
+
+  <p class="auth-footnote">{% translate "Учнівський проєкт МАН. Не є офіційним продуктом МОН чи Мінцифри." %}</p>
+</main>
+{% endblock %}

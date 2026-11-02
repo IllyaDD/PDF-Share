@@ -1,0 +1,158 @@
+/* ==========================================================================
+   Шрифт e-Ukraine (CC BY 4.0, Мінцифри; див. static/fonts/LICENSE.txt).
+   ========================================================================== */
+
+@font-face { font-family: "e-Ukraine"; font-weight: 300; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-300.woff2") format("woff2"); }
+@font-face { font-family: "e-Ukraine"; font-weight: 400; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-400.woff2") format("woff2"); }
+@font-face { font-family: "e-Ukraine"; font-weight: 500; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-500.woff2") format("woff2"); }
+@font-face { font-family: "e-Ukraine"; font-weight: 700; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-700.woff2") format("woff2"); }
+@font-face { font-family: "e-Ukraine Head"; font-weight: 400; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-head-400.woff2") format("woff2"); }
+@font-face { font-family: "e-Ukraine Head"; font-weight: 500; font-style: normal; font-display: swap; src: url("../fonts/e-ukraine-head-500.woff2") format("woff2"); }
+
+/* ==========================================================================
+   Токени. Власні — з префіксом --app-, решта перевизначає змінні Bootstrap,
+   щоб наявні класи (btn-primary, text-body-secondary, bg-body…) підхопили стиль.
+   Кожен токен має пару в темній темі нижче.
+   ========================================================================== */
+
+:root,
+[data-bs-theme="light"] {
+  --app-primary: #1A69F3;
+  --app-primary-hover: #1558CF;
+  --app-primary-active: #114BB0;
+  --app-primary-soft: #E8F0FE;
+  --app-primary-soft-2: #DCE8FD;
+  --app-accent: #FFB800;
+  --app-yellow-soft: #FFF4D7;
+  --app-on-yellow: #5C4300;
+  --app-green-soft: #DDF6E8;
+  --app-pink-soft: #FCE4EC;
+
+  --app-page-bg: #F2F2F2;
+  --app-surface: #FFFFFF;
+  --app-header-bg: #FFFFFF;
+  --app-sidebar-bg: #E7EEF3;
+  --app-field-bg: #F2F2F2;
+  --app-divider: #ECECEC;
+  --app-outline: #E0E0E0;
+  --app-text-muted: #9B9B9B;
+  --app-quote: #777777;
+
+  --app-banner-bg: #1A69F3;
+  --app-banner-track: #538FF6;
+  --app-banner-circle: #357BF4;
+  --app-sheet-a: #FFFFFF;
+  --app-sheet-b: #FFF4D7;
+
+  --app-auth-sun: #FFF4D7;
+  --app-auth-sky: #E8F0FE;
+  --app-auth-sheet-a: #FFFFFF;
+  --app-auth-sheet-b: #DCE8FD;
+
+  --app-radius-pill: 50rem;
+  --app-radius-card: 1.25rem;
+  --app-radius-modal: 1.5rem;
+  --app-radius-field: .75rem;
+  --app-shadow-pop: 0 12px 40px rgba(16, 24, 40, .18);
+  --app-shadow-soft: 0 8px 32px rgba(16, 24, 40, .06);
+  --app-header-h: 64px;
+  --app-sidebar-w: 256px;
+
+  --bs-body-font-family: "e-Ukraine", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bs-body-font-size: .9375rem;
+  --bs-body-color: #111111;
+  --bs-body-color-rgb: 17, 17, 17;
+  --bs-secondary-color: #636363;
+  --bs-secondary-color-rgb: 99, 99, 99;
+  --bs-tertiary-bg: #F2F2F2;
+  --bs-tertiary-bg-rgb: 242, 242, 242;
+  --bs-border-color: #E0E0E0;
+
+  --bs-primary: #1A69F3;
+  --bs-primary-rgb: 26, 105, 243;
+  --bs-primary-text-emphasis: #1558CF;
+  --bs-primary-bg-subtle: #E8F0FE;
+  --bs-primary-border-subtle: #A9C7FB;
+  --bs-link-color: #1A69F3;
+  --bs-link-color-rgb: 26, 105, 243;
+  --bs-link-hover-color: #1558CF;
+  --bs-link-hover-color-rgb: 21, 88, 207;
+  --bs-danger: #DB3E3E;
+  --bs-danger-rgb: 219, 62, 62;
+  --bs-form-invalid-color: #DB3E3E;
+  --bs-form-invalid-border-color: #DB3E3E;
+  --bs-focus-ring-color: rgba(26, 105, 243, .25);
+
+  --bs-border-radius: .75rem;
+  --bs-border-radius-sm: .5rem;
+  --bs-border-radius-lg: 1rem;
+  --bs-border-radius-xl: 1.25rem;
+  --bs-border-radius-xxl: 1.5rem;
+  --bs-box-shadow-sm: 0 1px 2px rgba(16, 24, 40, .04);
+  --bs-box-shadow: 0 8px 24px rgba(16, 24, 40, .08);
+}
+
+[data-bs-theme="dark"] {
+  --app-primary: #4C8DFF;
+  --app-primary-hover: #6AA0FF;
+  --app-primary-active: #2F73F5;
+  --app-primary-soft: #1B2B4A;
+  --app-primary-soft-2: #223A66;
+  --app-yellow-soft: #4A3E1A;
+  --app-on-yellow: #FFE9A8;
+  --app-green-soft: #1D3D2E;
+  --app-pink-soft: #4A2433;
+
+  --app-page-bg: #14181F;
+  --app-surface: #1E2530;
+  --app-header-bg: #1A1F28;
+  --app-sidebar-bg: #1A2230;
+  --app-field-bg: #262F3D;
+  --app-divider: #2E3847;
+  --app-outline: #2E3847;
+  --app-text-muted: #7C8797;
+  --app-quote: #A8B2C0;
+
+  --app-banner-bg: #1D4FB8;
+  --app-banner-track: rgba(255, 255, 255, .25);
+  --app-banner-circle: #2A5FCC;
+  --app-sheet-a: #E8EEF7;
+  --app-sheet-b: #FFE9A8;
+
+  --app-auth-sun: #4A3E1A;
+  --app-auth-sky: #1F2B42;
+  --app-auth-sheet-a: #262F3D;
+  --app-auth-sheet-b: #223A66;
+
+  --app-shadow-pop: 0 12px 40px rgba(0, 0, 0, .5);
+  --app-shadow-soft: none;
+
+  --bs-body-bg: #1E2530;
+  --bs-body-bg-rgb: 30, 37, 48;
+  --bs-body-color: #EEF2F7;
+  --bs-body-color-rgb: 238, 242, 247;
+  --bs-secondary-color: #A8B2C0;
+  --bs-secondary-color-rgb: 168, 178, 192;
+  --bs-secondary-bg: #262F3D;
+  --bs-secondary-bg-rgb: 38, 47, 61;
+  --bs-tertiary-bg: #14181F;
+  --bs-tertiary-bg-rgb: 20, 24, 31;
+  --bs-border-color: #2E3847;
+
+  --bs-primary: #2F73F5;
+  --bs-primary-rgb: 47, 115, 245;
+  --bs-primary-text-emphasis: #6AA0FF;
+  --bs-primary-bg-subtle: #1B2B4A;
+  --bs-primary-border-subtle: #223A66;
+  --bs-link-color: #4C8DFF;
+  --bs-link-color-rgb: 76, 141, 255;
+  --bs-link-hover-color: #6AA0FF;
+  --bs-link-hover-color-rgb: 106, 160, 255;
+  --bs-danger: #FF6B6B;
+  --bs-danger-rgb: 255, 107, 107;
+  --bs-form-invalid-color: #FF6B6B;
+  --bs-form-invalid-border-color: #FF6B6B;
+  --bs-focus-ring-color: rgba(76, 141, 255, .3);
+  --bs-box-shadow-sm: none;
+  --bs-box-shadow: 0 0 0 1px #2E3847;
+}

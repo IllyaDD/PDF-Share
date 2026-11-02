@@ -1,0 +1,227 @@
+/* ==========================================================================
+   Вхід і реєстрація.
+   ========================================================================== */
+
+.auth-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 1rem 2.5rem;
+  overflow: hidden;
+  background: var(--app-sidebar-bg);
+}
+
+.auth-prefs {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.auth-decor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.auth-blob {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.auth-blob.is-sun {
+  top: -7.5rem;
+  right: -7.5rem;
+  width: 22.5rem;
+  height: 22.5rem;
+  background: var(--app-auth-sun);
+}
+
+.auth-blob.is-sky {
+  left: -18.75rem;
+  bottom: -21.25rem;
+  width: 42.5rem;
+  height: 42.5rem;
+  background: var(--app-auth-sky);
+}
+
+.auth-star {
+  position: absolute;
+  left: 15%;
+  top: 26%;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--app-accent);
+}
+
+.auth-sheets {
+  position: absolute;
+  right: 8%;
+  bottom: 14%;
+  width: 13rem;
+  height: 12rem;
+}
+
+.auth-sheet {
+  position: absolute;
+  border-radius: .875rem;
+}
+
+.auth-sheet.is-a {
+  left: 0;
+  top: 0;
+  width: 10.25rem;
+  height: 11.875rem;
+  background: var(--app-auth-sheet-a);
+  transform: rotate(-8deg);
+}
+
+.auth-sheet.is-b {
+  left: 5rem;
+  top: 0;
+  width: 9rem;
+  height: 10.625rem;
+  background: var(--app-auth-sheet-b);
+  transform: rotate(6deg);
+}
+
+@media (max-width: 991.98px) {
+  .auth-sheets,
+  .auth-star {
+    display: none;
+  }
+}
+
+.auth-brand {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 1.25rem;
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 30rem;
+  padding: 2rem 1.5rem;
+  border-radius: var(--app-radius-modal);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
+}
+
+@media (min-width: 576px) {
+  .auth-card {
+    padding: 2.5rem;
+  }
+}
+
+.auth-card h1 {
+  margin-bottom: .25rem;
+  font-size: 2rem;
+  line-height: 1.25;
+}
+
+.auth-lead {
+  margin-bottom: 1.5rem;
+  color: var(--bs-secondary-color);
+}
+
+.auth-card .form-control {
+  min-height: 3rem;
+}
+
+.auth-card .form-control:focus {
+  border-width: 1px;
+  box-shadow: 0 0 0 1px var(--app-primary);
+}
+
+.auth-card .form-control.is-invalid {
+  background-image: none;
+  padding-right: .75rem;
+}
+
+.auth-card .invalid-feedback {
+  font-size: .75rem;
+}
+
+.auth-card .form-text {
+  font-size: .75rem;
+}
+
+.auth-card .form-text ul {
+  padding-left: 1.1rem;
+  margin-bottom: 0;
+}
+
+.auth-card [type="submit"] {
+  min-height: 3rem;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 1.25rem 0;
+  font-size: .8125rem;
+  color: var(--app-text-muted);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--app-divider);
+}
+
+.auth-switch {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  font-size: .8125rem;
+  color: var(--bs-secondary-color);
+}
+
+.auth-footnote {
+  position: relative;
+  z-index: 1;
+  margin: 1.25rem 0 0;
+  max-width: 30rem;
+  text-align: center;
+  font-size: .8125rem;
+  color: var(--bs-secondary-color);
+}
+
+.btn-google {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Повноширинна Google-кнопка на вході й реєстрації. */
+.btn-google-block {
+  --bs-btn-color: var(--bs-body-color);
+  --bs-btn-bg: var(--app-surface);
+  --bs-btn-border-color: var(--app-outline);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-hover-bg: var(--app-field-bg);
+  --bs-btn-hover-border-color: var(--app-outline);
+  --bs-btn-active-color: var(--bs-body-color);
+  --bs-btn-active-bg: var(--app-field-bg);
+  --bs-btn-active-border-color: var(--app-outline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .625rem;
+  width: 100%;
+  min-height: 3rem;
+}

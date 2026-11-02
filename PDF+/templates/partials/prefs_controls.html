@@ -1,0 +1,22 @@
+{% load i18n static %}
+{# Тема й мова: у шапці сайту, у верхній панелі читалки й на сторінках входу. #}
+{# Іконка показує тему, на яку перемкне клік: місяць — у світлій, сонце — у темній. #}
+<button type="button" class="btn btn-icon theme-toggle" data-theme-toggle aria-pressed="false"
+        title="{% translate "Темна тема" %}" aria-label="{% translate "Темна тема" %}">
+  <i class="bi bi-moon-stars theme-icon-dark" aria-hidden="true"></i>
+  <i class="bi bi-sun theme-icon-light" aria-hidden="true"></i>
+</button>
+<form method="post" action="{% url 'set_language' %}" class="m-0">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <div class="btn-group btn-group-sm lang-switch" role="group" aria-label="{% translate "Мова інтерфейсу" %}">
+    {% for code, name in LANGUAGES %}
+      {# Прапор лежить у static/img/flags/<код мови>.svg; назва мови — у title й aria-label. #}
+      <button type="submit" name="language" value="{{ code }}" title="{{ name }}" aria-label="{{ name }}" lang="{{ code }}"
+              class="btn btn-light{% if code == LANGUAGE_CODE %} active{% endif %}"
+              aria-pressed="{% if code == LANGUAGE_CODE %}true{% else %}false{% endif %}">
+        <img src="{% static 'img/flags/'|add:code|add:'.svg' %}" class="lang-flag" alt="" width="21" height="14">
+      </button>
+    {% endfor %}
+  </div>
+</form>

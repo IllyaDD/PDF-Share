@@ -1,0 +1,15 @@
+// Форма посилання: лишаємо видимими лише теми обраної книги; теми інших книг знімаємо.
+(() => {
+  const book = document.querySelector('select[name="book"]');
+  const boxes = document.querySelectorAll('input[name="note_groups"]');
+  if (!book || !boxes.length) return;
+  const sync = () => {
+    for (const box of boxes) {
+      const same = box.dataset.book === book.value;
+      box.closest('.form-check')?.classList.toggle('d-none', !same);
+      if (!same) box.checked = false;
+    }
+  };
+  book.addEventListener('change', sync);
+  sync();
+})();

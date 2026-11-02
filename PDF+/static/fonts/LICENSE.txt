@@ -1,0 +1,8 @@
+e-Ukraine and e-Ukraine Head
+Designer: Dmytro Rastvortsev, Fedoriv agency; commissioned by the Ministry of Digital Transformation of Ukraine (Diia), 2019.
+Source: https://thedigital.gov.ua/fonts  (ZIP archives e-Ukraine.zip, e-Ukraine-Head.zip, hosted on Dropbox and linked from that page)
+License: Creative Commons Attribution 4.0 International (CC BY 4.0) - https://creativecommons.org/licenses/by/4.0/
+Note: the archives and font name tables contain no license text; CC BY 4.0 is the license stated on thedigital.gov.ua (site footer) and in public references (Wikipedia). Not stated explicitly on the font page itself.
+
+Attribution: Шрифт e-Ukraine / e-Ukraine Head, Міністерство цифрової трансформації України (Дія), https://thedigital.gov.ua/fonts, ліцензія CC BY 4.0.
+Modifications: converted from OTF to WOFF2 and subset to Latin + Cyrillic (U+0000-00FF, U+0131, U+0152-0153, U+0400-04FF, U+2000-206F, U+20AC, U+20B4, U+2116, U+2122, U+2190-2193, U+2212).

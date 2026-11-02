@@ -1,0 +1,2 @@
+{# Аватар з ініціалами: ім'я + прізвище, інакше перша літера логіна. #}
+<span class="app-avatar{% if small %} app-avatar-sm{% endif %}" aria-hidden="true">{% if person.first_name %}{{ person.first_name|first|upper }}{{ person.last_name|first|upper }}{% else %}{{ person.username|first|upper }}{% endif %}</span>

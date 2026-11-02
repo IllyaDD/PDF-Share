@@ -2,10 +2,11 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db.models import Count, Prefetch, Q, prefetch_related_objects
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
@@ -77,6 +78,10 @@ SEARCH_SCOPES = [
 ]
 
 
+# Скільки книг показує сторінка «Нещодавні».
+RECENT_LIMIT = 48
+
+
 def _safe_next(request, fallback):
     candidate = request.POST.get("next") or request.GET.get("next")
     if candidate and url_has_allowed_host_and_scheme(
@@ -86,15 +91,128 @@ def _safe_next(request, fallback):
     return fallback
 
 
+def _recent_progress(request):
+    return (
+        visible_progress(request.user, request.session)
+        .select_related("book")
+        .order_by("-read_at")
+    )
+
+
+def _with_folder_stats(queryset):
+    """Лічильники для folder_card одним запитом, а не по два на кожну картку."""
+    return queryset.annotate(
+        book_count=Count("books", distinct=True),
+        child_count=Count("children", distinct=True),
+    )
+
+
+def _with_note_count(queryset, user):
+    """Скільки власних нотаток користувача в кожній книзі."""
+    return queryset.annotate(
+        note_count=Count("layers__annotations", filter=Q(layers__owner=user), distinct=True)
+    )
+
+
+def _active_links():
+    return ShareLink.objects.filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
+
+
+def _folder_access(folder):
+    """Доступ, який тека та її предки передають усім вкладеним книгам.
+
+    Повертає (назви груп, чи є чинне посилання). GroupAccess і ShareLink на теку діють
+    транзитивно (див. access._with_descendants), тож книга успадковує їх від предків.
+    """
+    chain_ids = []
+    node = folder
+    while node is not None:
+        chain_ids.append(node.pk)
+        node = node.parent
+    groups = list(
+        GroupAccess.objects.filter(folder_id__in=chain_ids)
+        .select_related("group")
+        .order_by("group__name")
+        .values_list("group__name", flat=True)
+        .distinct()
+    )
+    has_link = _active_links().filter(folder_id__in=chain_ids).exists()
+    return groups, has_link
+
+
+def _access_badges(group_names, has_link):
+    badges = [{"kind": "group", "label": _("Група %(name)s") % {"name": name}} for name in group_names]
+    if has_link:
+        badges.append({"kind": "link", "label": _("За посиланням")})
+    if not badges:
+        badges.append({"kind": "private", "label": _("Приватно")})
+    return badges
+
+
+def _access_summary(group_names, has_link):
+    """Підпис «доступ: …» під назвою теки."""
+    parts = [_("група %(name)s") % {"name": name} for name in group_names]
+    if has_link:
+        parts.append(_("за посиланням"))
+    return ", ".join(parts) if parts else _("приватно")
+
+
+def _folder_table(books, folder, is_owner):
+    """Книги теки для таблиці й підпис під заголовком.
+
+    Власнику — бейджі доступу на кожен рядок (книжкові права + успадковані від тек),
+    без запиту на рядок. Іншим доступ не показуємо: це чужі налаштування.
+    """
+    books = list(books)
+    subtitle = _("Підручників: %(count)d") % {"count": len(books)}
+    if not is_owner:
+        return books, subtitle
+
+    folder_groups, folder_link = _folder_access(folder)
+    prefetch_related_objects(
+        books,
+        Prefetch(
+            "group_accesses",
+            queryset=GroupAccess.objects.select_related("group").order_by("group__name"),
+            to_attr="direct_accesses",
+        ),
+        Prefetch("share_links", queryset=_active_links(), to_attr="active_links"),
+    )
+    for book in books:
+        names = list(folder_groups)
+        names += [a.group.name for a in book.direct_accesses if a.group.name not in names]
+        book.access_badges = _access_badges(names, folder_link or bool(book.active_links))
+
+    subtitle = "%s · %s" % (
+        subtitle,
+        _("доступ: %(access)s") % {"access": _access_summary(folder_groups, folder_link)},
+    )
+    return books, subtitle
+
+
 def home_view(request):
     continue_reading = []
     if request.user.is_authenticated:
-        continue_reading = (
-            visible_progress(request.user, request.session)
-            .select_related("book")
-            .order_by("-read_at")[:6]
-        )
+        continue_reading = _recent_progress(request)[:6]
     return render(request, "book_library/home.html", {"continue_reading": continue_reading})
+
+
+@login_required
+def recent_view(request):
+    """Нещодавно відкриті книги — за прогресом читання, без окремої моделі.
+
+    visible_progress() звужує за visible_books(): книга, до якої доступ відкликали, зникає.
+    """
+    return render(
+        request,
+        "book_library/recent.html",
+        {
+            "progress_list": _recent_progress(request)[:RECENT_LIMIT],
+            "page_title": _("Нещодавні"),
+            "page_subtitle": _("Книги, які ви відкривали останніми"),
+            "library_url": reverse("book_library:library"),
+        },
+    )
 
 
 def welcome_view(request):
@@ -128,17 +246,34 @@ def library_view(request, pk=None):
         book_pool = Book.objects.filter(owner=request.user)
         folder_pool = Folder.objects.filter(owner=request.user)
 
+    folders = _with_folder_stats(folders)
+    books = _with_note_count(books, request.user)
+    page_subtitle = ""
+    continue_reading = None
+
     if query:
         folders = []
         books = []
         if scope in ("all", "folders"):
             folders = _search_titles(
-                folder_pool.select_related("parent__parent").order_by("name"), query, "name"
+                _with_folder_stats(folder_pool.select_related("parent__parent")).order_by("name"),
+                query,
+                "name",
             )
         if scope in ("all", "books"):
             books = _search_titles(
-                book_pool.select_related("folder__parent__parent").order_by("title"), query
+                _with_note_count(book_pool.select_related("folder__parent__parent"), request.user)
+                .order_by("title"),
+                query,
             )
+    elif folder:
+        books, page_subtitle = _folder_table(books, folder, is_owner)
+    else:
+        page_subtitle = _("Підручників: %(books)d · нотаток: %(notes)d") % {
+            "books": book_pool.count(),
+            "notes": Annotation.objects.filter(layer__owner=request.user).count(),
+        }
+        continue_reading = _recent_progress(request).first()
 
     return render(
         request,
@@ -154,7 +289,9 @@ def library_view(request, pk=None):
             "is_owner": is_owner,
             "in_catalog": is_catalog_folder(folder) if folder else False,
             "crumbs": _folder_crumbs(folder) if folder else None,
-            "page_title": folder.name if folder else _("Моя бібліотека"),
+            "page_title": folder.name if folder else _("Бібліотека"),
+            "page_subtitle": page_subtitle,
+            "continue_reading": continue_reading,
             "upload_url": reverse("book_library:book_upload"),
             "add_books_url": reverse("book_library:folder_add_books", args=[folder.pk])
             if folder and is_owner
@@ -177,8 +314,8 @@ def shared_with_me_view(request):
         request,
         "book_library/shared_with_me.html",
         {
-            "shared_books": shared_books,
-            "shared_folders": shared_folders,
+            "shared_books": _with_note_count(shared_books, request.user),
+            "shared_folders": _with_folder_stats(shared_folders),
             "page_title": _("Поділилися зі мною"),
         },
     )
@@ -187,7 +324,7 @@ def shared_with_me_view(request):
 @login_required
 def catalog_view(request):
     query = request.GET.get("q", "").strip()
-    folders = catalog_root_folders()
+    folders = _with_folder_stats(catalog_root_folders())
     books = []
 
     if query:

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% translate "Посилання" %} — PDF+{% endblock %}
 
@@ -40,7 +40,7 @@
                 {% endif %}
               </td>
               <td>
-                <div class="input-group input-group-sm" style="max-width: 22rem;">
+                <div class="input-group input-group-sm share-url-field">
                   <input type="text" class="form-control font-monospace" readonly
                          value="{{ request.scheme }}://{{ request.get_host }}{% url 'sharing:share_view' link.token %}"
                          aria-label="{% translate "URL посилання" %}">
@@ -82,20 +82,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  document.querySelectorAll('[data-copy-input]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const input = button.closest('.input-group').querySelector('input');
-      try {
-        await navigator.clipboard.writeText(input.value);
-      } catch {
-        input.select();
-        return;
-      }
-      const icon = button.querySelector('i');
-      icon.className = 'bi bi-check-lg';
-      setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
-    });
-  });
-</script>
+<script src="{% static 'js/copy-input.js' %}"></script>
 {% endblock %}

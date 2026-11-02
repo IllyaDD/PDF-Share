@@ -2,6 +2,9 @@
 
 {% block title %}{{ page_title }} — PDF+{% endblock %}
 
+{# Заголовок — усередині картки-модалки, не над нею. #}
+{% block page_header %}{% endblock %}
+
 {% block content %}
   {% include "partials/form_card.html" %}
 {% endblock %}

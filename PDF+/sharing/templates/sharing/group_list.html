@@ -82,7 +82,7 @@
         <i class="bi bi-people fs-4 text-secondary"></i>
         <div class="min-w-0">
           <div class="fw-medium text-truncate">{{ group.name }}</div>
-          <div class="small text-body-secondary">{% blocktranslate with teacher=group.owner.username %}Вчитель: {{ teacher }}{% endblocktranslate %}</div>
+          <div class="small text-body-secondary">{% blocktranslate with owner=group.owner.username %}Організатор: {{ owner }}{% endblocktranslate %}</div>
         </div>
       </a>
     {% endfor %}
@@ -90,6 +90,6 @@
 {% endif %}
 
 {% if not owned_groups and not member_groups and not invitations %}
-  {% include "partials/empty_state.html" with icon="bi-mortarboard" title=_("Груп немає") text=_("Групи дають класу доступ до ваших матеріалів одним рухом.") action_url=create_url action_label=_("Створити групу") %}
+  {% include "partials/empty_state.html" with icon="bi-people" title=_("Груп немає") text=_("Групи відкривають доступ до ваших матеріалів одразу всім учасникам.") action_url=create_url action_label=_("Створити групу") %}
 {% endif %}
 {% endblock %}

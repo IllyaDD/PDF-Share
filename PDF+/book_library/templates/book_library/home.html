@@ -8,48 +8,37 @@
   {# Гість бачить на головній повний огляд можливостей замість короткої шапки. #}
   {% include "book_library/welcome_content.html" %}
 {% else %}
-<div class="py-5 text-center">
-  <h1 class="display-6 fw-semibold">PDF+</h1>
-  <p class="lead text-body-secondary">{% translate "Бібліотека PDF з анотаціями та спільним доступом." %}</p>
-  <p class="mb-0">{% blocktranslate with username=user.username %}Вітаємо, <strong>{{ username }}</strong>.{% endblocktranslate %}</p>
-  <a href="{% url 'book_library:welcome' %}" class="d-inline-block small mt-3">
-    <i class="bi bi-question-circle me-1"></i>{% translate "Що вміє PDF+" %}
-  </a>
+<div class="page-head">
+  <div class="min-w-0">
+    <h1 class="page-title">{% blocktranslate with username=user.username %}Вітаємо, {{ username }}{% endblocktranslate %}</h1>
+    <p class="page-subtitle">{% translate "Бібліотека PDF з анотаціями та спільним доступом." %}</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'book_library:library' %}" class="btn btn-outline-app btn-tall">{% translate "До бібліотеки" %}</a>
+    <a href="{% url 'book_library:book_upload' %}" class="btn btn-primary btn-tall">{% translate "Завантажити PDF" %}</a>
+  </div>
 </div>
 {% endif %}
 
 {% if continue_reading %}
-<section class="mb-5">
-  <h2 class="h5 mb-3">{% translate "Продовжити читати" %}</h2>
-  <div class="row g-3">
-    {% for progress in continue_reading %}
-      {% with book=progress.book %}
-      <div class="col-6 col-md-4 col-xl-2">
-        <a href="{% url 'book_library:book_reader' book.pk %}"
-           class="card entity-card h-100 border-0 shadow-sm text-decoration-none text-body">
-          <div class="book-thumb d-flex align-items-center justify-content-center rounded-top overflow-hidden">
-            {% if book.cover %}
-              <img src="{{ book.cover.url }}" class="book-cover-img" alt="" loading="lazy">
-            {% else %}
-              <i class="bi bi-file-earmark-pdf display-5 text-danger opacity-75"></i>
-            {% endif %}
-          </div>
-          <div class="progress rounded-0" style="height: .25rem;" role="progressbar"
-               aria-label="{% translate "Прогрес читання" %}" aria-valuenow="{{ progress.percent }}"
-               aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
-          </div>
-          <div class="card-body p-2">
-            <div class="fw-medium small text-truncate" title="{{ book.title }}">{{ book.title }}</div>
-            <div class="small text-body-secondary">
-              {% blocktranslate with page=progress.last_page total=book.page_count %}с. {{ page }} з {{ total }}{% endblocktranslate %} · {{ progress.percent }}%
-            </div>
-          </div>
-        </a>
-      </div>
-      {% endwith %}
-    {% endfor %}
-  </div>
-</section>
+  {% include "partials/continue_banner.html" with progress=continue_reading.0 %}
+
+  {% if continue_reading|length > 1 %}
+  <section class="mb-5">
+    <div class="d-flex align-items-baseline justify-content-between mb-3">
+      <h2 class="section-title mb-0">{% translate "Нещодавні" %}</h2>
+      <a href="{% url 'book_library:recent' %}" class="small">{% translate "Усі нещодавні" %}</a>
+    </div>
+    <div class="book-grid">
+      {% for progress in continue_reading|slice:"1:" %}
+        {% include "partials/book_card.html" with book=progress.book progress=progress %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+{% elif user.is_authenticated %}
+  {% url 'book_library:library' as library_url %}
+  {% include "partials/empty_state.html" with icon="bi-book" title=_("Почніть читати") text=_("Відкрийте будь-яку книгу — тут з'явиться місце, де ви зупинилися.") action_url=library_url action_label=_("До бібліотеки") %}
+  <p class="text-center small"><a href="{% url 'book_library:welcome' %}"><i class="bi bi-question-circle me-1"></i>{% translate "Що вміє PDF+" %}</a></p>
 {% endif %}
 {% endblock %}

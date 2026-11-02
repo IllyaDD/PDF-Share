@@ -294,8 +294,9 @@ MAN-PDF-Share-Prod/
     ├── locale/en/                 англійський переклад (.po / .mo)
     ├── templates/                 base.html, nav, sidebar, partials
     ├── static/
-    │   ├── css/app.css
-    │   ├── js/reader.js, js/theme.js
+    │   ├── css/                   tokens, base, layout, library, forms; auth, reader — лише на своїх сторінках
+    │   ├── js/                    reader.js (модуль), reader-ui.js, upload.js, theme.js, файл на функцію
+    │   ├── fonts/                 e-Ukraine (woff2)
     │   └── vendor/pdfjs/
     └── media/                     локальне сховище PDF (без R2)
 ```

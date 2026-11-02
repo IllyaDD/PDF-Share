@@ -859,7 +859,7 @@ class SharedLayerPageTests(SharedLayerTestCase):
     def test_book_detail_lists_teacher_layer_for_student(self):
         self.client.force_login(self.student)
         response = self.client.get(reverse("book_library:book_detail", args=[self.book.pk]))
-        self.assertContains(response, "Нотатки вчителя")
+        self.assertContains(response, "Нотатки організатора")
         self.assertContains(response, f"?layer={self.layer.pk}")
         self.assertEqual(response.context["teacher_layers"][0].annotation_count, 1)
         self.assertIsNone(response.context["publish_form"])

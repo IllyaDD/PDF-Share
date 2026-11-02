@@ -10,6 +10,7 @@ urlpatterns = [
 
     path("library/", views.library_view, name="library"),
     path("library/folder/<int:pk>/", views.library_view, name="folder"),
+    path("recent/", views.recent_view, name="recent"),
     path("shared/", views.shared_with_me_view, name="shared_with_me"),
     path("catalog/", views.catalog_view, name="catalog"),
 

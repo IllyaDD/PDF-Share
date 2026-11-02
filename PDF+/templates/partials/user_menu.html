@@ -1,0 +1,20 @@
+{% load i18n %}
+<div class="dropdown">
+  <button class="btn btn-avatar" data-bs-toggle="dropdown" aria-expanded="false"
+          aria-label="{% translate "Меню акаунта" %}" title="{{ user.username }}">
+    {% include "partials/avatar.html" with person=user %}
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><h6 class="dropdown-header text-truncate">{{ user.username }}</h6></li>
+    <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">{% translate "Профіль" %}</a></li>
+    <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">{% translate "Редагувати профіль" %}</a></li>
+    <li><a class="dropdown-item" href="{% url 'book_library:welcome' %}">{% translate "Можливості PDF+" %}</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+      <form method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="dropdown-item text-danger">{% translate "Вийти" %}</button>
+      </form>
+    </li>
+  </ul>
+</div>

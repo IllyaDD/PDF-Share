@@ -6,58 +6,72 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'vendor/pdfjs/text_layer.css' %}">
+  <link rel="stylesheet" href="{% static 'css/reader.css' %}">
 {% endblock %}
+
+{# Читалка має власну верхню панель замість шапки сайту — на весь екран. #}
+{% block nav %}{% endblock %}
 
 {% block layout %}
 <div class="reader-shell d-flex flex-column">
 
-  <div class="border-bottom bg-body px-3 py-2 d-flex align-items-center gap-2 flex-wrap">
-    <a href="{% url 'book_library:book_detail' book.pk %}" class="btn btn-sm btn-light" title="{% translate "Назад" %}">
-      <i class="bi bi-arrow-left"></i>
-    </a>
-
-    <span class="fw-medium text-truncate me-auto" style="max-width: 40ch;" title="{{ book.title }}">
-      {{ book.title }}
-    </span>
-
-    <div class="input-group input-group-sm reader-pager" role="group" aria-label="{% translate "Сторінки" %}">
-      <button type="button" class="btn btn-light" data-reader-first
-              title="{% translate "На початок" %}" aria-label="{% translate "На початок" %}">
-        <i class="bi bi-chevron-double-left"></i>
-      </button>
-      <button type="button" class="btn btn-light" data-reader-prev
-              title="{% translate "Попередня сторінка" %}" aria-label="{% translate "Попередня сторінка" %}">
+  <header class="reader-topbar">
+    <div class="reader-topbar-title d-flex align-items-center gap-2">
+      <a href="{% url 'book_library:book_detail' book.pk %}" class="btn btn-icon" title="{% translate "Назад" %}" aria-label="{% translate "Назад" %}">
         <i class="bi bi-chevron-left"></i>
-      </button>
-      {# text, а не number: нативні стрілки number-поля дрібні й дублюють кнопки поруч #}
-      <input type="text" inputmode="numeric" autocomplete="off" enterkeyhint="go"
-             class="form-control text-center reader-page-input" value="1"
-             data-reader-page aria-label="{% blocktranslate with total=book.page_count %}Номер сторінки, всього {{ total }}{% endblocktranslate %}"
-             title="{% translate "Введіть номер і натисніть Enter" %}">
-      <span class="input-group-text text-body-secondary">/ {{ book.page_count }}</span>
-      <button type="button" class="btn btn-light" data-reader-next
-              title="{% translate "Наступна сторінка" %}" aria-label="{% translate "Наступна сторінка" %}">
-        <i class="bi bi-chevron-right"></i>
-      </button>
-      <button type="button" class="btn btn-light" data-reader-last
-              title="{% translate "В кінець" %}" aria-label="{% translate "В кінець" %}">
-        <i class="bi bi-chevron-double-right"></i>
-      </button>
+      </a>
+      <div class="min-w-0">
+        <div class="title" title="{{ book.title }}">{{ book.title }}</div>
+        <div class="subtitle">
+          {% if book.folder and book.owner_id == user.pk %}
+            {% blocktranslate with name=book.folder.name %}Папка «{{ name }}»{% endblocktranslate %} ·
+          {% endif %}
+          {% blocktranslate with pages=book.page_count %}{{ pages }} с.{% endblocktranslate %}
+        </div>
+      </div>
     </div>
 
-    <div class="btn-group btn-group-sm" role="group" aria-label="{% translate "Масштаб" %}">
-      <button class="btn btn-light" data-reader-zoom-out title="{% translate "Зменшити" %}"><i class="bi bi-zoom-out"></i></button>
-      <button class="btn btn-light" data-reader-zoom-in title="{% translate "Збільшити" %}"><i class="bi bi-zoom-in"></i></button>
+    <div class="d-flex align-items-center gap-2">
+      <div class="tool-pill" role="group" aria-label="{% translate "Масштаб" %}">
+        <button type="button" class="btn btn-icon" data-reader-zoom-out title="{% translate "Зменшити" %}" aria-label="{% translate "Зменшити" %}"><i class="bi bi-dash-lg"></i></button>
+        <span class="zoom-label" data-reader-zoom-label aria-live="polite">100 %</span>
+        <button type="button" class="btn btn-icon" data-reader-zoom-in title="{% translate "Збільшити" %}" aria-label="{% translate "Збільшити" %}"><i class="bi bi-plus-lg"></i></button>
+      </div>
+      <div class="tool-pill">
+        <button type="button" class="btn btn-icon active" data-reader-toggle-panel aria-pressed="true"
+                title="{% translate "Панель нотаток" %}" aria-label="{% translate "Панель нотаток" %}">
+          <i class="bi bi-chat-square-text"></i>
+        </button>
+      </div>
     </div>
 
-    <button class="btn btn-sm btn-light" data-reader-toggle-panel title="{% translate "Панель нотаток" %}">
-      <i class="bi bi-layout-sidebar-reverse"></i>
-      <span class="badge text-bg-secondary ms-1">{{ annotations|length }}</span>
-    </button>
-  </div>
+    <div class="reader-topbar-end">
+      {% if book.owner_id == user.pk %}
+        <a href="{% url 'sharing:link_create' %}?book={{ book.pk }}" class="btn btn-outline-app d-none d-md-inline-flex">{% translate "Поділитися" %}</a>
+      {% endif %}
+      <div class="d-none d-xl-flex align-items-center gap-2">{% include "partials/prefs_controls.html" %}</div>
+      {% if user.is_authenticated %}
+        {% include "partials/user_menu.html" %}
+      {% else %}
+        <a class="btn btn-primary" href="{{ login_url }}">{% translate "Увійти" %}</a>
+      {% endif %}
+    </div>
+  </header>
 
   <div class="flex-grow-1 d-flex overflow-hidden">
 
+    {% if user.is_authenticated %}
+      <nav class="reader-rail d-none d-md-flex" aria-label="{% translate "Навігація" %}">
+        <a href="{% url 'book_library:library' %}" class="rail-link active" title="{% translate "Усі підручники" %}" aria-label="{% translate "Усі підручники" %}"><i class="bi bi-book"></i></a>
+        <a href="{% url 'book_library:recent' %}" class="rail-link" title="{% translate "Нещодавні" %}" aria-label="{% translate "Нещодавні" %}"><i class="bi bi-clock"></i></a>
+        {% if book.folder and book.owner_id == user.pk %}
+          <a href="{% url 'book_library:folder' book.folder_id %}" class="rail-link" title="{{ book.folder.name }}" aria-label="{{ book.folder.name }}"><i class="bi bi-folder"></i></a>
+        {% endif %}
+        <a href="{% url 'sharing:group_list' %}" class="rail-link" title="{% translate "Групи" %}" aria-label="{% translate "Групи" %}"><i class="bi bi-people"></i></a>
+      </nav>
+    {% endif %}
+
+    <div class="reader-stage flex-grow-1 d-flex">
     <div class="reader-canvas-area flex-grow-1" id="pdf-viewer"
          data-file-url="{{ book.file.url }}"
          data-page-count="{{ book.page_count }}"
@@ -83,31 +97,61 @@
       </div>
     </div>
 
-    <aside class="reader-side border-start bg-body d-none d-lg-block" id="readerPanel">
-      <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-        <h2 class="h6 mb-0" data-layer-title>{% translate "Мої нотатки" %}</h2>
+    <div class="reader-pager-pill" role="group" aria-label="{% translate "Сторінки" %}">
+      <button type="button" class="btn btn-icon d-none d-sm-inline-flex" data-reader-first
+              title="{% translate "На початок" %}" aria-label="{% translate "На початок" %}">
+        <i class="bi bi-chevron-double-left"></i>
+      </button>
+      <button type="button" class="btn btn-icon" data-reader-prev
+              title="{% translate "Попередня сторінка" %}" aria-label="{% translate "Попередня сторінка" %}">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      {# text, а не number: нативні стрілки number-поля дрібні й дублюють кнопки поруч #}
+      <input type="text" inputmode="numeric" autocomplete="off" enterkeyhint="go"
+             class="reader-page-input" value="1"
+             data-reader-page aria-label="{% blocktranslate with total=book.page_count %}Номер сторінки, всього {{ total }}{% endblocktranslate %}"
+             title="{% translate "Введіть номер і натисніть Enter" %}">
+      <span class="reader-page-total">/ {{ book.page_count }}</span>
+      <button type="button" class="btn btn-icon" data-reader-next
+              title="{% translate "Наступна сторінка" %}" aria-label="{% translate "Наступна сторінка" %}">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <button type="button" class="btn btn-icon d-none d-sm-inline-flex" data-reader-last
+              title="{% translate "В кінець" %}" aria-label="{% translate "В кінець" %}">
+        <i class="bi bi-chevron-double-right"></i>
+      </button>
+    </div>
+    </div>
+
+    <aside class="reader-side d-none d-lg-block" id="readerPanel">
+      <div class="px-3 pt-3 pb-2 d-flex justify-content-between align-items-center gap-2">
+        <h2 class="h5 mb-0 d-flex align-items-center gap-2 min-w-0">
+          <span class="text-truncate" data-layer-title>{% translate "Мої нотатки" %}</span>
+          <span class="reader-side-count" data-annotation-counter>{{ annotations|length }}</span>
+        </h2>
         {% if user.is_authenticated %}
-          <a href="{% url 'annotations:book_annotations' book.pk %}" class="small text-decoration-none" data-own-only>
+          <a href="{% url 'annotations:book_annotations' book.pk %}" class="small text-decoration-none text-nowrap" data-own-only>
             {% translate "Усі" %}
           </a>
         {% endif %}
       </div>
 
       {% if shared_layers_data %}
-        <div class="px-3 py-2 border-bottom" id="layerSwitch">
-          <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="{% translate "Чиї нотатки показувати" %}">
-            <button type="button" class="btn btn-outline-secondary active" data-layer="own" aria-pressed="true">
+        <div class="px-3 pb-2" id="layerSwitch">
+          <div class="segmented" role="group" aria-label="{% translate "Чиї нотатки показувати" %}">
+            <button type="button" class="btn active" data-layer="own" aria-pressed="true">
               {% translate "Мої" %}
             </button>
             {% for layer in shared_layers_data %}
-              <button type="button" class="btn btn-outline-secondary" data-layer="{{ layer.id }}"
-                      aria-pressed="false" title="{% translate "Нотатки вчителя — лише для читання" %}">
-                <i class="bi bi-mortarboard me-1"></i>{{ layer.owner }}
+              {# Один шар — вкладка «Організатор», кілька — за іменами авторів. #}
+              <button type="button" class="btn" data-layer="{{ layer.id }}"
+                      aria-pressed="false" title="{% blocktranslate with owner=layer.owner %}Нотатки організатора {{ owner }} — лише для читання{% endblocktranslate %}">
+                {% if shared_layers_data|length == 1 %}{% translate "Організатор" %}{% else %}{{ layer.owner }}{% endif %}
               </button>
             {% endfor %}
           </div>
           <p class="small text-body-secondary mb-0 mt-2 d-none" data-layer-readonly>
-            <i class="bi bi-lock me-1"></i>{% translate "Нотатки вчителя — лише для читання." %}
+            <i class="bi bi-lock me-1"></i>{% translate "Нотатки організатора — лише для читання." %}
           </p>
         </div>
       {% endif %}
@@ -197,6 +241,13 @@
                 style="--swatch: {{ value }}" title="{{ label }}"
                 aria-label="{% blocktranslate %}Виділити: {{ label }}{% endblocktranslate %}"></button>
       {% endfor %}
+      <span class="palette-divider" aria-hidden="true"></span>
+      <button type="button" class="btn palette-action is-primary" data-palette-note>
+        <i class="bi bi-chat-square-text" aria-hidden="true"></i>{% translate "Нотатка" %}
+      </button>
+      <button type="button" class="btn palette-action is-plain" data-palette-copy>
+        <i class="bi bi-copy" aria-hidden="true"></i><span data-palette-copy-label>{% translate "Копіювати" %}</span>
+      </button>
     </div>
 
     <div class="floating-panel annotation-popover" id="annotationPopover" hidden>
@@ -246,90 +297,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  (() => {
-    const viewer = document.getElementById('pdf-viewer');
-    const panel = document.getElementById('readerPanel');
-    const pageInput = document.querySelector('[data-reader-page]');
-    const prevButton = document.querySelector('[data-reader-prev]');
-    const nextButton = document.querySelector('[data-reader-next]');
-    const firstButton = document.querySelector('[data-reader-first]');
-    const lastButton = document.querySelector('[data-reader-last]');
-    const pageCount = Number(viewer.dataset.pageCount) || 1;
-    let page = 1;
-    let scale = 1;
-
-    // Лише відображення: поле, межові кнопки й data-атрибут, без прокрутки.
-    const showPage = (value) => {
-      page = value;
-      viewer.dataset.currentPage = page;
-      prevButton.disabled = firstButton.disabled = page <= 1;
-      nextButton.disabled = lastButton.disabled = page >= pageCount;
-      if (document.activeElement !== pageInput) {
-        pageInput.value = page;
-      }
-    };
-
-    const setPage = (value) => {
-      showPage(Math.min(Math.max(value, 1), pageCount));
-      pageInput.value = page;
-      viewer.dispatchEvent(new CustomEvent('reader:page', { detail: { page } }));
-    };
-
-    // Порожнє чи нечислове введення повертає поточну сторінку замість стрибка на 1.
-    const commitInput = () => {
-      const value = parseInt(pageInput.value, 10);
-      if (Number.isNaN(value)) {
-        pageInput.value = page;
-      } else {
-        setPage(value);
-      }
-    };
-
-    const setScale = (value) => {
-      scale = Math.min(Math.max(value, 0.5), 3);
-      viewer.dataset.scale = scale.toFixed(2);
-      viewer.dispatchEvent(new CustomEvent('reader:scale', { detail: { scale } }));
-    };
-
-    prevButton.addEventListener('click', () => setPage(page - 1));
-    nextButton.addEventListener('click', () => setPage(page + 1));
-    firstButton.addEventListener('click', () => setPage(1));
-    lastButton.addEventListener('click', () => setPage(pageCount));
-
-    pageInput.addEventListener('focus', () => pageInput.select());
-    pageInput.addEventListener('input', () => {
-      pageInput.value = pageInput.value.replace(/\D/g, '');
-    });
-    pageInput.addEventListener('change', commitInput);
-    // change спрацьовує раніше за blur, тож тут поле наздоганяє прокрутку під час фокусу.
-    pageInput.addEventListener('blur', () => {
-      pageInput.value = page;
-    });
-    pageInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        commitInput();
-        pageInput.select();
-      } else if (event.key === 'Escape') {
-        pageInput.value = page;
-        pageInput.blur();
-      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-        event.preventDefault();
-        setPage(page + (event.key === 'ArrowUp' ? 1 : -1));
-        pageInput.select();
-      }
-    });
-    document.querySelector('[data-reader-zoom-in]').addEventListener('click', () => setScale(scale + 0.25));
-    document.querySelector('[data-reader-zoom-out]').addEventListener('click', () => setScale(scale - 0.25));
-    document.querySelector('[data-reader-toggle-panel]').addEventListener('click', () => panel.classList.toggle('d-none'));
-    // Поки користувач набирає номер, прокрутка не перезаписує поле.
-    viewer.addEventListener('reader:current', (event) => showPage(event.detail.page));
-
-    setPage(Number(new URLSearchParams(location.search).get('page')) || 1);
-    setScale(1);
-  })();
-</script>
+<script src="{% static 'js/reader-ui.js' %}"></script>
 
 {# Каталог — класичний скрипт: він виконується раніше за відкладений модуль, тож gettext уже є. #}
 <script src="{% url 'javascript-catalog' %}"></script>

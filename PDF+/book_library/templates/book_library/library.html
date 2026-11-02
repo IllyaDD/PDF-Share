@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n humanize %}
 
 {% block title %}{{ page_title }} — PDF+{% endblock %}
 
@@ -8,45 +8,57 @@
 {% block page_actions %}
   {% if is_owner %}
     {% if folder %}
-      <a href="{% url 'book_library:folder_add_books' folder.pk %}" class="btn btn-outline-secondary">
-        <i class="bi bi-journal-plus me-1"></i>{% translate "Додати книги" %}
-      </a>
+      <div class="dropdown">
+        <button class="btn btn-outline-app btn-tall" data-bs-toggle="dropdown" aria-expanded="false">
+          {% translate "Поділитися" %}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'sharing:link_create' %}?folder={{ folder.pk }}"><i class="bi bi-link-45deg me-2"></i>{% translate "За посиланням" %}</a></li>
+          <li><a class="dropdown-item" href="{% url 'sharing:access_create' %}?folder={{ folder.pk }}"><i class="bi bi-people me-2"></i>{% translate "Групі" %}</a></li>
+        </ul>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-icon" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% translate "Дії з текою" %}">
+          <i class="bi bi-three-dots"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'book_library:folder_add_books' folder.pk %}"><i class="bi bi-journal-plus me-2"></i>{% translate "Додати книги" %}</a></li>
+          <li><a class="dropdown-item" href="{% url 'book_library:folder_create' %}?parent={{ folder.pk }}"><i class="bi bi-folder-plus me-2"></i>{% translate "Нова тека" %}</a></li>
+          <li><a class="dropdown-item" href="{% url 'book_library:folder_edit' folder.pk %}"><i class="bi bi-pencil me-2"></i>{% translate "Перейменувати" %}</a></li>
+        </ul>
+      </div>
+      <a href="{% url 'book_library:book_upload' %}?folder={{ folder.pk }}" class="btn btn-primary btn-tall">{% translate "Додати підручник" %}</a>
+    {% else %}
+      <a href="{% url 'book_library:folder_create' %}" class="btn btn-outline-app btn-tall">{% translate "Створити папку" %}</a>
+      <a href="{% url 'book_library:book_upload' %}" class="btn btn-primary btn-tall">{% translate "Завантажити PDF" %}</a>
     {% endif %}
-    <a href="{% url 'book_library:folder_create' %}{% if folder %}?parent={{ folder.pk }}{% endif %}"
-       class="btn btn-outline-secondary">
-      <i class="bi bi-folder-plus me-1"></i>{% translate "Нова тека" %}
-    </a>
-    <a href="{% url 'book_library:book_upload' %}{% if folder %}?folder={{ folder.pk }}{% endif %}"
-       class="btn btn-primary">
-      <i class="bi bi-upload me-1"></i>{% translate "Завантажити PDF" %}
-    </a>
   {% elif in_catalog %}
-    <span class="badge text-bg-light border">
-      <i class="bi bi-collection me-1"></i>{% translate "Каталог" %}
-    </span>
+    <span class="access-badge"><i class="bi bi-collection"></i>{% translate "Каталог" %}</span>
   {% else %}
-    <span class="badge text-bg-light border">
-      <i class="bi bi-people me-1"></i>{% translate "Спільна тека" %} · {{ folder.owner.username }}
-    </span>
+    <span class="access-badge"><i class="bi bi-people"></i>{% translate "Спільна тека" %} · {{ folder.owner.username }}</span>
   {% endif %}
 {% endblock %}
 
 {% block content %}
+  {% if continue_reading %}
+    {% include "partials/continue_banner.html" with progress=continue_reading %}
+  {% endif %}
+
   {% include "partials/search_form.html" with placeholder=folder|yesno:_("Пошук у цій теці та вкладених…,Пошук по всій бібліотеці…") %}
 
   {% if query %}
-    <h2 class="h6 text-body-secondary text-uppercase mb-3">
+    <h2 class="section-title">
       {% blocktranslate %}Знайдено за «{{ query }}»: {{ result_count }}{% endblocktranslate %}
     </h2>
     {% if folders %}
-      <h3 class="h6 text-body-secondary mb-2">{% translate "Теки" %}</h3>
-      <div class="row g-3 mb-4">
+      <h3 class="section-title">{% translate "Теки" %}</h3>
+      <div class="folder-grid">
         {% for folder in folders %}{% include "partials/folder_card.html" with show_path=True %}{% endfor %}
       </div>
     {% endif %}
     {% if books %}
-      {% if folders %}<h3 class="h6 text-body-secondary mb-2">{% translate "Книги" %}</h3>{% endif %}
-      <div class="row g-3">
+      {% if folders %}<h3 class="section-title">{% translate "Книги" %}</h3>{% endif %}
+      <div class="book-grid">
         {% for book in books %}{% include "partials/book_card.html" with show_folder=True %}{% endfor %}
       </div>
     {% endif %}
@@ -55,17 +67,65 @@
     {% endif %}
   {% else %}
     {% if folders %}
-      <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Теки" %}</h2>
-      <div class="row g-3 mb-4">
+      <h2 class="section-title">{% translate "Теки" %}</h2>
+      <div class="folder-grid">
         {% for folder in folders %}{% include "partials/folder_card.html" %}{% endfor %}
       </div>
     {% endif %}
 
-    {% if books %}
-      <h2 class="h6 text-body-secondary text-uppercase mb-3">{% translate "Книги" %}</h2>
-      <div class="row g-3">
+    {% if books and folder %}
+      {% if folders %}<h2 class="section-title">{% translate "Книги" %}</h2>{% endif %}
+      <div class="table-card">
+        <div class="table-responsive">
+          <table class="table book-table">
+            <thead>
+              <tr>
+                <th scope="col">{% translate "Назва" %}</th>
+                <th scope="col">{% translate "Нотатки" %}</th>
+                <th scope="col" class="d-none d-md-table-cell">{% translate "Оновлено" %}</th>
+                {% if is_owner %}<th scope="col" class="d-none d-md-table-cell">{% translate "Доступ" %}</th>{% endif %}
+                <th scope="col"><span class="visually-hidden">{% translate "Дії" %}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for book in books %}
+                <tr>
+                  <td class="min-w-0">
+                    <a href="{% url 'book_library:book_reader' book.pk %}" class="book-table-title" title="{{ book.title }}">
+                      <span class="tile-icon"><i class="bi bi-book" aria-hidden="true"></i></span>
+                      <span class="text-truncate">{{ book.title }}</span>
+                    </a>
+                  </td>
+                  <td>{% if book.note_count %}{{ book.note_count }}{% else %}—{% endif %}</td>
+                  <td class="d-none d-md-table-cell text-nowrap">{{ book.updated_at|naturalday:"j E Y"|capfirst }}</td>
+                  {% if is_owner %}
+                    <td class="d-none d-md-table-cell">
+                      <div class="d-flex flex-wrap gap-1">
+                        {% for badge in book.access_badges %}
+                          <span class="access-badge{% if badge.kind == 'group' %} is-group{% endif %}">{{ badge.label }}</span>
+                        {% endfor %}
+                      </div>
+                    </td>
+                  {% endif %}
+                  <td class="text-end">{% include "partials/book_actions.html" %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% elif books %}
+      {% if folders %}<h2 class="section-title">{% translate "Книги" %}</h2>{% endif %}
+      <div class="book-grid">
         {% for book in books %}{% include "partials/book_card.html" %}{% endfor %}
       </div>
+    {% endif %}
+
+    {% if folder and is_owner and books %}
+      <a href="{% url 'book_library:book_upload' %}?folder={{ folder.pk }}" class="upload-zone">
+        <i class="bi bi-upload" aria-hidden="true"></i>
+        <span>{% translate "Завантаж PDF у цю теку — натисни «Додати підручник»" %}</span>
+      </a>
     {% endif %}
 
     {% if not folders and not books %}

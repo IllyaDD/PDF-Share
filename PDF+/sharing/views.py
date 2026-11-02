@@ -69,7 +69,7 @@ def group_detail_view(request, pk):
                 {"url": "", "label": group.name},
             ],
             "page_title": group.name,
-            "page_subtitle": _("Вчитель: %(teacher)s") % {"teacher": group.owner.username},
+            "page_subtitle": _("Організатор: %(owner)s") % {"owner": group.owner.username},
         },
     )
 
@@ -82,7 +82,7 @@ def group_create_view(request):
         group.owner = request.user
         group.invite_token = secrets.token_urlsafe(32)
         group.save()
-        messages.success(request, _("Групу створено. Поділіться посиланням для приєднання з учнями."))
+        messages.success(request, _("Групу створено. Поділіться посиланням для приєднання з учасниками."))
         return redirect("sharing:group_detail", pk=group.pk)
 
     return render(
@@ -303,6 +303,9 @@ def link_create_view(request):
             "page_title": _("Нове посилання"),
             "form_title": _("Нове посилання"),
             "form_hint": _("Оберіть книгу або теку, до якої відкриваєте доступ."),
+            "form_note": _(
+                "Гості за посиланням лише переглядають — редагувати й додавати нотатки не можуть."
+            ),
             "cancel_url": reverse("sharing:link_list"),
         },
     )

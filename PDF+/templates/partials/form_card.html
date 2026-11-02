@@ -1,17 +1,23 @@
 {% load i18n crispy_forms_tags %}
-<div class="row justify-content-center">
-  <div class="col-12 col-lg-7">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        {% if form_title %}<h1 class="h5 mb-1">{{ form_title }}</h1>{% endif %}
-        {% if form_hint %}<p class="text-body-secondary small mb-4">{{ form_hint }}</p>{% endif %}
+{# Форма в стилі модалки: заголовок, підказка, хрестик-скасування; form_note — жовта примітка. #}
+<section class="sheet-card">
+  {% if cancel_url %}
+    <a href="{{ cancel_url }}" class="btn btn-icon sheet-card-close" aria-label="{% translate "Скасувати" %}" title="{% translate "Скасувати" %}">
+      <i class="bi bi-x-lg"></i>
+    </a>
+  {% endif %}
+  {% if form_title %}<h1 class="sheet-card-title">{{ form_title }}</h1>{% endif %}
+  {% if form_hint %}<p class="sheet-card-hint">{{ form_hint }}</p>{% endif %}
 
-        {% crispy form %}
+  {% crispy form %}
 
-        {% if cancel_url %}
-          <a href="{{ cancel_url }}" class="btn btn-link px-0 mt-2">{% translate "Скасувати" %}</a>
-        {% endif %}
-      </div>
+  {% if form_note %}
+    <div class="note-callout mt-3"><i class="bi bi-eye" aria-hidden="true"></i><span>{{ form_note }}</span></div>
+  {% endif %}
+
+  {% if cancel_url %}
+    <div class="sheet-card-footer">
+      <a href="{{ cancel_url }}" class="btn btn-link text-decoration-none">{% translate "Скасувати" %}</a>
     </div>
-  </div>
-</div>
+  {% endif %}
+</section>
