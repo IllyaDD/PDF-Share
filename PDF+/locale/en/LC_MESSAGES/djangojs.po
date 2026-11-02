@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-12 10:51+0000\n"
+"POT-Creation-Date: 2026-11-02 08:22+0200\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -14,82 +14,134 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: static/js/reader.js:238
-msgid "с. %(page)s"
-msgstr "p. %(page)s"
+#: static/js/reader.js:231
+msgid "Стор. %(page)s"
+msgstr "Page %(page)s"
 
-#: static/js/reader.js:284
+#: static/js/reader.js:238
+msgid "Організатор"
+msgstr "Organizer"
+
+#: static/js/reader.js:282
 msgid "Усі мітки сховані фільтром."
 msgstr "All highlights are hidden by the filter."
 
-#: static/js/reader.js:286
+#: static/js/reader.js:284
 msgid "У цій темі нотаток ще немає."
 msgstr "No notes in this topic yet."
 
-#: static/js/reader.js:288
+#: static/js/reader.js:286
 msgid "Нотаток ще немає."
 msgstr "No notes yet."
 
-#: static/js/reader.js:288
+#: static/js/reader.js:286
 msgid "У цьому шарі нотаток немає."
 msgstr "There are no notes in this layer."
 
-#: static/js/reader.js:303
+#: static/js/reader.js:301
 msgid "Клік — сховати/показати. Подвійний клік — лише цей колір."
 msgstr "Click to hide/show. Double-click to show only this color."
 
-#: static/js/reader.js:385
+#: static/js/reader.js:383
 msgid "%(shown)s з %(total)s"
 msgstr "%(shown)s of %(total)s"
 
-#: static/js/reader.js:386
+#: static/js/reader.js:384
 msgid "%(total)s міток"
 msgstr "highlights: %(total)s"
 
-#: static/js/reader.js:422
+#: static/js/reader.js:420
 msgid "Усі"
 msgstr "All"
 
-#: static/js/reader.js:423 static/js/reader.js:446
+#: static/js/reader.js:421 static/js/reader.js:444
 msgid "Без групи"
 msgstr "No topic"
 
-#: static/js/reader.js:432
+#: static/js/reader.js:430
 msgid "Нові виділення потрапляють у тему «%(name)s»."
 msgstr "New highlights go to the topic “%(name)s”."
 
-#: static/js/reader.js:433
+#: static/js/reader.js:431
 msgid "Нові виділення потрапляють у «Без групи»."
 msgstr "New highlights go to “No topic”."
 
-#: static/js/reader.js:443
+#: static/js/reader.js:441
 msgid "+ Нова"
 msgstr "+ New"
 
-#: static/js/reader.js:507
+#: static/js/reader.js:505
 msgid "Нотатки: %(owner)s"
 msgstr "Notes: %(owner)s"
 
-#: static/js/reader.js:507
+#: static/js/reader.js:505
 msgid "Мої нотатки"
 msgstr "My notes"
 
-#: static/js/reader.js:644
+#: static/js/reader.js:648
 msgid "Не вдалося зберегти виділення: %(error)s"
 msgstr "Could not save the highlight: %(error)s"
 
-#: static/js/reader.js:980
+#: static/js/reader.js:663
+msgid "Скопійовано"
+msgstr "Copied"
+
+#: static/js/reader.js:668
+msgid "Копіювати"
+msgstr "Copy"
+
+#: static/js/reader.js:672
+msgid "Не вдалося скопіювати текст."
+msgstr "Could not copy the text."
+
+#: static/js/reader.js:1011
 msgid "Колір змінено"
 msgstr "Colour changed"
 
-#: static/js/reader.js:995
+#: static/js/reader.js:1026
 msgid "Збережено"
 msgstr "Saved"
 
-#: static/js/reader.js:1039
+#: static/js/reader.js:1070
 msgid "Тему змінено"
 msgstr "Topic changed"
 
-#: static/js/reader.js:1139
+#: static/js/reader.js:1170
 msgid "Не вдалося відкрити документ: %(error)s"
 msgstr "Could not open the document: %(error)s"
+
+#: static/js/upload.js:15
+msgid "Б"
+msgstr "B"
+
+#: static/js/upload.js:15
+msgid "КБ"
+msgstr "KB"
+
+#: static/js/upload.js:15
+msgid "МБ"
+msgstr "MB"
+
+#: static/js/upload.js:15
+msgid "ГБ"
+msgstr "GB"
+
+#: static/js/upload.js:25
+msgid "Обрати інший файл"
+msgstr "Choose another file"
+
+#: static/js/upload.js:83 static/js/upload.js:88 static/js/upload.js:120
+msgid "Завантаження…"
+msgstr "Uploading…"
+
+#: static/js/upload.js:125
+msgid "Обробка файлу…"
+msgstr "Processing file…"
+
+#: static/js/upload.js:130
+msgid "Сервер відхилив завантаження. Спробуйте ще раз."
+msgstr "The server rejected the upload. Please try again."
+
+#: static/js/upload.js:145
+msgid "Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз."
+msgstr "Could not upload the file. Check your connection and try again."

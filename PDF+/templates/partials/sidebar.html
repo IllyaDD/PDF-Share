@@ -1,57 +1,68 @@
 {% load i18n %}
-{% with url_name=request.resolver_match.url_name ns=request.resolver_match.namespace %}
-<nav class="nav flex-column gap-1 py-3">
+{% with url_name=request.resolver_match.url_name ns=request.resolver_match.namespace current_pk=request.resolver_match.kwargs.pk %}
+<nav class="side-nav" aria-label="{% translate "Навігація" %}">
 
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if url_name == 'library' or url_name == 'folder' %}active{% endif %}"
-     href="{% url 'book_library:library' %}">
-    <i class="bi bi-folder2-open"></i> {% translate "Моя бібліотека" %}
+  <a class="side-link {% if url_name == 'library' %}active{% endif %}" href="{% url 'book_library:library' %}">
+    <i class="bi bi-book" aria-hidden="true"></i><span>{% translate "Усі підручники" %}</span>
+    <span class="side-count">{{ sidebar_book_count }}</span>
+  </a>
+  <a class="side-link {% if url_name == 'recent' %}active{% endif %}" href="{% url 'book_library:recent' %}">
+    <i class="bi bi-clock" aria-hidden="true"></i><span>{% translate "Нещодавні" %}</span>
+  </a>
+  <a class="side-link {% if url_name == 'shared_with_me' %}active{% endif %}" href="{% url 'book_library:shared_with_me' %}">
+    <i class="bi bi-share" aria-hidden="true"></i><span>{% translate "Поділилися зі мною" %}</span>
+  </a>
+  <a class="side-link {% if url_name == 'catalog' %}active{% endif %}" href="{% url 'book_library:catalog' %}">
+    <i class="bi bi-collection" aria-hidden="true"></i><span>{% translate "Каталог" %}</span>
   </a>
 
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if url_name == 'shared_with_me' %}active{% endif %}"
-     href="{% url 'book_library:shared_with_me' %}">
-    <i class="bi bi-people"></i> {% translate "Поділилися зі мною" %}
-  </a>
+  <div class="side-label">
+    <span>{% translate "Папки" %}</span>
+    <a href="{% url 'book_library:folder_create' %}" class="side-label-action"
+       title="{% translate "Створити папку" %}" aria-label="{% translate "Створити папку" %}"><i class="bi bi-plus-lg"></i></a>
+  </div>
+  {% for item in sidebar_folders %}
+    <a class="side-link {% if url_name == 'folder' and current_pk == item.pk %}active{% endif %}"
+       href="{% url 'book_library:folder' item.pk %}" title="{{ item.name }}">
+      <i class="bi bi-folder" aria-hidden="true"></i><span class="text-truncate">{{ item.name }}</span>
+      <span class="side-count">{{ item.book_count }}</span>
+    </a>
+  {% empty %}
+    <p class="side-empty">{% translate "Папок ще нема" %}</p>
+  {% endfor %}
 
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if url_name == 'catalog' %}active{% endif %}"
-     href="{% url 'book_library:catalog' %}">
-    <i class="bi bi-collection"></i> {% translate "Каталог" %}
-  </a>
-
-  <hr class="my-2">
-
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if ns == 'sharing' and url_name|slice:':5' == 'group' %}active{% endif %}"
-     href="{% url 'sharing:group_list' %}">
-    <i class="bi bi-mortarboard"></i> {% translate "Групи" %}
+  <div class="side-label">
+    <a href="{% url 'sharing:group_list' %}" class="side-label-link {% if url_name == 'group_list' %}active{% endif %}">{% translate "Групи" %}</a>
     {% with invites=pending_invitations_count %}
       {% if invites %}
-        <span class="badge rounded-pill text-bg-primary ms-auto"
-              title="{% translate "Нові запрошення" %}">{{ invites }}</span>
+        <a href="{% url 'sharing:group_list' %}" class="badge rounded-pill text-bg-primary ms-auto"
+           title="{% translate "Нові запрошення" %}">{{ invites }}</a>
       {% endif %}
     {% endwith %}
+  </div>
+  {% for item in sidebar_groups %}
+    <a class="side-link {% if url_name == 'group_detail' and current_pk == item.pk %}active{% endif %}"
+       href="{% url 'sharing:group_detail' item.pk %}" title="{{ item.name }}">
+      <i class="bi bi-people" aria-hidden="true"></i><span class="text-truncate">{{ item.name }}</span>
+    </a>
+  {% empty %}
+    <a class="side-link" href="{% url 'sharing:group_list' %}">
+      <i class="bi bi-people" aria-hidden="true"></i><span>{% translate "Усі групи" %}</span>
+    </a>
+  {% endfor %}
+
+  <div class="side-label"><span>{% translate "Доступ" %}</span></div>
+  <a class="side-link {% if ns == 'sharing' and url_name|slice:':4' == 'link' %}active{% endif %}" href="{% url 'sharing:link_list' %}">
+    <i class="bi bi-link-45deg" aria-hidden="true"></i><span>{% translate "Посилання" %}</span>
   </a>
-
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if ns == 'sharing' and url_name|slice:':4' == 'link' %}active{% endif %}"
-     href="{% url 'sharing:link_list' %}">
-    <i class="bi bi-link-45deg"></i> {% translate "Посилання" %}
-  </a>
-
-  <hr class="my-2">
-
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if ns == 'accounts' %}active{% endif %}"
-     href="{% url 'accounts:profile' %}">
-    <i class="bi bi-person"></i> {% translate "Профіль" %}
-  </a>
-
-  <a class="nav-link rounded d-flex align-items-center gap-2 {% if url_name == 'welcome' %}active{% endif %}"
-     href="{% url 'book_library:welcome' %}">
-    <i class="bi bi-question-circle"></i> {% translate "Можливості PDF+" %}
+  <a class="side-link {% if ns == 'accounts' %}active{% endif %}" href="{% url 'accounts:profile' %}">
+    <i class="bi bi-person" aria-hidden="true"></i><span>{% translate "Профіль" %}</span>
   </a>
 
 </nav>
 
-<div class="px-3 pb-3">
-  <a href="{% url 'book_library:book_upload' %}" class="btn btn-primary w-100">
-    <i class="bi bi-upload me-1"></i> {% translate "Завантажити PDF" %}
-  </a>
+<div class="side-disclaimer">
+  <strong>{% translate "Учнівський проєкт МАН" %}</strong>
+  <span>{% translate "Не є офіційним продуктом МОН чи Мінцифри. Шрифт e-Ukraine, CC BY 4.0" %}</span>
 </div>
 {% endwith %}

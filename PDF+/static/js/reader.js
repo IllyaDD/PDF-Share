@@ -22,7 +22,7 @@ if (viewer) {
   const palette = document.getElementById("highlightPalette");
   const popover = document.getElementById("annotationPopover");
   const sidebar = document.getElementById("annotationList");
-  const counter = document.querySelector("[data-reader-toggle-panel] .badge");
+  const counter = document.querySelector("[data-annotation-counter]");
   const filterBar = document.getElementById("annotationFilter");
   const filterChips = filterBar?.querySelector("[data-filter-chips]");
   const filterSummary = filterBar?.querySelector("[data-filter-summary]");
@@ -220,42 +220,40 @@ if (viewer) {
 
   function buildSidebarItem(annotation) {
     const card = document.createElement("div");
-    card.className = "card border-0 shadow-sm mb-2";
+    card.className = "note-card";
     card.dataset.annotationItem = String(annotation.id);
 
-    const body = document.createElement("div");
-    body.className = "card-body p-3";
-
     const head = document.createElement("div");
-    head.className = "d-flex align-items-center gap-2 mb-2";
+    head.className = "d-flex align-items-center gap-2";
 
-    const dot = document.createElement("span");
-    dot.className = "rounded-circle flex-shrink-0";
-    dot.style.cssText = `width:.75rem;height:.75rem;background:${annotation.color};`;
+    const page = document.createElement("span");
+    page.className = "note-card-page";
+    page.textContent = interpolate(gettext("Стор. %(page)s"), { page: annotation.page }, true);
+    head.append(page);
 
-    const badge = document.createElement("span");
-    badge.className = "badge text-bg-light border";
-    badge.textContent = interpolate(gettext("с. %(page)s"), { page: annotation.page }, true);
-
-    head.append(dot, badge);
-    body.append(head);
+    // Чужий шар — нотатки організатора, позначаємо бейджем, як у макеті.
+    if (!ownShown()) {
+      const role = document.createElement("span");
+      role.className = "role-badge ms-auto";
+      role.textContent = gettext("Організатор");
+      head.append(role);
+    }
+    card.append(head);
 
     if (annotation.text) {
       const quote = document.createElement("blockquote");
-      quote.className = "border-start border-3 ps-2 mb-2 small fst-italic text-body-secondary";
-      quote.style.borderColor = `${annotation.color} !important`;
-      quote.textContent = annotation.text.slice(0, 220);
-      body.append(quote);
+      quote.style.setProperty("--quote-color", annotation.color);
+      quote.textContent = `«${annotation.text.slice(0, 220)}»`;
+      card.append(quote);
     }
 
     if (annotation.note) {
       const note = document.createElement("p");
-      note.className = "small mb-0";
+      note.className = "note-card-text";
       note.textContent = annotation.note;
-      body.append(note);
+      card.append(note);
     }
 
-    card.append(body);
     card.addEventListener("click", () => focusAnnotation(annotation.id));
     return card;
   }
@@ -618,7 +616,8 @@ if (viewer) {
     };
   }
 
-  async function createHighlight(color) {
+  // withNote — одразу відкрити попап нотатки біля щойно створеного виділення.
+  async function createHighlight(color, { withNote = false } = {}) {
     if (!pendingSelection) {
       return;
     }
@@ -640,10 +639,37 @@ if (viewer) {
         showLayer("own");
       }
       window.getSelection()?.removeAllRanges();
+      if (withNote) {
+        hidePalette();
+        openPopover(created.id, anchor.x, anchor.y);
+        popover?.querySelector("[data-note]")?.focus();
+      }
     } catch (error) {
       alert(interpolate(gettext("Не вдалося зберегти виділення: %(error)s"), { error: error.message }, true));
     } finally {
       hidePalette();
+    }
+  }
+
+  async function copySelection() {
+    const text = pendingSelection?.selected_text;
+    if (!text) {
+      return;
+    }
+    const label = palette?.querySelector("[data-palette-copy-label]");
+    try {
+      await navigator.clipboard.writeText(text);
+      if (label) {
+        label.textContent = gettext("Скопійовано");
+      }
+      setTimeout(() => {
+        hidePalette();
+        if (label) {
+          label.textContent = gettext("Копіювати");
+        }
+      }, 700);
+    } catch {
+      alert(gettext("Не вдалося скопіювати текст."));
     }
   }
 
@@ -968,6 +994,11 @@ if (viewer) {
       const swatch = event.target.closest(".swatch");
       if (swatch) {
         createHighlight(swatch.dataset.color);
+      } else if (event.target.closest("[data-palette-note]")) {
+        // Колір за замовчуванням — перший у палітрі (Annotation.PALETTE).
+        createHighlight(paletteLabels.keys().next().value, { withNote: true });
+      } else if (event.target.closest("[data-palette-copy]")) {
+        copySelection();
       }
     });
 

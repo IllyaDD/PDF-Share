@@ -1,63 +1,37 @@
-{% load i18n static %}
-<nav class="navbar navbar-expand-lg bg-body border-bottom sticky-top">
-  <div class="container-fluid px-3 px-lg-4">
+{% load i18n %}
+<header class="app-header sticky-top">
+  <div class="app-header-inner">
+
+    <div class="d-flex align-items-center gap-1 app-header-start">
+      {% if user.is_authenticated %}
+        <button class="btn btn-icon d-lg-none" type="button"
+                data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="{% translate "Меню" %}">
+          <i class="bi bi-list fs-4"></i>
+        </button>
+      {% endif %}
+      <a class="app-brand" href="{% url 'book_library:home' %}">
+        {% include "partials/logo.html" %}<span>PDF+</span>
+      </a>
+    </div>
 
     {% if user.is_authenticated %}
-      <button class="btn btn-link text-body d-lg-none px-2" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas" aria-label="{% translate "Меню" %}">
-        <i class="bi bi-list fs-4"></i>
-      </button>
+      {# Глобальний пошук іде по всій «Моїй бібліотеці»; пошук у теці — на сторінці теки. #}
+      <form method="get" action="{% url 'book_library:library' %}" class="app-search d-none d-md-block" role="search">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" name="q" class="form-control" value="{% if not folder %}{{ query }}{% endif %}"
+               placeholder="{% translate "Пошук підручників і тек" %}" aria-label="{% translate "Пошук" %}">
+      </form>
     {% endif %}
 
-    <a class="navbar-brand fw-semibold" href="{% url 'book_library:home' %}">
-      <i class="bi bi-file-earmark-pdf text-danger me-1"></i>PDF+
-    </a>
-
-    <div class="ms-auto d-flex align-items-center gap-2">
-      {# Іконка показує тему, на яку перемкне клік: місяць — у світлій, сонце — у темній. #}
-      <button type="button" class="btn btn-light btn-sm theme-toggle" data-theme-toggle aria-pressed="false"
-              title="{% translate "Темна тема" %}" aria-label="{% translate "Темна тема" %}">
-        <i class="bi bi-moon-stars-fill theme-icon-dark" aria-hidden="true"></i>
-        <i class="bi bi-sun-fill theme-icon-light" aria-hidden="true"></i>
-      </button>
-      <form method="post" action="{% url 'set_language' %}" class="m-0">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <div class="btn-group btn-group-sm lang-switch" role="group" aria-label="{% translate "Мова інтерфейсу" %}">
-          {% for code, name in LANGUAGES %}
-            {# Прапор лежить у static/img/flags/<код мови>.svg; назва мови — у title й aria-label. #}
-            <button type="submit" name="language" value="{{ code }}" title="{{ name }}" aria-label="{{ name }}" lang="{{ code }}"
-                    class="btn btn-light{% if code == LANGUAGE_CODE %} active{% endif %}"
-                    aria-pressed="{% if code == LANGUAGE_CODE %}true{% else %}false{% endif %}">
-              <img src="{% static 'img/flags/'|add:code|add:'.svg' %}" class="lang-flag" alt="" width="21" height="14">
-            </button>
-          {% endfor %}
-        </div>
-      </form>
+    <div class="d-flex align-items-center gap-2 app-header-end">
+      {% include "partials/prefs_controls.html" %}
       {% if user.is_authenticated %}
-        <div class="dropdown">
-          <button class="btn btn-light btn-sm dropdown-toggle d-flex align-items-center gap-2"
-                  data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-person-circle" aria-hidden="true"></i>
-            <span class="d-none d-sm-inline">{{ user.username }}</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">{% translate "Профіль" %}</a></li>
-            <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">{% translate "Редагувати профіль" %}</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li>
-              <form method="post" action="{% url 'accounts:logout' %}">
-                {% csrf_token %}
-                <button type="submit" class="dropdown-item text-danger">{% translate "Вийти" %}</button>
-              </form>
-            </li>
-          </ul>
-        </div>
+        {% include "partials/user_menu.html" %}
       {% else %}
-        <a class="btn btn-link btn-sm text-body" href="{% url 'accounts:login' %}">{% translate "Увійти" %}</a>
-        <a class="btn btn-primary btn-sm" href="{% url 'accounts:register' %}">{% translate "Реєстрація" %}</a>
+        <a class="btn btn-link text-body" href="{% url 'accounts:login' %}">{% translate "Увійти" %}</a>
+        <a class="btn btn-primary" href="{% url 'accounts:register' %}">{% translate "Реєстрація" %}</a>
       {% endif %}
     </div>
 
   </div>
-</nav>
+</header>

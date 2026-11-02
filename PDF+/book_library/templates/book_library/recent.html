@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Нещодавні" %} — PDF+{% endblock %}
+
+{% block content %}
+  {% if progress_list %}
+    <div class="book-grid">
+      {% for progress in progress_list %}
+        {% include "partials/book_card.html" with book=progress.book progress=progress %}
+      {% endfor %}
+    </div>
+  {% else %}
+    {% include "partials/empty_state.html" with icon="bi-clock" title=_("Ще нічого не відкривали") text=_("Книги, які ви почнете читати, з'являться тут.") action_url=library_url action_label=_("До бібліотеки") %}
+  {% endif %}
+{% endblock %}

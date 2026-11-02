@@ -210,6 +210,13 @@ share-посилання з `include_annotations` (шар автора поси�
 
 ## Конвенції
 
+- Вбудованих `<script>` і `on*=` у шаблонах нема: JS — у `static/js/` (файл на функцію,
+  підключається через `{% block extra_js %}` або поруч із партіалом), тексти — `gettext()`
+  з `javascript-catalog`, який сторінка підключає перед скриптом. CSS розбитий на
+  `static/css/` (`tokens` → `base` → `layout` → `library` → `forms` у `base.html`, `auth.css` і
+  `reader.css` — лише на своїх сторінках); порядок `<link>` важливий для каскаду.
+  `style=""` — лише CSS-змінні з даними (`--progress`, `--dot-color`), правило — у CSS.
+  `StaticAssetsTests` перевіряє, що вбудованих скриптів нема і кожен `{% static %}` існує.
 - Кожна модель явно задає `Meta.db_table` (`accounts_user`, `library_book`,
   `annotations_layer`, `sharing_groupaccess`…). Нові моделі теж.
 - Тести, що торкаються файлів, **обов'язково** ізолюються, інакше з `USE_R2=true` у `.env`

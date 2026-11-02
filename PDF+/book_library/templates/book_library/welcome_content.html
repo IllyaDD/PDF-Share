@@ -4,7 +4,7 @@
   <i class="bi bi-file-earmark-pdf display-4 text-danger" aria-hidden="true"></i>
   <h1 class="display-6 fw-semibold mt-2">{% translate "Ласкаво просимо до PDF+" %}</h1>
   <p class="lead text-body-secondary mx-auto welcome-lead">
-    {% translate "Бібліотека PDF для навчання: зберігайте матеріали, читайте їх просто в браузері, виділяйте важливе, пишіть нотатки й діліться книгами з класом." %}
+    {% translate "Бібліотека PDF для навчання: зберігайте матеріали, читайте їх просто в браузері, виділяйте важливе, пишіть нотатки й діліться книгами з групою." %}
   </p>
 </section>
 
@@ -31,7 +31,7 @@
           <span class="badge rounded-pill text-bg-primary mb-2">2</span>
           <h3 class="h6 fw-semibold">{% translate "Розкладіть по теках" %}</h3>
           <p class="small text-body-secondary mb-2">
-            {% translate "Створюйте теки будь-якої вкладеності — за предметами, класами чи темами — і переміщуйте книги між ними." %}
+            {% translate "Створюйте теки будь-якої вкладеності — за предметами, групами чи темами — і переміщуйте книги між ними." %}
           </p>
           {% if user.is_authenticated %}
             <a href="{% url 'book_library:library' %}" class="small">{% translate "Моя бібліотека" %} →</a>
@@ -59,7 +59,7 @@
           <span class="badge rounded-pill text-bg-primary mb-2">4</span>
           <h3 class="h6 fw-semibold">{% translate "Поділіться" %}</h3>
           <p class="small text-body-secondary mb-2">
-            {% translate "Відкрийте книгу чи теку групі учнів або надішліть посилання — навіть тому, хто не має акаунта." %}
+            {% translate "Відкрийте книгу чи теку групі або надішліть посилання — навіть тому, хто не має акаунта." %}
           </p>
           {% if user.is_authenticated %}
             <a href="{% url 'sharing:group_list' %}" class="small">{% translate "Групи" %} →</a>
@@ -87,8 +87,8 @@
 <section class="mb-5">
   <h2 class="h5 mb-3">{% translate "Спільна робота" %}</h2>
   <div class="row g-3">
-    {% include "partials/feature_card.html" with icon="bi-mortarboard" title=_("Групи (класи)") text=_("Створіть групу, додайте учнів і відкрийте їй доступ до книги чи теки. Доступ до теки поширюється на все, що в ній лежить, разом із новими матеріалами.") %}
-    {% include "partials/feature_card.html" with icon="bi-person-video3" title=_("Шар вчителя") text=_("Власник групи може опублікувати свої виділення й нотатки до книги для своїх груп. Учні перемикаються в читалці між своїми нотатками й нотатками вчителя — чужий шар доступний лише для читання.") %}
+    {% include "partials/feature_card.html" with icon="bi-people" title=_("Групи") text=_("Створіть групу, запросіть учасників і відкрийте їй доступ до книги чи теки. Доступ до теки поширюється на все, що в ній лежить, разом із новими матеріалами.") %}
+    {% include "partials/feature_card.html" with icon="bi-person-video3" title=_("Шар організатора") text=_("Організатор групи може опублікувати свої виділення й нотатки до книги для своїх груп. Учасники перемикаються в читалці між своїми нотатками й нотатками організатора — чужий шар доступний лише для читання.") %}
     {% include "partials/feature_card.html" with icon="bi-link-45deg" title=_("Посилання") text=_("Посилання на книгу чи теку — безстрокове або з датою завершення. Можна поділитися лише книгою або книгою з вашими нотатками (за бажанням — тільки обраними темами). Відкликати посилання можна будь-коли.") %}
     {% include "partials/feature_card.html" with icon="bi-collection" title=_("Каталог") text=_("Спільні матеріали, які адміністратор відкрив для всіх зареєстрованих користувачів. Пошук у каталозі охоплює весь його вміст.") %}
   </div>

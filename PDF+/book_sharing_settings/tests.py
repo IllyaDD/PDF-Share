@@ -1,8 +1,10 @@
-import json
 import atexit
+import json
+import re
 import shutil
 import tempfile
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 
 from annotations.models import Annotation, Layer
@@ -303,3 +305,64 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json(), {"status": "unavailable"})
         self.assertNotContains(response, "secret-host", status_code=503)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class StaticAssetsTests(TestCase):
+    """CSS і JS живуть у static/, а не в шаблонах; кожне посилання на статику веде на файл."""
+
+    INLINE_SCRIPT = re.compile(r"<script(?![^>]*(?:\bsrc=|type=\"application/json\"))[^>]*>")
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="statyka", email="statyka@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.user)
+
+    def test_static_references_in_templates_exist(self):
+        from django.contrib.staticfiles import finders
+
+        names = set()
+        for template_dir in Path(settings.BASE_DIR).glob("**/templates"):
+            if ".venv" in template_dir.parts:
+                continue
+            for path in template_dir.rglob("*.html"):
+                names.update(re.findall(r"\{% static '([^']+)' %\}", path.read_text(encoding="utf-8")))
+        self.assertIn("css/tokens.css", names)
+        for name in sorted(names):
+            with self.subTest(name=name):
+                self.assertIsNotNone(finders.find(name), f"{name} не знайдено")
+
+    def test_pages_have_no_inline_scripts(self):
+        # Дозволено лише <script src> і дані з json_script.
+        from book_library.tests import make_pdf
+
+        book = Book.objects.create(owner=self.user, title="Статика", file=make_pdf())
+        urls = [
+            reverse("book_library:book_reader", args=[book.pk]),
+            reverse("book_library:book_detail", args=[book.pk]),
+            reverse("book_library:home"),
+            reverse("book_library:library"),
+            reverse("book_library:book_upload"),
+            reverse("sharing:link_list"),
+            reverse("sharing:link_create"),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                html = self.client.get(url).content.decode()
+                self.assertEqual(self.INLINE_SCRIPT.findall(html), [])
+                self.assertNotRegex(html, r"\son(click|change|submit|input)=")
+
+    def test_upload_page_loads_catalog_before_script(self):
+        html = self.client.get(reverse("book_library:book_upload")).content.decode()
+        self.assertLess(html.index(reverse("javascript-catalog")), html.index("js/upload.js"))
+
+    def test_upload_strings_are_in_js_catalog(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        response = self.client.get(reverse("javascript-catalog"))
+        self.assertContains(response, "The server rejected the upload. Please try again.")
+
+    def test_auth_css_only_on_auth_pages(self):
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("accounts:login")), "css/auth.css")
+        self.assertNotContains(self.client.get(reverse("book_library:home")), "css/auth.css")

@@ -1,0 +1,460 @@
+/* ==========================================================================
+   Читалка.
+   ========================================================================== */
+
+.reader-shell {
+  height: 100vh;
+  background: var(--app-page-bg);
+}
+
+.reader-topbar {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: var(--app-header-h);
+  padding: .5rem 1rem;
+  background: var(--app-header-bg);
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.reader-topbar-title {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.reader-topbar-title .title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-topbar-title .subtitle {
+  font-size: .75rem;
+  color: var(--bs-secondary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-topbar-end {
+  flex: 1 1 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .5rem;
+}
+
+.tool-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .125rem;
+  padding: .25rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-sidebar-bg);
+}
+
+.tool-pill .btn-icon:hover {
+  background: var(--app-surface);
+}
+
+.zoom-label {
+  min-width: 3.5rem;
+  text-align: center;
+  font-size: .8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-rail {
+  flex: 0 0 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 1rem 0;
+  background: var(--app-sidebar-bg);
+}
+
+.rail-link {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: .75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-body-color);
+  font-size: 1.25rem;
+  text-decoration: none;
+}
+
+.rail-link:hover {
+  background: rgba(255, 255, 255, .55);
+  color: var(--bs-body-color);
+}
+
+.rail-link.active {
+  background: var(--app-surface);
+  color: var(--app-primary);
+}
+
+[data-bs-theme="dark"] .rail-link:hover {
+  background: rgba(255, 255, 255, .05);
+}
+
+.reader-stage {
+  position: relative;
+  min-width: 0;
+}
+
+.reader-pager-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 5;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: .125rem;
+  padding: .25rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, .12);
+  white-space: nowrap;
+}
+
+[data-bs-theme="dark"] .reader-pager-pill {
+  box-shadow: 0 0 0 1px var(--app-divider), 0 4px 16px rgba(0, 0, 0, .4);
+}
+
+.reader-page-input {
+  width: calc(4ch + 1rem);
+  height: 2rem;
+  padding: 0 .25rem;
+  border: 0;
+  border-radius: .5rem;
+  background: transparent;
+  color: var(--bs-body-color);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-page-input:focus {
+  outline: none;
+  background: var(--app-field-bg);
+}
+
+.reader-page-total {
+  padding-right: .5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-canvas-area {
+  overflow: auto;
+  background: var(--app-page-bg);
+  padding-bottom: 4.5rem;
+}
+
+.pdf-page {
+  position: relative;
+  margin: 1.5rem auto;
+  border-radius: .5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .08);
+
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+
+.pdf-page canvas {
+  display: block;
+}
+
+.annotation-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+.annotation-rect {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+/* Чужий шар (нотатки організатора) — лише для читання, позначаємо підкресленням. */
+.annotation-rect.is-readonly {
+  cursor: default;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .35);
+}
+
+.reader-side {
+  width: 360px;
+  overflow-y: auto;
+  background: var(--app-surface);
+  border-left: 1px solid var(--app-divider);
+}
+
+@media (max-width: 991.98px) {
+  .reader-side {
+    width: 100%;
+  }
+}
+
+.reader-side-count {
+  display: inline-block;
+  min-width: 1.75rem;
+  padding: .125rem .5rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-sidebar-bg);
+  color: var(--bs-secondary-color);
+  font-size: .75rem;
+  font-weight: 400;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Сегмент-вкладки «Мої / <шар організатора>». */
+.segmented {
+  display: flex;
+  gap: .25rem;
+  padding: .25rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-sidebar-bg);
+  overflow-x: auto;
+}
+
+.segmented .btn {
+  --bs-btn-padding-y: .375rem;
+  --bs-btn-padding-x: .875rem;
+  --bs-btn-font-size: .8125rem;
+  --bs-btn-color: var(--bs-secondary-color);
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-border-radius: var(--app-radius-pill);
+  flex: 1 1 0;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.segmented .btn.active {
+  background: var(--app-surface);
+  color: var(--bs-body-color);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+}
+
+.role-badge {
+  display: inline-block;
+  padding: .125rem .5rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  font-size: .6875rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.reader-side .list-group-item {
+  margin-bottom: .75rem;
+  border: 1px solid var(--app-divider);
+  border-radius: .875rem;
+  padding: .875rem;
+}
+
+.reader-side .list-group-item.active {
+  color: inherit;
+  background: var(--app-primary-soft);
+  border-color: var(--app-primary-soft-2);
+}
+
+.reader-side blockquote {
+  margin: .5rem 0;
+  padding-left: .625rem;
+  border-left: 3px solid var(--quote-color, var(--app-accent));
+  color: var(--app-quote);
+  font-size: .8125rem;
+  font-style: normal !important;
+}
+
+.floating-panel {
+  position: fixed;
+  z-index: 1060;
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: 1rem;
+  box-shadow: var(--app-shadow-pop);
+  padding: .5rem;
+}
+
+.highlight-palette {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  padding: .375rem .5rem;
+}
+
+.palette-divider {
+  width: 1px;
+  height: 1.5rem;
+  margin: 0 .25rem;
+  background: var(--app-divider);
+}
+
+.palette-action {
+  --bs-btn-padding-x: .625rem;
+  --bs-btn-padding-y: .25rem;
+  --bs-btn-font-size: .8125rem;
+  --bs-btn-border-color: transparent;
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-hover-bg: var(--app-field-bg);
+  --bs-btn-active-border-color: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  white-space: nowrap;
+}
+
+.palette-action.is-primary {
+  --bs-btn-color: var(--app-primary);
+  --bs-btn-hover-color: var(--app-primary);
+}
+
+.palette-action.is-plain {
+  --bs-btn-color: var(--bs-body-color);
+  --bs-btn-hover-color: var(--bs-body-color);
+}
+
+.annotation-popover {
+  width: 17rem;
+  padding: .75rem;
+}
+
+.swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+  background: var(--swatch);
+  cursor: pointer;
+  padding: 0;
+  transition: transform .1s ease, border-color .1s ease;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatch.is-active {
+  border-color: var(--app-primary);
+}
+
+.annotation-rect.is-focused {
+  outline: 2px solid var(--bs-body-color);
+  outline-offset: 1px;
+}
+
+.annotation-rect.is-target {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: 2px;
+  animation: annotation-flash 1.6s ease-out;
+}
+
+@keyframes annotation-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0); }
+  15%      { box-shadow: 0 0 0 .5rem rgba(var(--bs-primary-rgb), .45); }
+  60%      { box-shadow: 0 0 0 .25rem rgba(var(--bs-primary-rgb), .2); }
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .15rem .55rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 1rem;
+  background: var(--app-surface);
+  color: var(--bs-body-color);
+  font-size: .8125rem;
+  line-height: 1.5;
+  cursor: pointer;
+
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity .1s ease, border-color .1s ease;
+}
+
+.filter-chip:hover {
+  border-color: var(--bs-secondary);
+}
+
+.filter-chip-dot {
+  width: .7rem;
+  height: .7rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.filter-chip.is-off {
+  opacity: .45;
+}
+
+.filter-chip.is-off .filter-chip-label {
+  text-decoration: line-through;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-rect.is-target {
+    animation: none;
+  }
+}
+
+/* Чипи тем нотаток: довга назва обрізається, а не розпирає панель. */
+.topic-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* Перемикач панелі нотаток: нижче lg панель схована, поки її не відкрили. */
+.reader-side.is-open {
+  display: block !important;
+}
+
+@media (min-width: 992px) {
+  .reader-side.is-collapsed {
+    display: none !important;
+  }
+}
+
+
+/* Картка нотатки в панелі читалки (будує reader.js). */
+.note-card {
+  margin-bottom: .75rem;
+  padding: .875rem;
+  border: 1px solid var(--app-divider);
+  border-radius: .875rem;
+  background: var(--app-surface);
+  cursor: pointer;
+  transition: border-color .12s ease;
+}
+
+.note-card:hover {
+  border-color: var(--app-primary-soft-2);
+}
+
+.note-card-page {
+  font-size: .75rem;
+  color: var(--bs-secondary-color);
+}
+
+.note-card-text {
+  margin: .5rem 0 0;
+  font-size: .9375rem;
+}

@@ -1,0 +1,48 @@
+{% load i18n %}
+{# Меню «⋯» книги: спільне для картки в сітці й рядка таблиці теки. #}
+<div class="dropdown">
+  <button class="btn btn-icon" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% translate "Дії з книгою" %}">
+    <i class="bi bi-three-dots"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><a class="dropdown-item" href="{% url 'book_library:book_reader' book.pk %}">{% translate "Читати" %}</a></li>
+    <li><a class="dropdown-item" href="{% url 'book_library:book_detail' book.pk %}">{% translate "Деталі" %}</a></li>
+    <li><a class="dropdown-item" href="{% url 'annotations:book_annotations' book.pk %}">{% translate "Мої нотатки" %}</a></li>
+    {% if book.owner_id == user.pk %}
+      <li><a class="dropdown-item" href="{% url 'book_library:book_edit' book.pk %}">{% translate "Редагувати" %}</a></li>
+      <li><a class="dropdown-item" href="{% url 'sharing:link_create' %}?book={{ book.pk }}">{% translate "Поділитися" %}</a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <button type="button" class="dropdown-item"
+                data-bs-toggle="modal" data-bs-target="#moveModal"
+                data-action="{% url 'book_library:book_move' book.pk %}"
+                data-title="{{ book.title }}"
+                data-folder="{{ book.folder_id|default_if_none:'' }}">
+          <i class="bi bi-folder-symlink me-1"></i>{% translate "Перемістити в теку…" %}
+        </button>
+      </li>
+      {% if book.folder_id %}
+        <li>
+          <form method="post" action="{% url 'book_library:book_move' book.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="folder" value="">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="dropdown-item">
+              <i class="bi bi-folder-minus me-1"></i>{% translate "Прибрати з теки" %}
+            </button>
+          </form>
+        </li>
+      {% endif %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <button type="button" class="dropdown-item text-danger"
+                data-bs-toggle="modal" data-bs-target="#confirmModal"
+                data-action="{% url 'book_library:book_delete' book.pk %}"
+                data-title="{% blocktranslate with title=book.title %}Видалити «{{ title }}»?{% endblocktranslate %}"
+                data-text="{% translate "Книга та всі анотації до неї будуть видалені безповоротно." %}">
+          {% translate "Видалити" %}
+        </button>
+      </li>
+    {% endif %}
+  </ul>
+</div>

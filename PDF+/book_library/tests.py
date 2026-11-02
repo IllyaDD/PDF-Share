@@ -557,6 +557,12 @@ class ReaderWiringTests(TestCase):
         self.assertContains(self.response, 'type="module"')
         self.assertContains(self.response, "/static/js/reader.js")
 
+    def test_reader_ui_runs_before_module(self):
+        # reader-ui.js шле reader:page/reader:scale і ставить data-атрибути, які модуль читає на старті.
+        html = self.response.content.decode()
+        self.assertLess(html.index("/static/js/reader-ui.js"), html.index("/static/js/reader.js"))
+        self.assertContains(self.response, "/static/css/reader.css")
+
     def test_viewer_carries_file_url(self):
         self.assertContains(self.response, f'data-file-url="{self.book.file.url}"')
 
@@ -571,6 +577,8 @@ class ReaderWiringTests(TestCase):
             "vendor/pdfjs/pdf.worker.min.mjs",
             "vendor/pdfjs/text_layer.css",
             "js/reader.js",
+            "js/reader-ui.js",
+            "css/reader.css",
         ]:
             with self.subTest(path=path):
                 self.assertIsNotNone(finders.find(path), f"{path} не знайдено")
@@ -831,7 +839,8 @@ class LibrarySearchTests(TestCase):
 
     def test_search_hides_folder_cards(self):
         response = self.client.get(reverse("book_library:library"), {"q": "алгебра"})
-        self.assertNotContains(response, 'href="/library/folder/%d/"' % self.other.pk)
+        # Сайдбар перелічує кореневі теки завжди, тож перевіряємо результати, а не HTML.
+        self.assertNotIn(self.other, response.context["folders"])
 
     def _folder_link(self, folder):
         return 'href="%s"' % reverse("book_library:folder", args=[folder.pk])
@@ -855,7 +864,7 @@ class LibrarySearchTests(TestCase):
         response = self.client.get(
             reverse("book_library:library"), {"q": "історі", "scope": "books"}
         )
-        self.assertNotContains(response, self._folder_link(self.other))
+        self.assertEqual(response.context["folders"], [])
         self.assertContains(response, "Алгебра історії")
 
     def test_folder_search_covers_nested_folders_but_not_itself(self):
@@ -1264,8 +1273,8 @@ class CoverStorageTests(TestCase):
     def test_book_card_without_cover_shows_icon(self):
         Book.objects.create(owner=self.user, title="Стара книга", file=make_pdf())
         response = self.client.get(reverse("book_library:library"))
-        self.assertContains(response, "bi-file-earmark-pdf")
-        self.assertNotContains(response, "book-cover-img")
+        self.assertContains(response, "book-placeholder")
+        self.assertNotContains(response, 'loading="lazy"')
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
@@ -1444,7 +1453,7 @@ class WelcomePageTests(TestCase):
     def test_anonymous_sees_features_and_signup(self):
         response = self.client.get(reverse("book_library:welcome"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Шар вчителя")
+        self.assertContains(response, "Шар організатора")
         self.assertContains(response, reverse("accounts:register"))
         self.assertNotContains(response, reverse("book_library:book_upload"))
 
@@ -1458,7 +1467,7 @@ class WelcomePageTests(TestCase):
     def test_anonymous_home_is_full_welcome_page(self):
         response = self.client.get(reverse("book_library:home"))
         self.assertContains(response, "Ласкаво просимо до PDF+")
-        self.assertContains(response, "Шар вчителя")
+        self.assertContains(response, "Шар організатора")
         self.assertContains(response, reverse("accounts:register"))
 
     def test_authenticated_home_links_to_welcome_instead_of_overview(self):
@@ -1466,4 +1475,139 @@ class WelcomePageTests(TestCase):
         self.client.force_login(user)
         response = self.client.get(reverse("book_library:home"))
         self.assertContains(response, reverse("book_library:welcome"))
-        self.assertNotContains(response, "Шар вчителя")
+        self.assertNotContains(response, "Шар організатора")
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class RecentBooksTests(TestCase):
+    """Сторінка «Нещодавні»: прогрес читання, звужений за visible_books()."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="nedavno", email="nedavno@example.com", password="parol-parol-42"
+        )
+        self.stranger = User.objects.create_user(
+            username="chuzhenets", email="chuzhenets@example.com", password="parol-parol-42"
+        )
+        self.book = Book.objects.create(owner=self.user, title="Моя книга", file=make_pdf(), page_count=10)
+        self.foreign = Book.objects.create(
+            owner=self.stranger, title="Чужа книга", file=make_pdf(), page_count=10
+        )
+        self.url = reverse("book_library:recent")
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response["Location"])
+
+    def test_lists_own_progress_newest_first(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .progress import record_progress
+
+        second = Book.objects.create(owner=self.user, title="Друга", file=make_pdf(), page_count=4)
+        now = timezone.now()
+        record_progress(self.user, self.book, 5, now - timedelta(hours=2))
+        record_progress(self.user, second, 2, now - timedelta(hours=1))
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        titles = [p.book.title for p in response.context["progress_list"]]
+        self.assertEqual(titles, ["Друга", "Моя книга"])
+        self.assertContains(response, "Стор. 5 з 10")
+
+    def test_hides_books_without_access(self):
+        from .progress import record_progress
+
+        record_progress(self.user, self.foreign, 3)
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(list(response.context["progress_list"]), [])
+        self.assertNotContains(response, "Чужа книга")
+
+    def test_does_not_show_other_users_progress(self):
+        from .progress import record_progress
+
+        record_progress(self.stranger, self.book, 7)
+        self.client.force_login(self.user)
+        self.assertEqual(list(self.client.get(self.url).context["progress_list"]), [])
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class FolderTableTests(TestCase):
+    """Тека таблицею: бейджі доступу власнику, без них — гостям теки."""
+
+    def setUp(self):
+        from sharing.models import Group, GroupAccess, GroupMembership, ShareLink
+
+        self.owner = User.objects.create_user(
+            username="vlasnyk", email="vlasnyk@example.com", password="parol-parol-42"
+        )
+        self.member = User.objects.create_user(
+            username="uchasnyk", email="uchasnyk@example.com", password="parol-parol-42"
+        )
+        self.folder = Folder.objects.create(owner=self.owner, name="Алгебра")
+        self.grouped = Book.objects.create(
+            owner=self.owner, folder=self.folder, title="Для групи", file=make_pdf()
+        )
+        self.linked = Book.objects.create(
+            owner=self.owner, folder=self.folder, title="За лінком", file=make_pdf()
+        )
+        self.private = Book.objects.create(
+            owner=self.owner, folder=self.folder, title="Особиста", file=make_pdf()
+        )
+        self.group = Group.objects.create(owner=self.owner, name="10-А")
+        GroupMembership.objects.create(group=self.group, user=self.member)
+        GroupAccess.objects.create(group=self.group, book=self.grouped, granted_by=self.owner)
+        ShareLink.objects.create(book=self.linked, token="tok-linked", created_by=self.owner)
+        self.url = reverse("book_library:folder", args=[self.folder.pk])
+
+    def badges(self, response, book):
+        row = next(b for b in response.context["books"] if b.pk == book.pk)
+        return [badge["label"] for badge in row.access_badges]
+
+    def test_owner_sees_access_badges_per_book(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(self.badges(response, self.grouped), ["Група 10-А"])
+        self.assertEqual(self.badges(response, self.linked), ["За посиланням"])
+        self.assertEqual(self.badges(response, self.private), ["Приватно"])
+        self.assertContains(response, "доступ: приватно")
+
+    def test_folder_access_is_inherited_by_books(self):
+        from sharing.models import GroupAccess
+
+        GroupAccess.objects.create(group=self.group, folder=self.folder, granted_by=self.owner)
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(self.badges(response, self.private), ["Група 10-А"])
+        self.assertContains(response, "доступ: група 10-А")
+
+    def test_expired_link_is_not_a_badge(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from sharing.models import ShareLink
+
+        ShareLink.objects.filter(token="tok-linked").update(expires_at=timezone.now() - timedelta(days=1))
+        self.client.force_login(self.owner)
+        self.assertEqual(self.badges(self.client.get(self.url), self.linked), ["Приватно"])
+
+    def test_non_owner_sees_no_access_column(self):
+        from sharing.models import GroupAccess
+
+        GroupAccess.objects.create(group=self.group, folder=self.folder, granted_by=self.owner)
+        self.client.force_login(self.member)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "access-badge is-group")
+        self.assertNotContains(response, "доступ:")
+
+    def test_library_header_counts_books_and_notes(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("book_library:library"))
+        self.assertContains(response, "Підручників: 3 · нотаток: 0")

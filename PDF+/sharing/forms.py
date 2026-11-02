@@ -1,6 +1,7 @@
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Submit
+from crispy_forms.layout import Div, Layout, Submit
 from django import forms
+from django.db.models import Count
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -135,7 +136,7 @@ class ShareLinkForm(forms.ModelForm):
         self.helper.layout = Layout(
             "book",
             "folder",
-            "include_annotations",
+            Div("include_annotations", css_class="option-cards"),
             *(["note_groups"] if "note_groups" in self.fields else []),
             "expires_at",
             Submit("submit", _("Створити посилання"), css_class="btn btn-primary mt-3"),
@@ -181,6 +182,7 @@ class GroupAccessForm(forms.ModelForm):
     class Meta:
         model = GroupAccess
         fields = ("group", "book", "folder", "permission")
+        widgets = {"group": forms.RadioSelect}
         labels = {
             "group": _("Група"),
             "book": _("Книга"),
@@ -192,8 +194,14 @@ class GroupAccessForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["group"].queryset = (
-            Group.objects.none() if owner is None else Group.objects.filter(owner=owner)
+            Group.objects.none()
+            if owner is None
+            else Group.objects.filter(owner=owner).annotate(member_count=Count("memberships"))
         )
+        # Радіо-картка групи: назва + скільки учасників отримають доступ (лише перегляд).
+        self.fields["group"].label_from_instance = lambda group: _(
+            "%(name)s · учасників: %(count)d"
+        ) % {"name": group.name, "count": group.member_count}
         self.fields["book"].queryset = (
             Book.objects.none() if owner is None else Book.objects.filter(owner=owner)
         )
@@ -208,7 +216,7 @@ class GroupAccessForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = "post"
         self.helper.layout = Layout(
-            "group",
+            Div("group", css_class="option-cards"),
             "book",
             "folder",
             "permission",

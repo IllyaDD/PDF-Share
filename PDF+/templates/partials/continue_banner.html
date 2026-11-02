@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Банер «Продовжити читати»: progress — ReadingProgress з select_related("book"). #}
+{% with book=progress.book %}
+<section class="continue-banner">
+  <div class="continue-banner-body">
+    <div class="continue-banner-eyebrow">{% translate "Продовжити читати" %}</div>
+    <h2 class="continue-banner-title" title="{{ book.title }}">{{ book.title }}</h2>
+    <div class="continue-banner-meta">
+      {% blocktranslate with page=progress.last_page total=book.page_count %}Стор. {{ page }} з {{ total }}{% endblocktranslate %}
+    </div>
+    <div class="continue-banner-track" role="progressbar" aria-label="{% translate "Прогрес читання" %}"
+         aria-valuenow="{{ progress.percent }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="continue-banner-fill progress-fill" style="--progress: {{ progress.percent }}%"></div>
+    </div>
+  </div>
+  <div class="continue-banner-decor" aria-hidden="true">
+    <span class="continue-banner-sheet is-a"></span>
+    <span class="continue-banner-sheet is-b"></span>
+  </div>
+  <a href="{% url 'book_library:book_reader' book.pk %}" class="btn btn-on-banner btn-tall">{% translate "Відкрити" %}</a>
+</section>
+{% endwith %}

@@ -1,13 +1,13 @@
-{% load i18n %}
+{% load i18n static %}
 <form method="get" class="mb-4" role="search">
   <div class="input-group">
     <span class="input-group-text bg-body"><i class="bi bi-search"></i></span>
     <input type="search" name="q" value="{{ query }}" class="form-control"
            placeholder="{{ placeholder|default:_("Пошук за назвою…") }}" aria-label="{% translate "Пошук" %}">
     {% if search_scopes %}
-      {# Зміна області одразу перезапускає пошук, якщо запит уже введено. #}
+      {# Зміна області одразу перезапускає пошук, якщо запит уже введено (js/search-form.js). #}
       <select name="scope" class="form-select flex-grow-0 w-auto" aria-label="{% translate "Де шукати" %}"
-              onchange="if (this.form.q.value.trim()) this.form.requestSubmit()">
+              data-search-scope>
         {% for value, label in search_scopes %}
           <option value="{{ value }}"{% if value == search_scope %} selected{% endif %}>{{ label }}</option>
         {% endfor %}
@@ -21,3 +21,4 @@
     <button type="submit" class="btn btn-outline-primary">{% translate "Знайти" %}</button>
   </div>
 </form>
+{% if search_scopes %}<script src="{% static 'js/search-form.js' %}" defer></script>{% endif %}

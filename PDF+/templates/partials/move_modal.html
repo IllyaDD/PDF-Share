@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n static %}
 <div class="modal fade" id="moveModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <form method="post" class="modal-content" data-move-form>
@@ -30,13 +30,4 @@
   </div>
 </div>
 
-<script>
-  document.getElementById('moveModal').addEventListener('show.bs.modal', (event) => {
-    const trigger = event.relatedTarget;
-    if (!trigger) return;
-    const modal = event.target;
-    modal.querySelector('[data-move-form]').action = trigger.dataset.action || '';
-    modal.querySelector('[data-move-title]').textContent = trigger.dataset.title ? `«${trigger.dataset.title}»` : '';
-    modal.querySelector('[data-move-select]').value = trigger.dataset.folder || '';
-  });
-</script>
+<script src="{% static 'js/move-modal.js' %}" defer></script>

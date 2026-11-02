@@ -102,10 +102,10 @@
             {% blocktranslate with page=progress.last_page total=book.page_count %}с. {{ page }} з {{ total }}{% endblocktranslate %} · {{ progress.percent }}%
           </span>
         </div>
-        <div class="progress" style="height: .5rem;" role="progressbar"
+        <div class="progress progress-thin" role="progressbar"
              aria-label="{% translate "Прогрес читання" %}" aria-valuenow="{{ progress.percent }}"
              aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+          <div class="progress-bar progress-fill" style="--progress: {{ progress.percent }}%"></div>
         </div>
         <p class="small text-body-secondary mb-0 mt-2">
           {% blocktranslate with date=progress.read_at|date:"d.m.Y H:i" %}Востаннє читали {{ date }}.{% endblocktranslate %}
@@ -133,7 +133,7 @@
     {% if teacher_layers %}
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <h2 class="h6 mb-1">{% translate "Нотатки вчителя" %}</h2>
+        <h2 class="h6 mb-1">{% translate "Нотатки організатора" %}</h2>
         <p class="small text-body-secondary mb-2">{% translate "Відкриваються в читалці окремим шаром, лише для читання." %}</p>
         <ul class="list-group list-group-flush">
           {% for layer in teacher_layers %}

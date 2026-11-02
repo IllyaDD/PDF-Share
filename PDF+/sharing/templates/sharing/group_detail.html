@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% load crispy_forms_tags %}
 
 {% block title %}{{ group.name }} — PDF+{% endblock %}
@@ -23,8 +23,7 @@
         <ul class="list-group list-group-flush">
           {% for membership in memberships %}
             <li class="list-group-item px-0 d-flex align-items-center gap-3">
-              <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center flex-shrink-0"
-                   style="width: 2rem; height: 2rem;">
+              <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center flex-shrink-0 icon-circle-sm">
                 <i class="bi bi-person text-secondary"></i>
               </div>
               <div class="flex-grow-1 min-w-0">
@@ -79,7 +78,7 @@
               </button>
             </form>
           {% else %}
-            <p class="small text-body-secondary mb-3">{% translate "Посилання вимкнене. Учні можуть вступити лише за запрошенням." %}</p>
+            <p class="small text-body-secondary mb-3">{% translate "Посилання вимкнене. Учасники можуть вступити лише за запрошенням." %}</p>
             <form method="post" action="{% url 'sharing:group_invite' group.pk %}">
               {% csrf_token %}
               <button type="submit" name="action" value="regenerate" class="btn btn-sm btn-outline-primary">
@@ -167,20 +166,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-  document.querySelectorAll('[data-copy-input]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const input = button.closest('.input-group').querySelector('input');
-      try {
-        await navigator.clipboard.writeText(input.value);
-      } catch {
-        input.select();
-        return;
-      }
-      const icon = button.querySelector('i');
-      icon.className = 'bi bi-check-lg';
-      setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
-    });
-  });
-</script>
+<script src="{% static 'js/copy-input.js' %}"></script>
 {% endblock %}
