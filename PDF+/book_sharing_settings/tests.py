@@ -4,6 +4,7 @@ import re
 import shutil
 import tempfile
 from datetime import timedelta
+from html.parser import HTMLParser
 from pathlib import Path
 from unittest import mock
 
@@ -307,11 +308,34 @@ class HealthCheckTests(TestCase):
         self.assertNotContains(response, "secret-host", status_code=503)
 
 
+class _InlineCodeFinder(HTMLParser):
+    """Збирає вбудований JS: <script> без src (крім даних json_script) і атрибути on*=.
+
+    Парсер, а не регулярка: назви тегів і атрибутів він сам зводить до нижнього регістру
+    й розбирає будь-які лапки, тож <SCRIPT> чи type='application/json' не проскочать.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.found = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "script" and "src" not in attrs and attrs.get("type") != "application/json":
+            self.found.append(self.get_starttag_text())
+        self.found.extend(f"{tag}[{name}]" for name in attrs if name.startswith("on"))
+
+
+def inline_code(html):
+    finder = _InlineCodeFinder()
+    finder.feed(html)
+    finder.close()
+    return finder.found
+
+
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class StaticAssetsTests(TestCase):
     """CSS і JS живуть у static/, а не в шаблонах; кожне посилання на статику веде на файл."""
-
-    INLINE_SCRIPT = re.compile(r"<script(?![^>]*(?:\bsrc=|type=\"application/json\"))[^>]*>")
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -350,8 +374,7 @@ class StaticAssetsTests(TestCase):
         for url in urls:
             with self.subTest(url=url):
                 html = self.client.get(url).content.decode()
-                self.assertEqual(self.INLINE_SCRIPT.findall(html), [])
-                self.assertNotRegex(html, r"\son(click|change|submit|input)=")
+                self.assertEqual(inline_code(html), [])
 
     def test_upload_page_loads_catalog_before_script(self):
         html = self.client.get(reverse("book_library:book_upload")).content.decode()
