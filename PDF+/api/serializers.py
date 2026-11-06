@@ -1,7 +1,10 @@
+import hashlib
+
 from annotations.models import Annotation, Layer, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from sharing.models import Group, GroupInvitation
 from users.models import User
 
 
@@ -42,6 +45,13 @@ class FolderSerializer(serializers.ModelSerializer):
 
 
 class BookSerializer(serializers.ModelSerializer):
+    has_cover = serializers.SerializerMethodField(
+        help_text="Обкладинку віддає books/{id}/cover/. Рендериться з файлу, тож оновлюється з file_version."
+    )
+    file_version = serializers.SerializerMethodField(
+        help_text="Змінилося — файл замінено: перекачати PDF і обкладинку."
+    )
+
     class Meta:
         model = Book
         fields = [
@@ -52,9 +62,20 @@ class BookSerializer(serializers.ModelSerializer):
             "page_count",
             "file_size",
             "extracted_text",
+            "has_cover",
+            "file_version",
             "uploaded_at",
             "updated_at",
         ]
+
+    def get_has_cover(self, book) -> bool:
+        return bool(book.cover)
+
+    def get_file_version(self, book) -> str:
+        # Ключ у сховищі — випадковий UUID (book_upload_path), тож хеш міняється лише із
+        # заміною файлу; updated_at міняється й від перейменування чи переносу. Хеш, а не
+        # сам ключ, — щоб не світити ключі сховища.
+        return hashlib.sha256(book.file.name.encode()).hexdigest()[:16]
 
 
 class CatalogBookSerializer(BookSerializer):
@@ -126,3 +147,31 @@ class ReadingProgressSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReadingProgress
         fields = ["book", "last_page", "read_at", "updated_at"]
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(source="owner.username", read_only=True)
+
+    class Meta:
+        model = Group
+        fields = ["id", "name", "owner", "owner_username"]
+
+
+class InvitationSerializer(serializers.ModelSerializer):
+    group = GroupSerializer(read_only=True)
+    invited_by_username = serializers.CharField(source="invited_by.username", read_only=True)
+
+    class Meta:
+        model = GroupInvitation
+        fields = ["id", "group", "invited_by_username", "created_at"]
+
+
+class JoinTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(
+        max_length=64, help_text="Токен із посилання-запрошення /groups/join/<token>/."
+    )
+
+
+class JoinedGroupSerializer(serializers.Serializer):
+    group = GroupSerializer()
+    joined = serializers.BooleanField(help_text="false — користувач уже був у групі.")

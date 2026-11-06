@@ -17,5 +17,18 @@ urlpatterns = [
     path("me/", views.MeView.as_view(), name="me"),
     path("catalog/books/", views.CatalogBooksView.as_view(), name="catalog_books"),
     path("books/<int:pk>/file/", views.BookFileView.as_view(), name="book_file"),
+    path("books/<int:pk>/cover/", views.BookCoverView.as_view(), name="book_cover"),
+    path("groups/join/", views.GroupJoinView.as_view(), name="group_join"),
+    path("invitations/", views.InvitationListView.as_view(), name="invitations"),
+    path(
+        "invitations/<int:pk>/accept/",
+        views.InvitationAcceptView.as_view(),
+        name="invitation_accept",
+    ),
+    path(
+        "invitations/<int:pk>/decline/",
+        views.InvitationDeclineView.as_view(),
+        name="invitation_decline",
+    ),
     path("sync/", views.SyncView.as_view(), name="sync"),
 ]

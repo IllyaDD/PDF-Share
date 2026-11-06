@@ -24,7 +24,8 @@ class Command(BaseCommand):
                 continue
 
             book.cover.save("cover.jpg", ContentFile(cover), save=False)
-            book.save(update_fields=["cover"])
+            # updated_at — щоб дельта синку принесла клієнту has_cover=true.
+            book.save(update_fields=["cover", "updated_at"])
             done += 1
             self.stdout.write(f"#{book.pk} «{book.title}» → {book.cover.name}")
 

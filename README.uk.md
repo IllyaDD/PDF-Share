@@ -198,6 +198,11 @@ GET    /api/v1/me/                  профіль: id, username, email, email_v
 DELETE /api/v1/me/                  видалити акаунт з усіма даними (204)
 GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
 GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
+GET    /api/v1/books/<id>/cover/    302 на JPEG-обкладинку; 404, якщо has_cover = false
+POST   /api/v1/groups/join/         {token} з посилання-запрошення → {group, joined}
+GET    /api/v1/invitations/         вхідні запрошення в групи (без пагінації)
+POST   /api/v1/invitations/<id>/accept/   вступити в групу → {group, joined}
+POST   /api/v1/invitations/<id>/decline/  відхилити запрошення (204)
 GET    /api/v1/sync/?since=<ISO>    дельта стану: books, folders, annotations (власні),
                                     deleted_annotation_ids, note_groups (власні теми),
                                     reading_progress, shared_layers, shared_annotations

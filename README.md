@@ -198,6 +198,11 @@ GET    /api/v1/me/                  profile: id, username, email, email_verified
 DELETE /api/v1/me/                  delete the account with all its data (204)
 GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
 GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
+GET    /api/v1/books/<id>/cover/    302 to the JPEG cover; 404 if has_cover is false
+POST   /api/v1/groups/join/         {token} from the group invite link → {group, joined}
+GET    /api/v1/invitations/         incoming group invitations (not paginated)
+POST   /api/v1/invitations/<id>/accept/   join the group → {group, joined}
+POST   /api/v1/invitations/<id>/decline/  drop the invitation (204)
 GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
                                     deleted_annotation_ids, note_groups (own topics),
                                     reading_progress, shared_layers, shared_annotations

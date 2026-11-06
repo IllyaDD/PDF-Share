@@ -37,11 +37,19 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from sharing.models import Group, GroupInvitation
+from sharing.views import _join_group
 from users.google import UnverifiedEmail, google_account
 from users.models import User
 
 from . import schema as docs
-from .serializers import CatalogBookSerializer, MeSerializer
+from .serializers import (
+    CatalogBookSerializer,
+    InvitationSerializer,
+    JoinedGroupSerializer,
+    JoinTokenSerializer,
+    MeSerializer,
+)
 from .sync import BatchError, pull_state, push_changes
 
 FIELD_ERRORS = OpenApiResponse(OpenApiTypes.OBJECT, description="Помилки полів: {поле: [повідомлення]}.")
@@ -321,6 +329,133 @@ class BookFileView(APIView):
     def get(self, request, pk):
         book = get_object_or_404(visible_books(request.user), pk=pk)
         return redirect(book.file.url)
+
+
+class BookCoverView(APIView):
+
+    @extend_schema(
+        operation_id="getBookCover",
+        summary="Обкладинка книги",
+        description=(
+            "302 на JPEG у сховищі, як books/{id}/file/: підписане посилання не кешувати. "
+            "Кешувати саму картинку за file_version — обкладинка рендериться з файлу."
+        ),
+        parameters=[
+            OpenApiParameter("id", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "Location", str, OpenApiParameter.HEADER, response=[302],
+                description="URL JPEG-обкладинки.",
+            ),
+        ],
+        responses={
+            302: OpenApiResponse(description="Редирект на JPEG."),
+            404: OpenApiResponse(
+                DETAIL, description="Книги нема, вона недоступна або без обкладинки (has_cover=false)."
+            ),
+        },
+    )
+    def get(self, request, pk):
+        book = get_object_or_404(visible_books(request.user).exclude(cover=""), pk=pk)
+        return redirect(book.cover.url)
+
+
+# ── Групи: вступ і вхідні запрошення ────────────────────────────────────────────
+# Членство — лише через _join_group(): він заодно прибирає завислі запрошення. Нові книги
+# й шари групи клієнт отримає наступним pull — окремої відповіді з вмістом нема.
+
+JOINED = OpenApiResponse(
+    JoinedGroupSerializer,
+    description="Учасник групи. Далі — pull: книги й шари групи прийдуть у дельті.",
+)
+
+
+def _joined(group, joined):
+    return Response(JoinedGroupSerializer({"group": group, "joined": joined}).data)
+
+
+class GroupJoinView(APIView):
+
+    @extend_schema(
+        operation_id="joinGroup",
+        summary="Вступ у групу за посиланням",
+        description="Повтор безпечний: уже учасник отримує 200 з joined=false.",
+        request=JoinTokenSerializer,
+        responses={
+            200: JOINED,
+            400: OpenApiResponse(
+                OpenApiTypes.OBJECT,
+                description="Помилки полів або {error}, якщо користувач — власник групи.",
+            ),
+            404: OpenApiResponse(DETAIL, description="Посилання недійсне або перевипущене."),
+        },
+    )
+    def post(self, request):
+        serializer = JoinTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group = get_object_or_404(
+            Group.objects.select_related("owner"), invite_token=serializer.validated_data["token"]
+        )
+        if group.owner_id == request.user.pk:
+            return Response({"error": "Ви власник цієї групи"}, status=status.HTTP_400_BAD_REQUEST)
+        return _joined(group, _join_group(group, request.user))
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="listInvitations",
+        summary="Вхідні запрошення в групи",
+        description="Без пагінації. Запрошення прав не дає — доступ з'являється лише після accept.",
+    )
+)
+class InvitationListView(ListAPIView):
+    serializer_class = InvitationSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return (
+            GroupInvitation.objects.filter(user=self.request.user)
+            .select_related("group__owner", "invited_by")
+            .order_by("-created_at", "-pk")
+        )
+
+
+def _own_invitation(request, pk):
+    return get_object_or_404(
+        GroupInvitation.objects.select_related("group__owner"), pk=pk, user=request.user
+    )
+
+
+INVITATION_NOT_FOUND = OpenApiResponse(
+    DETAIL, description="Запрошення нема: чуже, вже прийняте, відхилене чи скасоване."
+)
+
+
+class InvitationAcceptView(APIView):
+
+    @extend_schema(
+        operation_id="acceptInvitation",
+        summary="Прийняти запрошення",
+        request=None,
+        parameters=[OpenApiParameter("id", int, OpenApiParameter.PATH)],
+        responses={200: JOINED, 404: INVITATION_NOT_FOUND},
+    )
+    def post(self, request, pk):
+        group = _own_invitation(request, pk).group
+        return _joined(group, _join_group(group, request.user))
+
+
+class InvitationDeclineView(APIView):
+
+    @extend_schema(
+        operation_id="declineInvitation",
+        summary="Відхилити запрошення",
+        request=None,
+        parameters=[OpenApiParameter("id", int, OpenApiParameter.PATH)],
+        responses={204: None, 404: INVITATION_NOT_FOUND},
+    )
+    def post(self, request, pk):
+        _own_invitation(request, pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SyncView(APIView):

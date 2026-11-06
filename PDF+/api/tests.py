@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 
 from unittest.mock import patch
@@ -12,6 +13,7 @@ from annotations.models import Annotation, Layer, LayerPublication, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from book_library.progress import record_progress
 from book_sharing_settings.testing import FILESYSTEM_STORAGES
+import pymupdf
 import yaml
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -24,7 +26,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-from sharing.models import Group, GroupAccess, GroupMembership
+from sharing.models import Group, GroupAccess, GroupInvitation, GroupMembership
 from users.models import User
 
 from .models import DeletedAnnotation
@@ -427,6 +429,190 @@ class BookFileTests(ApiTestCase):
     def test_hidden_book_is_404(self):
         book = make_book(self.teacher, "Чужа")
         self.assertEqual(self.client.get(reverse("api:book_file", args=[book.pk])).status_code, 404)
+
+
+def add_cover(book):
+    book.cover = SimpleUploadedFile("cover.jpg", b"\xff\xd8\xff\xe0jpeg", "image/jpeg")
+    book.save()
+    return book
+
+
+class BookCoverTests(ApiTestCase):
+    def test_redirects_to_cover_of_visible_book(self):
+        book = add_cover(make_book(self.user, "Моя"))
+        response = self.client.get(reverse("api:book_cover", args=[book.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], book.cover.url)
+
+    def test_book_without_cover_is_404(self):
+        book = make_book(self.user, "Без обкладинки")
+        self.assertEqual(self.client.get(reverse("api:book_cover", args=[book.pk])).status_code, 404)
+
+    def test_hidden_book_is_404(self):
+        book = add_cover(make_book(self.teacher, "Чужа"))
+        self.assertEqual(self.client.get(reverse("api:book_cover", args=[book.pk])).status_code, 404)
+
+    def test_pull_reports_cover_and_file_version(self):
+        with_cover = add_cover(make_book(self.user, "З обкладинкою"))
+        plain = make_book(self.user, "Без")
+        books = {b["id"]: b for b in self.client.get(reverse("api:sync")).json()["books"]}
+        self.assertIs(books[with_cover.pk]["has_cover"], True)
+        self.assertIs(books[plain.pk]["has_cover"], False)
+        self.assertNotEqual(books[with_cover.pk]["file_version"], books[plain.pk]["file_version"])
+        # Хеш, а не ключ сховища.
+        self.assertNotIn("books/", books[plain.pk]["file_version"])
+
+    def test_file_version_changes_only_with_file(self):
+        book = make_book(self.user, "Стара назва")
+
+        def version():
+            books = self.client.get(reverse("api:sync")).json()["books"]
+            return next(b["file_version"] for b in books if b["id"] == book.pk)
+
+        before = version()
+        book.title = "Нова назва"
+        book.save()
+        self.assertEqual(version(), before)
+
+        book.file = SimpleUploadedFile("b.pdf", b"%PDF-1.4\n%%EOF\n", "application/pdf")
+        book.save()
+        self.assertNotEqual(version(), before)
+
+    def test_render_covers_backfill_reaches_delta(self):
+        with pymupdf.open() as document:
+            document.new_page()
+            pdf = document.tobytes()
+        book = Book.objects.create(
+            owner=self.user, title="Стара",
+            file=SimpleUploadedFile("b.pdf", pdf, "application/pdf"),
+        )
+        since = timezone.now()
+        call_command("render_covers", stdout=StringIO())
+        delta = self.client.get(reverse("api:sync"), {"since": since.isoformat()}).json()["books"]
+        self.assertEqual([(b["id"], b["has_cover"]) for b in delta], [(book.pk, True)])
+
+
+class GroupJoinTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.group = Group.objects.create(name="9-А", owner=self.teacher)
+        self.group.regenerate_invite_token()
+        self.book = make_book(self.teacher, "Підручник")
+        GroupAccess.objects.create(group=self.group, book=self.book, granted_by=self.teacher)
+
+    def join(self, token, client=None):
+        return (client or self.client).post(
+            reverse("api:group_join"), {"token": token}, format="json"
+        )
+
+    def test_join_by_token_grants_access_in_next_pull(self):
+        since = timezone.now()
+        response = self.join(self.group.invite_token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "group": {
+                    "id": self.group.pk, "name": "9-А",
+                    "owner": self.teacher.pk, "owner_username": "vchytel",
+                },
+                "joined": True,
+            },
+        )
+        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=self.user).exists())
+        delta = self.client.get(reverse("api:sync"), {"since": since.isoformat()}).json()
+        self.assertIn(self.book.pk, [b["id"] for b in delta["books"]])
+
+    def test_repeat_join_is_idempotent(self):
+        self.join(self.group.invite_token)
+        response = self.join(self.group.invite_token)
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["joined"], False)
+        self.assertEqual(GroupMembership.objects.filter(group=self.group, user=self.user).count(), 1)
+
+    def test_join_clears_pending_invitation(self):
+        GroupInvitation.objects.create(group=self.group, user=self.user, invited_by=self.teacher)
+        self.join(self.group.invite_token)
+        self.assertFalse(GroupInvitation.objects.filter(user=self.user).exists())
+
+    def test_unknown_or_missing_token(self):
+        self.assertEqual(self.join("ne-isnuye").status_code, 404)
+        self.assertEqual(
+            self.client.post(reverse("api:group_join"), {}, format="json").status_code, 400
+        )
+
+    def test_regenerated_token_stops_working(self):
+        old = self.group.invite_token
+        self.group.regenerate_invite_token()
+        self.assertEqual(self.join(old).status_code, 404)
+
+    def test_owner_cannot_join_own_group(self):
+        teacher = APIClient()
+        teacher.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.teacher)}")
+        response = self.join(self.group.invite_token, client=teacher)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
+        self.assertFalse(GroupMembership.objects.filter(user=self.teacher).exists())
+
+    def test_requires_auth(self):
+        self.assertEqual(self.join(self.group.invite_token, client=APIClient()).status_code, 401)
+
+
+class InvitationTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.group = Group.objects.create(name="9-А", owner=self.teacher)
+        self.invitation = GroupInvitation.objects.create(
+            group=self.group, user=self.user, invited_by=self.teacher
+        )
+        other = User.objects.create_user(username="insha", password="parol-parol-42")
+        self.foreign = GroupInvitation.objects.create(
+            group=self.group, user=other, invited_by=self.teacher
+        )
+
+    def test_lists_only_own_invitations(self):
+        response = self.client.get(reverse("api:invitations"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual([i["id"] for i in data], [self.invitation.pk])
+        self.assertEqual(data[0]["group"]["name"], "9-А")
+        self.assertEqual(data[0]["invited_by_username"], "vchytel")
+
+    def test_invitation_alone_grants_nothing(self):
+        book = make_book(self.teacher, "Підручник")
+        GroupAccess.objects.create(group=self.group, book=book, granted_by=self.teacher)
+        self.assertNotIn(book.pk, self.client.get(reverse("api:sync")).json()["visible_book_ids"])
+
+    def test_accept_creates_membership_and_removes_invitation(self):
+        response = self.client.post(reverse("api:invitation_accept", args=[self.invitation.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["group"]["id"], self.group.pk)
+        self.assertIs(response.json()["joined"], True)
+        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=self.user).exists())
+        self.assertFalse(GroupInvitation.objects.filter(pk=self.invitation.pk).exists())
+        # Повтор — запрошення вже нема.
+        self.assertEqual(
+            self.client.post(reverse("api:invitation_accept", args=[self.invitation.pk])).status_code,
+            404,
+        )
+
+    def test_decline_removes_invitation_without_membership(self):
+        response = self.client.post(reverse("api:invitation_decline", args=[self.invitation.pk]))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(GroupInvitation.objects.filter(pk=self.invitation.pk).exists())
+        self.assertFalse(GroupMembership.objects.filter(user=self.user).exists())
+
+    def test_foreign_invitation_is_404(self):
+        for name in ("api:invitation_accept", "api:invitation_decline"):
+            response = self.client.post(reverse(name, args=[self.foreign.pk]))
+            self.assertEqual(response.status_code, 404, name)
+        self.assertTrue(GroupInvitation.objects.filter(pk=self.foreign.pk).exists())
+        self.assertFalse(GroupMembership.objects.filter(user=self.user).exists())
+
+    def test_get_is_not_allowed_on_actions(self):
+        response = self.client.get(reverse("api:invitation_accept", args=[self.invitation.pk]))
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(GroupInvitation.objects.filter(pk=self.invitation.pk).exists())
 
 
 class SyncPullTests(ApiTestCase):
@@ -1147,6 +1333,11 @@ class OpenApiSchemaTests(ApiTestCase):
                 "/api/v1/me/",
                 "/api/v1/catalog/books/",
                 "/api/v1/books/{id}/file/",
+                "/api/v1/books/{id}/cover/",
+                "/api/v1/groups/join/",
+                "/api/v1/invitations/",
+                "/api/v1/invitations/{id}/accept/",
+                "/api/v1/invitations/{id}/decline/",
                 "/api/v1/sync/",
             },
         )
@@ -1163,7 +1354,9 @@ class OpenApiSchemaTests(ApiTestCase):
             ids,
             sorted([
                 "obtainToken", "refreshToken", "googleSignIn", "logout", "logoutAll",
-                "getMe", "deleteMe", "listCatalogBooks", "getBookFile", "pullSync", "pushSync",
+                "getMe", "deleteMe", "listCatalogBooks", "getBookFile", "getBookCover",
+                "joinGroup", "listInvitations", "acceptInvitation", "declineInvitation",
+                "pullSync", "pushSync",
             ]),
         )
 
@@ -1202,9 +1395,37 @@ class OpenApiSchemaTests(ApiTestCase):
             self.client.get(reverse("api:catalog_books")), "/api/v1/catalog/books/", "get"
         )
 
+    def test_group_join_and_invitations_match(self):
+        group = Group.objects.create(name="9-А", owner=self.teacher)
+        group.regenerate_invite_token()
+        other = Group.objects.create(name="10-Б", owner=self.teacher)
+        invitation = GroupInvitation.objects.create(group=other, user=self.user, invited_by=self.teacher)
+
+        join = reverse("api:group_join")
+        self.assert_matches(
+            self.client.post(join, {"token": group.invite_token}, format="json"),
+            "/api/v1/groups/join/", "post",
+        )
+        self.assert_matches(
+            self.client.post(join, {}, format="json"), "/api/v1/groups/join/", "post", 400
+        )
+        self.assert_matches(
+            self.client.post(join, {"token": "ne-isnuye"}, format="json"),
+            "/api/v1/groups/join/", "post", 404,
+        )
+        self.assert_matches(self.client.get(reverse("api:invitations")), "/api/v1/invitations/", "get")
+        self.assert_matches(
+            self.client.post(reverse("api:invitation_accept", args=[invitation.pk])),
+            "/api/v1/invitations/{id}/accept/", "post",
+        )
+        self.assert_matches(
+            self.client.post(reverse("api:invitation_decline", args=[invitation.pk])),
+            "/api/v1/invitations/{id}/decline/", "post", 404,
+        )
+
     def test_pull_matches(self):
         folder = Folder.objects.create(owner=self.user, name="Мої")
-        book = make_book(self.user, "Власна", folder=folder)
+        book = add_cover(make_book(self.user, "Власна", folder=folder))
         topic = create_note_group(book, self.user, "Терміни")
         self.annotate(book, note_text="нотатка", group=topic)
         record_progress(self.user, book, 3, timezone.now())
