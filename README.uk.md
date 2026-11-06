@@ -207,7 +207,15 @@ POST   /api/v1/sync/                батч {note_groups: {create, update, dele
                                           annotations: {create, update, delete},
                                           reading_progress: [{book, last_page, read_at}],
                                           favorites: {add: [book_id], remove: [book_id]}}
+GET    /api/v1/schema/              OpenAPI 3.0 (YAML; ?format=json — JSON), без автентифікації
+GET    /api/v1/docs/                Swagger UI
+GET    /api/v1/redoc/               Redoc (документація лише для читання)
 ```
+
+Схема генерується з коду на кожен запит (drf-spectacular, стандартне налаштування).
+`OpenApiSchemaTests` падає, якщо генератор видав попередження або справжня відповідь API не
+відповідає схемі (зокрема, має поле, якого схема не описує).
+`operationId` задані явно: це імена методів у згенерованому клієнті.
 
 Google-акаунти пароля не мають, тож застосунок входить через нативний Google Sign-In і шле його
 ID-токен на `auth/google/`. Сервер перевіряє підпис, термін дії й `aud`: токен має бути виданий для

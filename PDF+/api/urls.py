@@ -1,10 +1,14 @@
 from django.urls import path
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from . import views
 
 app_name = "api"
 
 urlpatterns = [
+    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("docs/", SpectacularSwaggerView.as_view(url_name="api:schema"), name="docs"),
+    path("redoc/", SpectacularRedocView.as_view(url_name="api:schema"), name="redoc"),
     path("auth/token/", views.ObtainTokenView.as_view(), name="auth_token"),
     path("auth/token/refresh/", views.RefreshTokenView.as_view(), name="auth_token_refresh"),
     path("auth/google/", views.GoogleTokenView.as_view(), name="auth_google"),

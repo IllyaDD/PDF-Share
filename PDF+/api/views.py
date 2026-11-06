@@ -8,12 +8,20 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from google.auth.exceptions import GoogleAuthError, TransportError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import ListAPIView
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -32,8 +40,13 @@ from rest_framework_simplejwt.views import (
 from users.google import UnverifiedEmail, google_account
 from users.models import User
 
+from . import schema as docs
 from .serializers import CatalogBookSerializer, MeSerializer
 from .sync import BatchError, pull_state, push_changes
+
+FIELD_ERRORS = OpenApiResponse(OpenApiTypes.OBJECT, description="Помилки полів: {поле: [повідомлення]}.")
+DETAIL = docs.DetailSerializer
+THROTTLED = OpenApiResponse(DETAIL, description="Понад 10 запитів на хвилину з однієї IP.")
 
 
 class AuthTokenThrottle(AnonRateThrottle):
@@ -63,6 +76,19 @@ class TokenPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+@extend_schema_view(
+    post=extend_schema(
+        operation_id="obtainToken",
+        summary="Вхід за логіном і паролем",
+        request=docs.CredentialsSerializer,
+        responses={
+            200: docs.TokenPairSerializer,
+            400: FIELD_ERRORS,
+            401: OpenApiResponse(DETAIL, description="Невірний логін чи пароль або акаунт вимкнено."),
+            429: THROTTLED,
+        },
+    )
+)
 class ObtainTokenView(TokenObtainPairView):
 
     serializer_class = TokenPairSerializer
@@ -82,11 +108,39 @@ class RefreshSerializer(TokenRefreshSerializer):
             ) from None
 
 
+@extend_schema_view(
+    post=extend_schema(
+        operation_id="refreshToken",
+        summary="Нова пара токенів за refresh",
+        request=docs.RefreshTokenSerializer,
+        responses={
+            200: docs.RefreshSerializer,
+            400: FIELD_ERRORS,
+            401: OpenApiResponse(
+                DETAIL, description="Refresh недійсний, прострочений, відкликаний або акаунта нема."
+            ),
+            429: THROTTLED,
+        },
+    )
+)
 class RefreshTokenView(TokenRefreshView):
     serializer_class = RefreshSerializer
     throttle_classes = [AuthTokenThrottle]
 
 
+@extend_schema_view(
+    post=extend_schema(
+        operation_id="logout",
+        summary="Вихід з цього пристрою",
+        description="Refresh іде в blacklist. Access не потрібен; виданий access діє до свого exp.",
+        request=docs.RefreshTokenSerializer,
+        responses={
+            200: OpenApiResponse(OpenApiTypes.OBJECT, description="Порожній об'єкт {}."),
+            400: FIELD_ERRORS,
+            401: OpenApiResponse(DETAIL, description="Refresh недійсний або вже відкликаний."),
+        },
+    )
+)
 class LogoutView(TokenBlacklistView):
     """Вихід з пристрою: його refresh іде в blacklist.
 
@@ -112,6 +166,12 @@ class LogoutAllView(APIView):
     в OutstandingToken. Їх, як і раніше, відкликає зміна пароля.
     """
 
+    @extend_schema(
+        operation_id="logoutAll",
+        summary="Вихід на всіх пристроях",
+        request=None,
+        responses={204: None},
+    )
     def post(self, request):
         revoke_refresh_tokens(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -119,9 +179,16 @@ class LogoutAllView(APIView):
 
 class MeView(APIView):
 
+    @extend_schema(operation_id="getMe", summary="Профіль", responses=MeSerializer)
     def get(self, request):
         return Response(MeSerializer(request.user).data)
 
+    @extend_schema(
+        operation_id="deleteMe",
+        summary="Видалити акаунт з усіма даними",
+        description="Незворотно. Спершу відкликає всі refresh користувача.",
+        responses={204: None},
+    )
     def delete(self, request):
         """Видалення акаунта з застосунку — вимога App Store (5.1.1(v)) і Google Play.
 
@@ -143,6 +210,27 @@ class GoogleTokenView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthTokenThrottle]
 
+    @extend_schema(
+        operation_id="googleSignIn",
+        summary="Вхід через Google",
+        description=(
+            "Акаунт шукається за поштою, підтвердженою Google; нема — створюється без пароля. "
+            "Існуючий акаунт з непідтвердженою поштою втрачає пароль і видані токени."
+        ),
+        request=docs.GoogleIdTokenSerializer,
+        responses={
+            200: docs.GoogleTokenSerializer,
+            400: OpenApiResponse(docs.ErrorSerializer, description="Нема id_token."),
+            401: OpenApiResponse(docs.ErrorSerializer, description="Токен недійсний або прострочений."),
+            403: OpenApiResponse(
+                docs.ErrorSerializer, description="Google не підтвердив пошту або акаунт вимкнено."
+            ),
+            429: THROTTLED,
+            503: OpenApiResponse(
+                docs.ErrorSerializer, description="Google недоступний або вхід не налаштований."
+            ),
+        },
+    )
     def post(self, request):
         raw = request.data.get("id_token")
         if not isinstance(raw, str) or not raw:
@@ -186,6 +274,15 @@ class GoogleTokenView(APIView):
         )
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="listCatalogBooks",
+        summary="Книги каталогу",
+        parameters=[
+            OpenApiParameter("search", str, description="Підрядок назви, без урахування регістру."),
+        ],
+    )
+)
 class CatalogBooksView(ListAPIView):
 
     serializer_class = CatalogBookSerializer
@@ -202,12 +299,54 @@ class CatalogBooksView(ListAPIView):
 
 class BookFileView(APIView):
 
+    @extend_schema(
+        operation_id="getBookFile",
+        summary="Файл книги",
+        description=(
+            "302 на файл у сховищі. З R2 — підписане посилання, що живе 3600 с: не кешувати "
+            "його, а щоразу йти сюди. Заголовок Authorization на інший хост не передавати."
+        ),
+        parameters=[
+            OpenApiParameter("id", int, OpenApiParameter.PATH),
+            OpenApiParameter(
+                "Location", str, OpenApiParameter.HEADER, response=[302],
+                description="URL PDF-файлу.",
+            ),
+        ],
+        responses={
+            302: OpenApiResponse(description="Редирект на PDF."),
+            404: OpenApiResponse(DETAIL, description="Книги нема або вона недоступна."),
+        },
+    )
     def get(self, request, pk):
         book = get_object_or_404(visible_books(request.user), pk=pk)
         return redirect(book.file.url)
 
 
 class SyncView(APIView):
+    # Секції пушу вкладені — форма їх не передасть (раніше це був 400, тепер чесний 415),
+    # і схема не обіцяє form/multipart.
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        operation_id="pullSync",
+        summary="Стан або дельта змін",
+        description=(
+            "Без since — повний стан. Клієнт зберігає server_time як наступний since і "
+            "видаляє локально все, чого нема у visible_*_ids. Сервер сам відсуває since на "
+            "кілька секунд назад, тож дублікати в дельті можливі — застосовувати за id."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "since", OpenApiTypes.DATETIME,
+                description="server_time з попереднього pull, ISO 8601 з часовим поясом.",
+            ),
+        ],
+        responses={
+            200: docs.SyncPullSerializer,
+            400: OpenApiResponse(docs.ErrorSerializer, description="since без часового поясу чи битий."),
+        },
+    )
     def get(self, request):
         raw = request.query_params.get("since", "").strip()
         since = None
@@ -220,6 +359,18 @@ class SyncView(APIView):
                 )
         return Response(pull_state(request.user, since))
 
+    @extend_schema(
+        operation_id="pushSync",
+        summary="Надіслати зміни",
+        description=docs.PUSH_DESCRIPTION,
+        request=docs.SyncChangesSerializer,
+        responses={
+            200: docs.SyncPushSerializer,
+            400: OpenApiResponse(
+                docs.ErrorSerializer, description="Битий формат секції або забагато операцій."
+            ),
+        },
+    )
     def post(self, request):
         try:
             result = push_changes(request.user, request.data)

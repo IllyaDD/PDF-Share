@@ -207,7 +207,15 @@ POST   /api/v1/sync/                batch {note_groups: {create, update, delete}
                                            annotations: {create, update, delete},
                                            reading_progress: [{book, last_page, read_at}],
                                            favorites: {add: [book_id], remove: [book_id]}}
+GET    /api/v1/schema/              OpenAPI 3.0 (YAML; ?format=json for JSON), no auth
+GET    /api/v1/docs/                Swagger UI
+GET    /api/v1/redoc/               Redoc (read-only docs)
 ```
+
+The schema is generated from the code on every request (drf-spectacular, default setup).
+`OpenApiSchemaTests` fails when the generator emits a warning or when a real API response
+doesn't match the schema (including a field the schema doesn't describe).
+`operationId`s are set explicitly: they become method names in the generated client.
 
 Google accounts have no password, so the app signs in with native Google Sign-In and sends its
 ID token to `auth/google/`. The server checks the signature, expiry and `aud`: the token must be

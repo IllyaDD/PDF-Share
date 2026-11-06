@@ -1,7 +1,20 @@
 from annotations.models import Annotation, Layer, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from users.models import User
+
+
+class RectSerializer(serializers.Serializer):
+    x0 = serializers.FloatField()
+    y0 = serializers.FloatField()
+    x1 = serializers.FloatField()
+    y1 = serializers.FloatField()
+
+
+@extend_schema_field(RectSerializer(many=True))
+class CoordsField(serializers.JSONField):
+    """coords як є з JSONField — вивід не змінюється, а в схемі видно прямокутники."""
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -51,12 +64,19 @@ class CatalogBookSerializer(BookSerializer):
     class Meta(BookSerializer.Meta):
         fields = [*BookSerializer.Meta.fields, "folder_path"]
 
-    def get_folder_path(self, book):
+    def get_folder_path(self, book) -> str:
         return book.folder.path_label if book.folder_id else ""
 
 
 class AnnotationSerializer(serializers.ModelSerializer):
     book = serializers.IntegerField(source="layer.book_id", read_only=True)
+    coords = CoordsField(
+        read_only=True,
+        help_text=(
+            "Прямокутники в PDF user space: точки, вісь y угору, відлік від MediaBox "
+            "(як convertToPdfPoint у PDF.js). Масштаб читалки на них не впливає."
+        ),
+    )
 
     class Meta:
         model = Annotation

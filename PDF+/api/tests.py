@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 from datetime import timedelta
+from pathlib import Path
 
 from unittest.mock import patch
 
@@ -11,9 +12,12 @@ from annotations.models import Annotation, Layer, LayerPublication, NoteGroup
 from book_library.models import Book, Folder, ReadingProgress
 from book_library.progress import record_progress
 from book_sharing_settings.testing import FILESYSTEM_STORAGES
+import yaml
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from google.auth.exceptions import TransportError
+from jsonschema import Draft202012Validator
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1087,3 +1091,186 @@ class FavoriteSyncTests(ApiTestCase):
         self.assertEqual(response.status_code, 400)
         response = self.client.post(reverse("api:sync"), {"favorites": {"add": 5}}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+def _strict(node):
+    """OpenAPI 3.0 → JSON Schema для валідації відповідей.
+
+    nullable стає anyOf з null; в об'єктах з properties зайві ключі заборонені — інакше
+    поле, яке код віддає, а схема не описує, проходило б мовчки.
+    """
+    if isinstance(node, list):
+        return [_strict(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    node = {key: _strict(value) for key, value in node.items()}
+    if "properties" in node and "additionalProperties" not in node:
+        node["additionalProperties"] = False
+    if node.pop("nullable", False):
+        return {"anyOf": [node, {"type": "null"}]}
+    return node
+
+
+class OpenApiSchemaTests(ApiTestCase):
+    """Схема /api/v1/ — контракт мобільного клієнта: генерується без попереджень,
+    а справжні відповіді їй відповідають."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        out = Path(tempfile.mkdtemp(prefix="pdfplus-openapi-")) / "openapi.yaml"
+        cls.addClassCleanup(shutil.rmtree, out.parent, ignore_errors=True)
+        # --fail-on-warn: в'юха без опису відповіді чи поле невідомого типу — падіння, а не «any».
+        call_command("spectacular", "--file", str(out), "--validate", "--fail-on-warn")
+        cls.schema = yaml.safe_load(out.read_text(encoding="utf-8"))
+
+    def assert_matches(self, response, path, method, status_code=200):
+        self.assertEqual(response.status_code, status_code, response.content)
+        schema = self.schema["paths"][path][method]["responses"][str(status_code)]
+        schema = schema["content"]["application/json"]["schema"]
+        root = {**_strict(schema), "components": _strict(self.schema["components"])}
+        validator = Draft202012Validator(root, format_checker=Draft202012Validator.FORMAT_CHECKER)
+        errors = [f"{list(e.absolute_path)}: {e.message}" for e in validator.iter_errors(response.json())]
+        self.assertEqual(errors, [])
+
+    def test_only_v1_endpoints(self):
+        # API читалки (/api/books/…) сесійне й не версіонується — не контракт для клієнтів.
+        self.assertEqual(
+            set(self.schema["paths"]),
+            {
+                "/api/v1/schema/",
+                "/api/v1/auth/token/",
+                "/api/v1/auth/token/refresh/",
+                "/api/v1/auth/google/",
+                "/api/v1/auth/logout/",
+                "/api/v1/auth/logout/all/",
+                "/api/v1/me/",
+                "/api/v1/catalog/books/",
+                "/api/v1/books/{id}/file/",
+                "/api/v1/sync/",
+            },
+        )
+
+    def test_operation_ids_are_explicit(self):
+        # operationId — імена методів у згенерованому клієнті: перейменування ламає його збірку.
+        ids = sorted(
+            op["operationId"]
+            for path, item in self.schema["paths"].items()
+            if path != "/api/v1/schema/"
+            for op in item.values()
+        )
+        self.assertEqual(
+            ids,
+            sorted([
+                "obtainToken", "refreshToken", "googleSignIn", "logout", "logoutAll",
+                "getMe", "deleteMe", "listCatalogBooks", "getBookFile", "pullSync", "pushSync",
+            ]),
+        )
+
+    def test_schema_and_docs_served_without_auth(self):
+        response = APIClient().get("/api/v1/schema/", {"format": "json"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["info"]["version"], "1")
+        self.assertEqual(APIClient().get("/api/v1/docs/").status_code, 200)
+        self.assertEqual(APIClient().get("/api/v1/redoc/").status_code, 200)
+
+    def test_token_responses_match(self):
+        client = APIClient()
+        response = client.post(
+            reverse("api:auth_token"), {"username": "uchen", "password": "parol-parol-42"}
+        )
+        self.assert_matches(response, "/api/v1/auth/token/", "post")
+        refresh = client.post(reverse("api:auth_token_refresh"), {"refresh": response.json()["refresh"]})
+        self.assert_matches(refresh, "/api/v1/auth/token/refresh/", "post")
+        logout = client.post(reverse("api:auth_logout"), {"refresh": refresh.json()["refresh"]})
+        self.assert_matches(logout, "/api/v1/auth/logout/", "post")
+
+    @override_settings(GOOGLE_TOKEN_AUDIENCES=["web-client-id"])
+    @patch("api.views.id_token.verify_oauth2_token")
+    def test_google_response_matches(self, verify):
+        verify.return_value = {**GOOGLE_CLAIMS}
+        response = APIClient().post(reverse("api:auth_google"), {"id_token": "t"}, format="json")
+        self.assert_matches(response, "/api/v1/auth/google/", "post")
+        response = APIClient().post(reverse("api:auth_google"), {}, format="json")
+        self.assert_matches(response, "/api/v1/auth/google/", "post", 400)
+
+    def test_me_and_catalog_match(self):
+        self.assert_matches(self.client.get(reverse("api:me")), "/api/v1/me/", "get")
+        catalog = Folder.objects.create(owner=self.teacher, name="Каталог", is_catalog=True)
+        make_book(self.teacher, "Фізика", folder=catalog)
+        self.assert_matches(
+            self.client.get(reverse("api:catalog_books")), "/api/v1/catalog/books/", "get"
+        )
+
+    def test_pull_matches(self):
+        folder = Folder.objects.create(owner=self.user, name="Мої")
+        book = make_book(self.user, "Власна", folder=folder)
+        topic = create_note_group(book, self.user, "Терміни")
+        self.annotate(book, note_text="нотатка", group=topic)
+        record_progress(self.user, book, 3, timezone.now())
+        self.client.post(reverse("api:sync"), {"favorites": {"add": [book.pk]}}, format="json")
+
+        group = Group.objects.create(name="9-А", owner=self.teacher)
+        GroupMembership.objects.create(group=group, user=self.user)
+        shared = make_book(self.teacher, "Спільна")
+        GroupAccess.objects.create(group=group, book=shared, granted_by=self.teacher)
+        teacher_note = self.annotate(shared, owner=self.teacher)
+        LayerPublication.objects.create(layer=teacher_note.layer, group=group)
+
+        before = timezone.now() - timedelta(minutes=1)
+        self.annotate(book).delete()
+
+        full = self.client.get(reverse("api:sync"))
+        self.assert_matches(full, "/api/v1/sync/", "get")
+        for key in ("books", "annotations", "note_groups", "shared_layers", "shared_annotations",
+                    "reading_progress", "favorite_book_ids"):
+            self.assertTrue(full.json()[key], key)
+
+        delta = self.client.get(reverse("api:sync"), {"since": before.isoformat()})
+        self.assert_matches(delta, "/api/v1/sync/", "get")
+        self.assertTrue(delta.json()["deleted_annotation_ids"])
+
+        self.assert_matches(
+            self.client.get(reverse("api:sync"), {"since": "vchora"}), "/api/v1/sync/", "get", 400
+        )
+
+    def test_push_matches(self):
+        book = make_book(self.user, "Власна")
+        existing = self.annotate(book)
+        doomed = self.annotate(book)
+        response = self.client.post(
+            reverse("api:sync"),
+            {
+                "note_groups": {"create": [{"client_id": "t-1", "book": book.pk, "name": "Дати"}]},
+                "annotations": {
+                    "create": [
+                        {"client_id": A1, "book": book.pk, "page_number": 1, "coords": RECT,
+                         "color": "#90CAF9", "group_client_id": "t-1"},
+                        {"client_id": "ne-uuid", "book": book.pk},
+                    ],
+                    "update": [{"id": existing.pk, "note_text": "нове"}],
+                    "delete": [doomed.pk],
+                },
+                "reading_progress": [
+                    {"book": book.pk, "last_page": 2, "read_at": timezone.now().isoformat()}
+                ],
+                "favorites": {"add": [book.pk]},
+            },
+            format="json",
+        )
+        self.assert_matches(response, "/api/v1/sync/", "post")
+        data = response.json()
+        self.assertEqual([e["op"] for e in data["errors"]], ["create"])
+        self.assertEqual(len(data["created"]), 1)
+
+        self.assertEqual(
+            list(self.schema["paths"]["/api/v1/sync/"]["post"]["requestBody"]["content"]),
+            ["application/json"],
+        )
+        self.assertEqual(self.client.post(reverse("api:sync"), {"x": "1"}).status_code, 415)
+
+        too_many = {"favorites": {"add": list(range(1, 502))}}
+        self.assert_matches(
+            self.client.post(reverse("api:sync"), too_many, format="json"),
+            "/api/v1/sync/", "post", 400,
+        )
