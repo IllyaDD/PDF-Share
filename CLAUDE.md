@@ -97,6 +97,11 @@ book = get_object_or_404(visible_books(request.user, request.session), pk=pk)
 (closure-таблиці нема). Нове джерело доступу треба вливати в той самий набір id, інакше
 воно не пошириться на піддерево.
 
+Теку видаляй лише через `book_library/folders.delete_folder()`: `Book.folder` — `SET_NULL`,
+а голий `delete()` не оновить `updated_at` книг, і дельта синку лишить їх у видаленій теці.
+Батьком теки не може бути вона сама чи її підтека (`folder_subtree_ids`) — на циклі
+`path_label` та `is_catalog_folder` не закінчуються.
+
 `request.session` передається в `access`-функції окремим аргументом саме тому, що
 share-токени живуть у сесії. Там, де сесії нема (DRF API), передається `None` — і
 посилання за токеном там не діють за побудовою.
@@ -186,7 +191,11 @@ share-посилання з `include_annotations` (шар автора поси�
   Анонім отримує 403, а не редирект на вхід. Формат відповіді — `annotations/serializers.py`
   (короткі ключі `page`/`note`/`text`), він не збігається з `api/serializers.py`.
 - `api/` — DRF + SimpleJWT для мобільного/офлайн-клієнта. Сесій і CSRF нема, тому
-  share-посилання тут не працюють. Blacklist (`token_blacklist`) відкликає лише refresh:
+  share-посилання тут не працюють (рішення — universal link на сайт): `share-links/` лише
+  створює й відкликає власні посилання. Зміна книг, тек і посилань — queryset
+  `owner=request.user` / `created_by=request.user`, а не `visible_books()`; поля-посилання
+  на власні об'єкти — `Own*Field` з `api/serializers.py`. Завантаження PDF — через
+  `inspect_pdf()` + `apply_pdf_info()`, throttle `book_upload`. Blacklist (`token_blacklist`) відкликає лише refresh:
   `auth/logout/` — цей пристрій, `auth/logout/all/` і `DELETE me/` — усі; access живе до
   свого `exp`. Refresh, видані до ввімкнення blacklist, не записані в `OutstandingToken` —
   їх відкликає лише зміна пароля (`CHECK_REVOKE_TOKEN`). Google-вхід — `auth/google/` (ID-токен → JWT). Прив'язку акаунта за поштою

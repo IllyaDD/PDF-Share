@@ -185,7 +185,10 @@ POST   /books/<id>/progress/            {page} — зберегти поточн
 (`rest_framework_simplejwt.token_blacklist`). Вихід відкликає лише refresh: виданий access діє
 до кінця свого строку (до 30 хвилин).
 Видача й оновлення токенів обмежені 10 запитами на хвилину з однієї IP-адреси.
-Сесій і CSRF тут нема, тож share-посилання (джерело 3 у моделі доступу) в API не працюють.
+Сесій і CSRF тут нема, тож share-посилання (джерело 3 у моделі доступу) в API не працюють:
+`share-links/` лише керує власними посиланнями, а відкриваються вони на сайті за `url`
+(застосунок віддає його браузеру — universal link).
+Завантаження PDF — не більше 30 на годину на користувача; змінювати книги й теки може лише власник.
 
 ```text
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
@@ -199,6 +202,20 @@ DELETE /api/v1/me/                  видалити акаунт з усіма 
 GET    /api/v1/catalog/books/       каталог, пагінація по 50, ?search= за назвою
 GET    /api/v1/books/<id>/file/     302 на файл у сховищі (з R2 — підписане посилання)
 GET    /api/v1/books/<id>/cover/    302 на JPEG-обкладинку; 404, якщо has_cover = false
+POST   /api/v1/books/               multipart {file, title?, folder?} → книга (201); перевірки
+                                    ті самі, що на сайті; 413 — запит більший за ліміт
+PATCH  /api/v1/books/<id>/          {title?, folder?} — перейменувати чи перенести власну книгу
+DELETE /api/v1/books/<id>/          видалити власну книгу (204)
+POST   /api/v1/folders/             {name, parent?, is_catalog?} → тека (201)
+PATCH  /api/v1/folders/<id>/        {name?, parent?, is_catalog?}; батько не може бути підтекою
+DELETE /api/v1/folders/<id>/        видалити з підтеками; книги переходять у корінь (204)
+GET    /api/v1/layers/<book_id>/publications/  {groups, publishable_groups} — для кого відкрито
+                                    мій шар на книзі
+PUT    /api/v1/layers/<book_id>/publications/  {group_ids} — повна заміна набору груп
+GET    /api/v1/share-links/         мої share-посилання з url (без пагінації)
+POST   /api/v1/share-links/         {book | folder, include_annotations?, note_groups?,
+                                    expires_at?} → посилання (201)
+DELETE /api/v1/share-links/<id>/    відкликати посилання (204)
 POST   /api/v1/groups/join/         {token} з посилання-запрошення → {group, joined}
 GET    /api/v1/invitations/         вхідні запрошення в групи (без пагінації)
 POST   /api/v1/invitations/<id>/accept/   вступити в групу → {group, joined}

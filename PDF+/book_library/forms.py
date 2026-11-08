@@ -7,6 +7,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.template.defaultfilters import filesizeformat
 from django.utils.translation import gettext_lazy as _
 
+from .access import folder_subtree_ids
 from .models import Book, Folder
 from .pdf import inspect_pdf
 
@@ -53,7 +54,9 @@ class FolderForm(forms.ModelForm):
 
         queryset = Folder.objects.none() if owner is None else Folder.objects.filter(owner=owner)
         if self.instance.pk:
-            queryset = queryset.exclude(pk=self.instance.pk)
+            # Не лише сама тека, а й її піддерево: підтека в ролі батька дала б цикл,
+            # і обходи вгору по parent (path_label, is_catalog_folder) не закінчились би.
+            queryset = queryset.exclude(pk__in=folder_subtree_ids(self.instance.pk))
         self.fields["parent"].queryset = queryset
         self.fields["parent"].required = False
         self.fields["parent"].empty_label = _("— корінь бібліотеки —")

@@ -185,7 +185,10 @@ and are rotated on every refresh; the used refresh token goes to the blacklist
 (`rest_framework_simplejwt.token_blacklist`). Logout revokes refresh tokens only: an issued access
 token stays valid until it expires (up to 30 minutes).
 Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
-There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
+There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API:
+`share-links/` only manages your own links, and they open on the website via `url`
+(the app hands it to the browser — a universal link).
+PDF uploads are limited to 30 per hour per user; only the owner can change books and folders.
 
 ```text
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
@@ -199,6 +202,20 @@ DELETE /api/v1/me/                  delete the account with all its data (204)
 GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
 GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
 GET    /api/v1/books/<id>/cover/    302 to the JPEG cover; 404 if has_cover is false
+POST   /api/v1/books/               multipart {file, title?, folder?} → book (201); same checks
+                                    as the website; 413 when the request exceeds the limit
+PATCH  /api/v1/books/<id>/          {title?, folder?} — rename or move your own book
+DELETE /api/v1/books/<id>/          delete your own book (204)
+POST   /api/v1/folders/             {name, parent?, is_catalog?} → folder (201)
+PATCH  /api/v1/folders/<id>/        {name?, parent?, is_catalog?}; parent can't be a subfolder
+DELETE /api/v1/folders/<id>/        delete with subfolders; books move to the root (204)
+GET    /api/v1/layers/<book_id>/publications/  {groups, publishable_groups} — who sees my
+                                    layer on the book
+PUT    /api/v1/layers/<book_id>/publications/  {group_ids} — replaces the whole set of groups
+GET    /api/v1/share-links/         my share links with url (not paginated)
+POST   /api/v1/share-links/         {book | folder, include_annotations?, note_groups?,
+                                    expires_at?} → link (201)
+DELETE /api/v1/share-links/<id>/    revoke a link (204)
 POST   /api/v1/groups/join/         {token} from the group invite link → {group, joined}
 GET    /api/v1/invitations/         incoming group invitations (not paginated)
 POST   /api/v1/invitations/<id>/accept/   join the group → {group, joined}

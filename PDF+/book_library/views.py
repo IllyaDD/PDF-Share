@@ -32,6 +32,7 @@ from .access import (
     visible_folders,
 )
 from .favorites import set_favorite, visible_favorites
+from .folders import delete_folder
 from .forms import BookForm, FolderForm
 from .models import Book, Folder, ReadingProgress
 from .progress import record_progress, visible_progress
@@ -435,7 +436,7 @@ def folder_delete_view(request, pk):
     folder = get_object_or_404(Folder, pk=pk, owner=request.user)
     if request.method == "POST":
         parent_pk = folder.parent_id
-        folder.delete()
+        delete_folder(folder)
         messages.success(request, _("Теку видалено."))
         if parent_pk:
             return redirect("book_library:folder", pk=parent_pk)

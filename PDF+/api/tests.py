@@ -26,7 +26,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-from sharing.models import Group, GroupAccess, GroupInvitation, GroupMembership
+from sharing.models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 from users.models import User
 
 from .models import DeletedAnnotation
@@ -613,6 +613,363 @@ class InvitationTests(ApiTestCase):
         response = self.client.get(reverse("api:invitation_accept", args=[self.invitation.pk]))
         self.assertEqual(response.status_code, 405)
         self.assertTrue(GroupInvitation.objects.filter(pk=self.invitation.pk).exists())
+
+
+def pdf_bytes(pages=1, title=""):
+    with pymupdf.open() as document:
+        for _ in range(pages):
+            document.new_page()
+        if title:
+            document.set_metadata({"title": title})
+        return document.tobytes()
+
+
+def pdf_upload(name="kniga.pdf", pages=1, title=""):
+    return SimpleUploadedFile(name, pdf_bytes(pages, title), "application/pdf")
+
+
+def client_for(user):
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(user)}")
+    return client
+
+
+class BookUploadTests(ApiTestCase):
+    def upload(self, **data):
+        return self.client.post(reverse("api:books"), data, format="multipart")
+
+    def test_upload_goes_through_inspect_pdf(self):
+        folder = Folder.objects.create(owner=self.user, name="Мої")
+        response = self.upload(file=pdf_upload(pages=3), title="Алгебра 9", folder=folder.pk)
+        self.assertEqual(response.status_code, 201, response.content)
+        data = response.json()
+        book = Book.objects.get(pk=data["id"])
+        self.assertEqual(
+            (book.owner, book.folder, book.title, book.page_count), (self.user, folder, "Алгебра 9", 3)
+        )
+        self.assertIs(data["has_cover"], True)
+        self.assertEqual(data["page_count"], 3)
+        self.assertIn(book.pk, self.client.get(reverse("api:sync")).json()["visible_book_ids"])
+
+    def test_title_falls_back_to_pdf_metadata_then_file_name(self):
+        from_meta = self.upload(file=pdf_upload(title="Геометрія"), title="  ")
+        self.assertEqual(from_meta.json()["title"], "Геометрія")
+        from_name = self.upload(file=pdf_upload(name="fizyka-9.pdf"))
+        self.assertEqual(from_name.json()["title"], "fizyka-9")
+
+    def test_invalid_files_rejected(self):
+        with pymupdf.open() as document:
+            document.new_page()
+            locked = document.tobytes(encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw="pw")
+        for name, payload in [
+            ("not-pdf", b"<html>not a pdf</html>"),
+            ("locked", locked),
+            ("broken", b"%PDF-1.4\nbroken"),
+        ]:
+            with self.subTest(name):
+                response = self.upload(file=SimpleUploadedFile("x.pdf", payload, "application/pdf"))
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("file", response.json())
+        self.assertFalse(Book.objects.exists())
+
+    def test_foreign_folder_rejected(self):
+        foreign = Folder.objects.create(owner=self.teacher, name="Чужа")
+        response = self.upload(file=pdf_upload(), folder=foreign.pk)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("folder", response.json())
+        self.assertFalse(Book.objects.exists())
+
+    @override_settings(MAX_UPLOAD_SIZE=100)
+    def test_size_limit(self):
+        # Файл більший за ліміт, але запит у межах запасу — відсіює inspect_pdf().
+        self.assertIn("file", self.upload(file=pdf_upload()).json())
+        # Запит більший за ліміт із запасом — 413 ще до розбору тіла.
+        huge = SimpleUploadedFile("x.pdf", b"%PDF-" + b"0" * (2 * 1024 * 1024), "application/pdf")
+        response = self.upload(file=huge)
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("error", response.json())
+
+    def test_json_body_rejected(self):
+        response = self.client.post(reverse("api:books"), {"title": "x"}, format="json")
+        self.assertEqual(response.status_code, 415)
+
+    @patch("api.views.BookUploadThrottle.rate", "2/hour", create=True)
+    def test_upload_is_throttled_per_user(self):
+        statuses = [self.upload(file=pdf_upload()).status_code for _ in range(3)]
+        self.assertEqual(statuses, [201, 201, 429])
+        self.assertEqual(
+            client_for(self.teacher).post(
+                reverse("api:books"), {"file": pdf_upload()}, format="multipart"
+            ).status_code,
+            201,
+        )
+
+
+class BookEditTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Стара назва")
+        self.folder = Folder.objects.create(owner=self.user, name="Мої")
+
+    def patch(self, book, data):
+        return self.client.patch(reverse("api:book_detail", args=[book.pk]), data, format="json")
+
+    def test_rename_and_move_reach_delta(self):
+        since = timezone.now()
+        response = self.patch(self.book, {"title": " Нова назва ", "folder": self.folder.pk})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual((response.json()["title"], response.json()["folder"]), ("Нова назва", self.folder.pk))
+        delta = self.client.get(reverse("api:sync"), {"since": since.isoformat()}).json()
+        self.assertEqual([(b["id"], b["folder"]) for b in delta["books"]], [(self.book.pk, self.folder.pk)])
+
+        response = self.patch(self.book, {"folder": None})
+        self.assertIsNone(response.json()["folder"])
+        self.assertEqual(response.json()["title"], "Нова назва")
+
+    def test_invalid_changes_rejected(self):
+        foreign = Folder.objects.create(owner=self.teacher, name="Чужа")
+        self.assertIn("folder", self.patch(self.book, {"folder": foreign.pk}).json())
+        self.assertIn("title", self.patch(self.book, {"title": "   "}).json())
+        self.book.refresh_from_db()
+        self.assertEqual((self.book.title, self.book.folder_id), ("Стара назва", None))
+
+    def test_delete(self):
+        response = self.client.delete(reverse("api:book_detail", args=[self.book.pk]))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Book.objects.filter(pk=self.book.pk).exists())
+        self.assertNotIn(self.book.pk, self.client.get(reverse("api:sync")).json()["visible_book_ids"])
+
+    def test_visible_foreign_book_is_read_only(self):
+        # Доступ через групу дає перегляд, а не зміну: queryset — owner=user.
+        shared = make_book(self.teacher, "Спільна")
+        group = Group.objects.create(name="9-А", owner=self.teacher)
+        GroupMembership.objects.create(group=group, user=self.user)
+        GroupAccess.objects.create(group=group, book=shared, granted_by=self.teacher)
+        self.assertEqual(self.patch(shared, {"title": "Моя"}).status_code, 404)
+        self.assertEqual(
+            self.client.delete(reverse("api:book_detail", args=[shared.pk])).status_code, 404
+        )
+        shared.refresh_from_db()
+        self.assertEqual(shared.title, "Спільна")
+
+
+class FolderApiTests(ApiTestCase):
+    def create(self, data, client=None):
+        return (client or self.client).post(reverse("api:folders"), data, format="json")
+
+    def patch(self, folder, data):
+        return self.client.patch(reverse("api:folder_detail", args=[folder.pk]), data, format="json")
+
+    def test_create_nested(self):
+        root = self.create({"name": "Математика"})
+        self.assertEqual(root.status_code, 201, root.content)
+        child = self.create({"name": "Алгебра", "parent": root.json()["id"]})
+        self.assertEqual(child.status_code, 201)
+        self.assertEqual(child.json()["parent"], root.json()["id"])
+        self.assertEqual(Folder.objects.get(pk=child.json()["id"]).owner, self.user)
+
+    def test_foreign_parent_and_blank_name_rejected(self):
+        foreign = Folder.objects.create(owner=self.teacher, name="Чужа")
+        self.assertIn("parent", self.create({"name": "x", "parent": foreign.pk}).json())
+        self.assertIn("name", self.create({"name": "  "}).json())
+        self.assertFalse(Folder.objects.filter(owner=self.user).exists())
+
+    def test_cannot_move_into_itself_or_subfolder(self):
+        root = Folder.objects.create(owner=self.user, name="Корінь")
+        child = Folder.objects.create(owner=self.user, name="Дитина", parent=root)
+        grandchild = Folder.objects.create(owner=self.user, name="Онук", parent=child)
+        for target in (root, child, grandchild):
+            with self.subTest(target=target.name):
+                self.assertEqual(self.patch(root, {"parent": target.pk}).status_code, 400)
+        root.refresh_from_db()
+        self.assertIsNone(root.parent_id)
+
+        response = self.patch(grandchild, {"parent": None, "name": "Тепер корінь"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.json()["parent"], response.json()["name"]), (None, "Тепер корінь"))
+
+    def test_catalog_flag_only_for_staff(self):
+        self.assertIn("is_catalog", self.create({"name": "Публічна", "is_catalog": True}).json())
+        self.assertEqual(self.create({"name": "Звичайна", "is_catalog": False}).status_code, 201)
+        self.teacher.is_staff = True
+        self.teacher.save()
+        response = self.create({"name": "Каталог", "is_catalog": True}, client=client_for(self.teacher))
+        self.assertEqual(response.status_code, 201)
+        self.assertIs(response.json()["is_catalog"], True)
+
+    def test_delete_moves_books_to_root_and_reaches_delta(self):
+        root = Folder.objects.create(owner=self.user, name="Корінь")
+        child = Folder.objects.create(owner=self.user, name="Дитина", parent=root)
+        book = make_book(self.user, "Вкладена", folder=child)
+        since = timezone.now()
+        response = self.client.delete(reverse("api:folder_detail", args=[root.pk]))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Folder.objects.filter(pk__in=[root.pk, child.pk]).exists())
+        delta = self.client.get(reverse("api:sync"), {"since": since.isoformat()}).json()
+        self.assertEqual([(b["id"], b["folder"]) for b in delta["books"]], [(book.pk, None)])
+        self.assertEqual(delta["visible_folder_ids"], [])
+
+    def test_foreign_folder_is_404(self):
+        foreign = Folder.objects.create(owner=self.teacher, name="Чужа")
+        self.assertEqual(self.patch(foreign, {"name": "Моя"}).status_code, 404)
+        self.assertEqual(
+            self.client.delete(reverse("api:folder_detail", args=[foreign.pk])).status_code, 404
+        )
+        self.assertTrue(Folder.objects.filter(pk=foreign.pk, name="Чужа").exists())
+
+
+class LayerPublicationApiTests(ApiTestCase):
+    """Автор шару — self.user як організатор групи; учень — окремий користувач."""
+
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Підручник")
+        self.group = Group.objects.create(name="9-А", owner=self.user)
+        GroupAccess.objects.create(group=self.group, book=self.book, granted_by=self.user)
+        self.student = User.objects.create_user(username="student", password="parol-parol-42")
+        GroupMembership.objects.create(group=self.group, user=self.student)
+        self.url = reverse("api:layer_publications", args=[self.book.pk])
+
+    def put(self, group_ids):
+        return self.client.put(self.url, {"group_ids": group_ids}, format="json")
+
+    def test_get_without_layer(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["groups"], [])
+        self.assertEqual([g["id"] for g in response.json()["publishable_groups"]], [self.group.pk])
+
+    def test_publish_reaches_student_pull_and_unpublish(self):
+        response = self.put([self.group.pk])
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual([g["id"] for g in response.json()["groups"]], [self.group.pk])
+        layer = Layer.objects.get(book=self.book, owner=self.user)
+        student = client_for(self.student)
+        self.assertEqual(
+            [l["id"] for l in student.get(reverse("api:sync")).json()["shared_layers"]], [layer.pk]
+        )
+
+        response = self.put([])
+        self.assertEqual(response.json()["groups"], [])
+        self.assertFalse(LayerPublication.objects.exists())
+        self.assertEqual(student.get(reverse("api:sync")).json()["shared_layers"], [])
+
+    def test_only_publishable_groups(self):
+        # Група без доступу до книги і чужа група — відмова, набір не змінюється.
+        no_access = Group.objects.create(name="10-Б", owner=self.user)
+        foreign = Group.objects.create(name="Чужа", owner=self.teacher)
+        for group in (no_access, foreign):
+            with self.subTest(group=group.name):
+                response = self.put([self.group.pk, group.pk])
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("group_ids", response.json())
+        self.assertFalse(LayerPublication.objects.exists())
+
+    def test_stale_publication_is_dropped_not_rejected(self):
+        # Група втратила доступ до книги, публікація лишилась: GET показує її в groups, а
+        # PUT із тим самим набором знімає її мовчки, як форма на сайті, а не дає 400.
+        lost = Group.objects.create(name="10-Б", owner=self.user)
+        layer = Layer.objects.create(book=self.book, owner=self.user)
+        LayerPublication.objects.create(layer=layer, group=lost)
+        current = self.client.get(self.url).json()
+        self.assertEqual([g["id"] for g in current["groups"]], [lost.pk])
+        response = self.put([g["id"] for g in current["groups"]] + [self.group.pk])
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual([g["id"] for g in response.json()["groups"]], [self.group.pk])
+
+    def test_empty_set_does_not_create_layer(self):
+        self.assertEqual(self.put([]).status_code, 200)
+        self.assertFalse(Layer.objects.exists())
+
+    def test_invisible_book_is_404(self):
+        foreign = make_book(self.teacher, "Чужа")
+        url = reverse("api:layer_publications", args=[foreign.pk])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.put(url, {"group_ids": []}, format="json").status_code, 404)
+
+
+class ShareLinkApiTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.book = make_book(self.user, "Підручник")
+        self.topic = create_note_group(self.book, self.user, "Терміни")
+
+    def create(self, data):
+        return self.client.post(reverse("api:share_links"), data, format="json")
+
+    def test_create_and_list_own_links(self):
+        response = self.create({"book": self.book.pk})
+        self.assertEqual(response.status_code, 201, response.content)
+        data = response.json()
+        link = ShareLink.objects.get(pk=data["id"])
+        self.assertEqual(data["url"], f"http://testserver/s/{link.token}/")
+        self.assertEqual((link.created_by, data["annotation_scope"]), (self.user, "all"))
+        self.assertIs(data["is_expired"], False)
+
+        ShareLink.objects.create(book=make_book(self.teacher, "Чужа"), token="chuzhyi", created_by=self.teacher)
+        listed = self.client.get(reverse("api:share_links")).json()
+        self.assertEqual([l["id"] for l in listed], [link.pk])
+
+    def test_link_opens_on_web(self):
+        # Universal link: застосунок віддає url браузеру, доступ — у сесії сайту.
+        url = self.create({"book": self.book.pk}).json()["url"]
+        response = self.client_class().get(url.removeprefix("http://testserver"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Підручник")
+
+    def test_selected_note_groups(self):
+        response = self.create(
+            {"book": self.book.pk, "include_annotations": True, "note_groups": [self.topic.pk]}
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["annotation_scope"], "selected")
+        self.assertEqual(response.json()["note_groups"], [self.topic.pk])
+
+    def test_invalid_links_rejected(self):
+        folder = Folder.objects.create(owner=self.user, name="Мої")
+        other_book = make_book(self.user, "Інша")
+        foreign_book = make_book(self.teacher, "Чужа")
+        foreign_topic = create_note_group(foreign_book, self.teacher, "Чужа тема")
+        past = (timezone.now() - timedelta(hours=1)).isoformat()
+        cases = {
+            "neither": {},
+            "both": {"book": self.book.pk, "folder": folder.pk},
+            "foreign book": {"book": foreign_book.pk},
+            "past expiry": {"book": self.book.pk, "expires_at": past},
+            "topics without annotations": {"book": self.book.pk, "note_groups": [self.topic.pk]},
+            "topics on folder": {
+                "folder": folder.pk, "include_annotations": True, "note_groups": [self.topic.pk],
+            },
+            "topic of other book": {
+                "book": other_book.pk, "include_annotations": True, "note_groups": [self.topic.pk],
+            },
+            "foreign topic": {
+                "book": self.book.pk, "include_annotations": True, "note_groups": [foreign_topic.pk],
+            },
+        }
+        for name, data in cases.items():
+            with self.subTest(name):
+                self.assertEqual(self.create(data).status_code, 400)
+        self.assertFalse(ShareLink.objects.filter(created_by=self.user).exists())
+
+    def test_delete_own_only(self):
+        own = ShareLink.objects.create(book=self.book, token="svii", created_by=self.user)
+        foreign = ShareLink.objects.create(
+            book=make_book(self.teacher, "Чужа"), token="chuzhyi", created_by=self.teacher
+        )
+        self.assertEqual(
+            self.client.delete(reverse("api:share_link_detail", args=[foreign.pk])).status_code, 404
+        )
+        self.assertEqual(
+            self.client.delete(reverse("api:share_link_detail", args=[own.pk])).status_code, 204
+        )
+        self.assertEqual(list(ShareLink.objects.values_list("pk", flat=True)), [foreign.pk])
+
+    def test_links_still_grant_nothing_in_api(self):
+        # Посилання не активується в JWT-клієнті: сесії нема.
+        foreign = make_book(self.teacher, "Чужа")
+        ShareLink.objects.create(book=foreign, token="t", created_by=self.teacher)
+        self.assertNotIn(foreign.pk, self.client.get(reverse("api:sync")).json()["visible_book_ids"])
 
 
 class SyncPullTests(ApiTestCase):
@@ -1332,8 +1689,15 @@ class OpenApiSchemaTests(ApiTestCase):
                 "/api/v1/auth/logout/all/",
                 "/api/v1/me/",
                 "/api/v1/catalog/books/",
+                "/api/v1/books/",
+                "/api/v1/books/{id}/",
                 "/api/v1/books/{id}/file/",
                 "/api/v1/books/{id}/cover/",
+                "/api/v1/folders/",
+                "/api/v1/folders/{id}/",
+                "/api/v1/layers/{book_id}/publications/",
+                "/api/v1/share-links/",
+                "/api/v1/share-links/{id}/",
                 "/api/v1/groups/join/",
                 "/api/v1/invitations/",
                 "/api/v1/invitations/{id}/accept/",
@@ -1357,8 +1721,74 @@ class OpenApiSchemaTests(ApiTestCase):
                 "getMe", "deleteMe", "listCatalogBooks", "getBookFile", "getBookCover",
                 "joinGroup", "listInvitations", "acceptInvitation", "declineInvitation",
                 "pullSync", "pushSync",
+                "uploadBook", "updateBook", "deleteBook",
+                "createFolder", "updateFolder", "deleteFolder",
+                "getLayerPublications", "setLayerPublications",
+                "listShareLinks", "createShareLink", "deleteShareLink",
             ]),
         )
+
+    def test_book_and_folder_responses_match(self):
+        upload = self.client.post(reverse("api:books"), {"file": pdf_upload()}, format="multipart")
+        self.assert_matches(upload, "/api/v1/books/", "post", 201)
+        self.assertEqual(
+            list(self.schema["paths"]["/api/v1/books/"]["post"]["requestBody"]["content"]),
+            ["multipart/form-data"],
+        )
+        bad = SimpleUploadedFile("x.pdf", b"not a pdf", "application/pdf")
+        self.assert_matches(
+            self.client.post(reverse("api:books"), {"file": bad}, format="multipart"),
+            "/api/v1/books/", "post", 400,
+        )
+        with override_settings(MAX_UPLOAD_SIZE=1):
+            huge = SimpleUploadedFile("x.pdf", b"%PDF-" + b"0" * (2 * 1024 * 1024), "application/pdf")
+            self.assert_matches(
+                self.client.post(reverse("api:books"), {"file": huge}, format="multipart"),
+                "/api/v1/books/", "post", 413,
+            )
+
+        folder = self.client.post(reverse("api:folders"), {"name": "Мої"}, format="json")
+        self.assert_matches(folder, "/api/v1/folders/", "post", 201)
+        folder_url = reverse("api:folder_detail", args=[folder.json()["id"]])
+        self.assert_matches(
+            self.client.patch(folder_url, {"name": "Нова"}, format="json"),
+            "/api/v1/folders/{id}/", "patch",
+        )
+        self.assert_matches(
+            self.client.patch(folder_url, {"parent": folder.json()["id"]}, format="json"),
+            "/api/v1/folders/{id}/", "patch", 400,
+        )
+        self.assert_matches(
+            self.client.patch(
+                reverse("api:book_detail", args=[upload.json()["id"]]),
+                {"folder": folder.json()["id"]}, format="json",
+            ),
+            "/api/v1/books/{id}/", "patch",
+        )
+
+    def test_layer_publications_match(self):
+        book = make_book(self.user, "Власна")
+        group = Group.objects.create(name="9-А", owner=self.user)
+        GroupAccess.objects.create(group=group, book=book, granted_by=self.user)
+        url = reverse("api:layer_publications", args=[book.pk])
+        path = "/api/v1/layers/{book_id}/publications/"
+        self.assert_matches(self.client.get(url), path, "get")
+        self.assert_matches(self.client.put(url, {"group_ids": [group.pk]}, format="json"), path, "put")
+        self.assert_matches(self.client.put(url, {"group_ids": [999999]}, format="json"), path, "put", 400)
+
+    def test_share_links_match(self):
+        book = make_book(self.user, "Власна")
+        topic = create_note_group(book, self.user, "Терміни")
+        url = reverse("api:share_links")
+        created = self.client.post(
+            url,
+            {"book": book.pk, "include_annotations": True, "note_groups": [topic.pk],
+             "expires_at": (timezone.now() + timedelta(days=1)).isoformat()},
+            format="json",
+        )
+        self.assert_matches(created, "/api/v1/share-links/", "post", 201)
+        self.assert_matches(self.client.post(url, {}, format="json"), "/api/v1/share-links/", "post", 400)
+        self.assert_matches(self.client.get(url), "/api/v1/share-links/", "get")
 
     def test_schema_and_docs_served_without_auth(self):
         response = APIClient().get("/api/v1/schema/", {"format": "json"})

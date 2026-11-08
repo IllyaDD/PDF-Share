@@ -1,7 +1,10 @@
 import ipaddress
 
+from annotations.access import publishable_groups
+from annotations.models import Layer
 from book_library.access import catalog_folder_ids, visible_books
-from book_library.models import Book
+from book_library.folders import delete_folder
+from book_library.models import Book, Folder
 from book_library.views import _search_titles
 from django.conf import settings
 from django.db import transaction
@@ -20,11 +23,11 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.generics import ListAPIView
-from rest_framework.parsers import JSONParser
+from rest_framework.generics import ListAPIView, ListCreateAPIView
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import (
     TokenObtainPairSerializer,
@@ -37,18 +40,26 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from sharing.models import Group, GroupInvitation
+from sharing.models import Group, GroupInvitation, ShareLink
 from sharing.views import _join_group
 from users.google import UnverifiedEmail, google_account
 from users.models import User
 
 from . import schema as docs
 from .serializers import (
+    BookCreateSerializer,
+    BookSerializer,
+    BookUpdateSerializer,
     CatalogBookSerializer,
+    FolderSerializer,
+    FolderWriteSerializer,
     InvitationSerializer,
     JoinedGroupSerializer,
     JoinTokenSerializer,
+    LayerPublicationsSerializer,
+    LayerPublicationsUpdateSerializer,
     MeSerializer,
+    ShareLinkSerializer,
 )
 from .sync import BatchError, pull_state, push_changes
 
@@ -455,6 +466,255 @@ class InvitationDeclineView(APIView):
     )
     def post(self, request, pk):
         _own_invitation(request, pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Книги й теки: лише власні ───────────────────────────────────────────────────
+# Змінювати може тільки власник, тому queryset — owner=request.user, а не visible_books():
+# чужа видима книга тут так само 404, як і неіснуюча. Нове чи змінене клієнт бачить і
+# наступним pull (updated_at), але відповідь уже містить об'єкт у форматі синку.
+
+PATH_ID = OpenApiParameter("id", int, OpenApiParameter.PATH)
+OWN_NOT_FOUND = OpenApiResponse(DETAIL, description="Нема, чуже або недоступне.")
+# Запас на multipart-обгортку й інші поля форми поверх самого файлу.
+UPLOAD_OVERHEAD = 1024 * 1024
+
+
+class BookUploadThrottle(UserRateThrottle):
+    scope = "book_upload"
+
+
+class BookCreateView(APIView):
+    parser_classes = [MultiPartParser]
+    throttle_classes = [BookUploadThrottle]
+
+    @extend_schema(
+        operation_id="uploadBook",
+        summary="Завантажити PDF",
+        description=(
+            "multipart/form-data. Перевірки ті самі, що на сайті: розмір, сигнатура %PDF-, "
+            "розбір, пароль, порожній документ. Обкладинка й кількість сторінок — одразу у відповіді."
+        ),
+        request=BookCreateSerializer,
+        responses={
+            201: BookSerializer,
+            400: FIELD_ERRORS,
+            413: OpenApiResponse(docs.ErrorSerializer, description="Запит більший за ліміт файлу."),
+            429: OpenApiResponse(DETAIL, description="Забагато завантажень за годину."),
+        },
+    )
+    def post(self, request):
+        # До розбору тіла: інакше gunicorn спершу прийме весь файл, і лише потім
+        # inspect_pdf() його відкине.
+        try:
+            length = int(request.META.get("CONTENT_LENGTH") or 0)
+        except ValueError:
+            length = 0
+        if length > settings.MAX_UPLOAD_SIZE + UPLOAD_OVERHEAD:
+            return Response(
+                {"error": "файл завеликий"}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            )
+        serializer = BookCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        book = serializer.save()
+        return Response(BookSerializer(book).data, status=status.HTTP_201_CREATED)
+
+
+class BookDetailView(APIView):
+    parser_classes = [JSONParser]
+
+    def _own(self, request, pk):
+        return get_object_or_404(Book.objects.filter(owner=request.user), pk=pk)
+
+    @extend_schema(
+        operation_id="updateBook",
+        summary="Перейменувати чи перенести книгу",
+        description="Файл тут не замінюється — лише назва й тека.",
+        parameters=[PATH_ID],
+        request=BookUpdateSerializer,
+        responses={200: BookSerializer, 400: FIELD_ERRORS, 404: OWN_NOT_FOUND},
+    )
+    def patch(self, request, pk):
+        book = self._own(request, pk)
+        serializer = BookUpdateSerializer(
+            book, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(BookSerializer(serializer.save()).data)
+
+    @extend_schema(
+        operation_id="deleteBook",
+        summary="Видалити книгу",
+        description="Разом із шарами нотаток на ній; файл зі сховища прибирається після коміту.",
+        parameters=[PATH_ID],
+        responses={204: None, 404: OWN_NOT_FOUND},
+    )
+    def delete(self, request, pk):
+        self._own(request, pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FolderCreateView(APIView):
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        operation_id="createFolder",
+        summary="Створити теку",
+        request=FolderWriteSerializer,
+        responses={201: FolderSerializer, 400: FIELD_ERRORS},
+    )
+    def post(self, request):
+        serializer = FolderWriteSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        folder = serializer.save(owner=request.user)
+        return Response(FolderSerializer(folder).data, status=status.HTTP_201_CREATED)
+
+
+class FolderDetailView(APIView):
+    parser_classes = [JSONParser]
+
+    def _own(self, request, pk):
+        return get_object_or_404(Folder.objects.filter(owner=request.user), pk=pk)
+
+    @extend_schema(
+        operation_id="updateFolder",
+        summary="Перейменувати чи перенести теку",
+        description="parent не може бути самою текою чи її підтекою.",
+        parameters=[PATH_ID],
+        request=FolderWriteSerializer,
+        responses={200: FolderSerializer, 400: FIELD_ERRORS, 404: OWN_NOT_FOUND},
+    )
+    def patch(self, request, pk):
+        folder = self._own(request, pk)
+        serializer = FolderWriteSerializer(
+            folder, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(FolderSerializer(serializer.save()).data)
+
+    @extend_schema(
+        operation_id="deleteFolder",
+        summary="Видалити теку",
+        description=(
+            "Разом із підтеками. Книги з них не видаляються, а переходять у корінь: "
+            "наступний pull принесе їх із folder=null."
+        ),
+        parameters=[PATH_ID],
+        responses={204: None, 404: OWN_NOT_FOUND},
+    )
+    def delete(self, request, pk):
+        delete_folder(self._own(request, pk))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Публікація власного шару для груп ───────────────────────────────────────────
+
+
+class LayerPublicationsView(APIView):
+    """Те саме, що форма публікації на сторінці книги (annotations.views.layer_publish_view)."""
+
+    parser_classes = [JSONParser]
+
+    def _state(self, request, book):
+        layer = Layer.objects.filter(book=book, owner=request.user).first()
+        groups = (
+            layer.shared_with_groups.select_related("owner").order_by("name", "pk")
+            if layer is not None
+            else Group.objects.none()
+        )
+        publishable = publishable_groups(request.user, book).select_related("owner").order_by("name", "pk")
+        return Response(
+            LayerPublicationsSerializer({"groups": groups, "publishable_groups": publishable}).data
+        )
+
+    @extend_schema(
+        operation_id="getLayerPublications",
+        summary="Для яких груп відкрито мій шар на книзі",
+        parameters=[OpenApiParameter("book_id", int, OpenApiParameter.PATH)],
+        responses={200: LayerPublicationsSerializer, 404: OpenApiResponse(DETAIL, description="Книга недоступна.")},
+    )
+    def get(self, request, book_id):
+        return self._state(request, get_object_or_404(visible_books(request.user), pk=book_id))
+
+    @extend_schema(
+        operation_id="setLayerPublications",
+        summary="Задати групи, для яких відкрито мій шар",
+        description=(
+            "Повна заміна набору. Учасники груп бачать шар лише для читання; нові "
+            "публікації вони отримають наступним pull у shared_layers."
+        ),
+        parameters=[OpenApiParameter("book_id", int, OpenApiParameter.PATH)],
+        request=LayerPublicationsUpdateSerializer,
+        responses={
+            200: LayerPublicationsSerializer,
+            400: FIELD_ERRORS,
+            404: OpenApiResponse(DETAIL, description="Книга недоступна."),
+        },
+    )
+    def put(self, request, book_id):
+        book = get_object_or_404(visible_books(request.user), pk=book_id)
+        serializer = LayerPublicationsUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        wanted = set(serializer.validated_data["group_ids"])
+        layer = Layer.objects.filter(book=book, owner=request.user).first()
+        groups = list(publishable_groups(request.user, book).filter(pk__in=wanted))
+    
+        stale = set(layer.shared_with_groups.values_list("pk", flat=True)) if layer else set()
+        if wanted - {group.pk for group in groups} - stale:
+            return Response(
+                {"group_ids": ["Лише власні групи, учасники яких бачать цю книгу."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if groups and layer is None:
+            layer = Layer.objects.get_or_create(book=book, owner=request.user)[0]
+        if layer is not None:
+            # Повна заміна: знімаються й публікації для груп, що вже втратили доступ.
+            layer.shared_with_groups.set(groups)
+        return self._state(request, book)
+
+
+# ── Share-посилання ─────────────────────────────────────────────────────────────
+# Відкриваються лише на сайті (universal link): доступ за посиланням живе в сесії, а в
+# JWT-клієнта її нема. Тут — керування власними посиланнями.
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="listShareLinks",
+        summary="Мої share-посилання",
+        description="Без пагінації. Прострочені теж у списку (is_expired).",
+    ),
+    post=extend_schema(
+        operation_id="createShareLink",
+        summary="Створити share-посилання",
+        description="Відкривається на сайті за url; у застосунку доступу за ним нема.",
+        responses={201: ShareLinkSerializer, 400: FIELD_ERRORS},
+    ),
+)
+class ShareLinkListView(ListCreateAPIView):
+    serializer_class = ShareLinkSerializer
+    pagination_class = None
+    parser_classes = [JSONParser]
+
+    def get_queryset(self):
+        return (
+            ShareLink.objects.filter(created_by=self.request.user)
+            .prefetch_related("note_groups")
+            .order_by("-created_at", "-pk")
+        )
+
+
+class ShareLinkDetailView(APIView):
+
+    @extend_schema(
+        operation_id="deleteShareLink",
+        summary="Відкликати share-посилання",
+        description="Хто вже відкрив посилання на сайті, втрачає доступ з наступним запитом.",
+        parameters=[PATH_ID],
+        responses={204: None, 404: OWN_NOT_FOUND},
+    )
+    def delete(self, request, pk):
+        get_object_or_404(ShareLink, pk=pk, created_by=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
