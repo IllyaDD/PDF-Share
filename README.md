@@ -185,7 +185,10 @@ and are rotated on every refresh; the used refresh token goes to the blacklist
 (`rest_framework_simplejwt.token_blacklist`). Logout revokes refresh tokens only: an issued access
 token stays valid until it expires (up to 30 minutes).
 Issuing and refreshing tokens is limited to 10 requests per minute per IP address.
-There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API.
+There are no sessions or CSRF here, so share links (source 3 in the access model) don't work in the API:
+`share-links/` only manages your own links, and they open on the website via `url`
+(the app hands it to the browser — a universal link).
+PDF uploads are limited to 30 per hour per user; only the owner can change books and folders.
 
 ```text
 POST   /api/v1/auth/token/          {username, password} → {access, refresh, user}
@@ -198,6 +201,25 @@ GET    /api/v1/me/                  profile: id, username, email, email_verified
 DELETE /api/v1/me/                  delete the account with all its data (204)
 GET    /api/v1/catalog/books/       catalog, paginated by 50, ?search= by title
 GET    /api/v1/books/<id>/file/     302 to the file in storage (with R2 — a signed URL)
+GET    /api/v1/books/<id>/cover/    302 to the JPEG cover; 404 if has_cover is false
+POST   /api/v1/books/               multipart {file, title?, folder?} → book (201); same checks
+                                    as the website; 413 when the request exceeds the limit
+PATCH  /api/v1/books/<id>/          {title?, folder?} — rename or move your own book
+DELETE /api/v1/books/<id>/          delete your own book (204)
+POST   /api/v1/folders/             {name, parent?, is_catalog?} → folder (201)
+PATCH  /api/v1/folders/<id>/        {name?, parent?, is_catalog?}; parent can't be a subfolder
+DELETE /api/v1/folders/<id>/        delete with subfolders; books move to the root (204)
+GET    /api/v1/layers/<book_id>/publications/  {groups, publishable_groups} — who sees my
+                                    layer on the book
+PUT    /api/v1/layers/<book_id>/publications/  {group_ids} — replaces the whole set of groups
+GET    /api/v1/share-links/         my share links with url (not paginated)
+POST   /api/v1/share-links/         {book | folder, include_annotations?, note_groups?,
+                                    expires_at?} → link (201)
+DELETE /api/v1/share-links/<id>/    revoke a link (204)
+POST   /api/v1/groups/join/         {token} from the group invite link → {group, joined}
+GET    /api/v1/invitations/         incoming group invitations (not paginated)
+POST   /api/v1/invitations/<id>/accept/   join the group → {group, joined}
+POST   /api/v1/invitations/<id>/decline/  drop the invitation (204)
 GET    /api/v1/sync/?since=<ISO>    state delta: books, folders, annotations (own),
                                     deleted_annotation_ids, note_groups (own topics),
                                     reading_progress, shared_layers, shared_annotations
@@ -207,7 +229,15 @@ POST   /api/v1/sync/                batch {note_groups: {create, update, delete}
                                            annotations: {create, update, delete},
                                            reading_progress: [{book, last_page, read_at}],
                                            favorites: {add: [book_id], remove: [book_id]}}
+GET    /api/v1/schema/              OpenAPI 3.0 (YAML; ?format=json for JSON), no auth
+GET    /api/v1/docs/                Swagger UI
+GET    /api/v1/redoc/               Redoc (read-only docs)
 ```
+
+The schema is generated from the code on every request (drf-spectacular, default setup).
+`OpenApiSchemaTests` fails when the generator emits a warning or when a real API response
+doesn't match the schema (including a field the schema doesn't describe).
+`operationId`s are set explicitly: they become method names in the generated client.
 
 Google accounts have no password, so the app signs in with native Google Sign-In and sends its
 ID token to `auth/google/`. The server checks the signature, expiry and `aud`: the token must be

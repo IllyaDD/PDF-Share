@@ -169,10 +169,14 @@ def group_join_view(request, token):
 
 
 def _join_group(group, user):
-    """Членство + прибирання запрошення, якщо було: вступ за посиланням теж його «закриває»."""
+    """Членство + прибирання запрошення, якщо було: вступ за посиланням теж його «закриває».
+
+    Повертає True, якщо членство щойно створено, і False, якщо користувач уже був у групі.
+    """
     with transaction.atomic():
-        GroupMembership.objects.get_or_create(group=group, user=user)
+        created = GroupMembership.objects.get_or_create(group=group, user=user)[1]
         GroupInvitation.objects.filter(group=group, user=user).delete()
+    return created
 
 
 @login_required

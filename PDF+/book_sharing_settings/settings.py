@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'storages',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',
 
     'users',
     'book_library',
@@ -348,7 +349,31 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
     "DEFAULT_THROTTLE_RATES": {
         "auth_token": "10/min",
+        # POST /api/v1/books/: кожне завантаження — до 50 МБ у сховище й рендер обкладинки.
+        "book_upload": "30/hour",
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# OpenAPI-схема мобільного API: /api/v1/schema/ (YAML, ?format=json), Swagger UI — /api/v1/docs/.
+# Решта налаштувань drf-spectacular — дефолтні.
+SPECTACULAR_SETTINGS = {
+    "TITLE": "PDF+ API",
+    "DESCRIPTION": (
+        "REST API для мобільного й офлайн-клієнта. Автентифікація — JWT у заголовку "
+        "`Authorization: Bearer <access>`; access живе 30 хв, refresh — 30 днів і "
+        "ротується на кожному оновленні.\n\n"
+        "Сесій нема, тож share-посилання тут не діють за побудовою: `share-links/` лише "
+        "керує власними посиланнями, а відкриваються вони на сайті за `url`.\n\n"
+        "Несумісна зміна контракту (перейменування чи видалення поля, інша семантика) — "
+        "це новий префікс `/api/v2/`; нові поля й ендпоінти додаються у v1.\n\n"
+        "Формат помилок поки неоднорідний: власні в'юхи віддають `{\"error\"}`, "
+        "DRF і SimpleJWT — `{\"detail\", \"code\"}`, помилки полів — `{\"поле\": [\"…\"]}`. "
+        "Тексти помилок українською й не призначені для розбору клієнтом."
+    ),
+    "VERSION": "1",
+    # Лише /api/v1/: API читалки теж на DRF, але воно сесійне й не є контрактом для клієнтів.
+    "PREPROCESSING_HOOKS": ["api.schema.only_v1"],
 }
 
 SIMPLE_JWT = {

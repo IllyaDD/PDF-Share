@@ -95,6 +95,31 @@ class LibraryPageTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "form-control")
 
+    def test_folder_cannot_be_moved_into_own_subfolder(self):
+        # Цикл parent зациклив би path_label та is_catalog_folder.
+        child = Folder.objects.create(owner=self.user, name="Розділ", parent=self.folder)
+        grandchild = Folder.objects.create(owner=self.user, name="Тема", parent=child)
+        response = self.client.post(
+            reverse("book_library:folder_edit", args=[self.folder.pk]),
+            {"name": "Алгебра", "parent": grandchild.pk},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.folder.refresh_from_db()
+        self.assertIsNone(self.folder.parent_id)
+
+    def test_folder_delete_moves_books_to_root_and_bumps_updated_at(self):
+        # Інакше дельта синку не побачить, що книга вже не в теці.
+        child = Folder.objects.create(owner=self.user, name="Розділ", parent=self.folder)
+        nested = Book.objects.create(owner=self.user, folder=child, title="Вкладена", file=make_pdf())
+        before = max(
+            Book.objects.filter(pk__in=[self.book.pk, nested.pk]).values_list("updated_at", flat=True)
+        )
+        self.client.post(reverse("book_library:folder_delete", args=[self.folder.pk]))
+        self.assertFalse(Folder.objects.filter(pk__in=[self.folder.pk, child.pk]).exists())
+        books = Book.objects.filter(pk__in=[self.book.pk, nested.pk])
+        self.assertEqual([b.folder_id for b in books], [None, None])
+        self.assertTrue(all(b.updated_at > before for b in books))
+
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
 class OwnershipTests(TestCase):
