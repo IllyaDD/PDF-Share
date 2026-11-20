@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-02 09:15+0200\n"
+"POT-Creation-Date: 2026-11-20 11:30+0200\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -14,8 +14,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: annotations/api.py:60 annotations/validators.py:124
-#: annotations/validators.py:139 book_library/views.py:575
+#: annotations/api.py:61 annotations/validators.py:129
+#: annotations/validators.py:144 book_library/views.py:583
 msgid "очікується JSON-об'єкт"
 msgstr "a JSON object is expected"
 
@@ -24,7 +24,7 @@ msgstr "a JSON object is expected"
 #: book_library/templates/book_library/welcome_content.html:65
 #: book_library/templates/book_library/welcome_content.html:90
 #: sharing/templates/sharing/group_list.html:4 sharing/views.py:31
-#: sharing/views.py:68 templates/partials/sidebar.html:38
+#: sharing/views.py:69 templates/partials/sidebar.html:38
 msgid "Групи"
 msgstr "Groups"
 
@@ -32,47 +32,47 @@ msgstr "Groups"
 msgid "name: тема з такою назвою вже є"
 msgstr "name: a topic with this name already exists"
 
-#: annotations/groups.py:57
+#: annotations/groups.py:58
 msgid "group_client_id: такої теми нема в цьому пуші"
 msgstr "group_client_id: no such topic in this push"
 
-#: annotations/groups.py:59
+#: annotations/groups.py:61
 msgid "group_client_id: тема з іншої книги"
 msgstr "group_client_id: the topic belongs to another book"
 
-#: annotations/groups.py:71
+#: annotations/groups.py:73
 msgid "group: теми нема або вона з іншої книги"
 msgstr "group: the topic does not exist or belongs to another book"
 
-#: annotations/models.py:81
+#: annotations/models.py:82
 msgid "назва"
 msgstr "name"
 
-#: annotations/models.py:102
+#: annotations/models.py:103
 msgid "Жовтий"
 msgstr "Yellow"
 
-#: annotations/models.py:103
+#: annotations/models.py:104
 msgid "Зелений"
 msgstr "Green"
 
-#: annotations/models.py:104
+#: annotations/models.py:105
 msgid "Блакитний"
 msgstr "Blue"
 
-#: annotations/models.py:105
+#: annotations/models.py:106
 msgid "Рожевий"
 msgstr "Pink"
 
-#: annotations/models.py:106
+#: annotations/models.py:107
 msgid "Помаранчевий"
 msgstr "Orange"
 
-#: annotations/models.py:110
+#: annotations/models.py:111
 msgid "Виділення"
 msgstr "Highlight"
 
-#: annotations/models.py:124
+#: annotations/models.py:125
 msgid "Список прямокутників у PDF user space: [{x0, y0, x1, y1}, ...]"
 msgstr "List of rectangles in PDF user space: [{x0, y0, x1, y1}, ...]"
 
@@ -174,7 +174,7 @@ msgstr "The highlight and its comment will be deleted."
 
 #: annotations/templates/annotations/partials/annotation_item.html:30
 #: book_library/templates/book_library/book_detail.html:262
-#: sharing/templates/sharing/group_detail.html:41
+#: sharing/templates/sharing/group_detail.html:50
 #: sharing/templates/sharing/group_list.html:66
 #: templates/partials/book_actions.html:43
 #: templates/partials/confirm_modal.html:16
@@ -182,91 +182,91 @@ msgstr "The highlight and its comment will be deleted."
 msgid "Видалити"
 msgstr "Delete"
 
-#: annotations/validators.py:22
+#: annotations/validators.py:27
 #, python-format
 msgid "%(field)s: очікується число"
 msgstr "%(field)s: a number is expected"
 
-#: annotations/validators.py:24
+#: annotations/validators.py:29
 #, python-format
 msgid "%(field)s: некоректне число"
 msgstr "%(field)s: invalid number"
 
-#: annotations/validators.py:60
+#: annotations/validators.py:65
 msgid "coords: очікується непорожній список прямокутників"
 msgstr "coords: a non-empty list of rectangles is expected"
 
-#: annotations/validators.py:62
+#: annotations/validators.py:67
 #, python-format
 msgid "coords: забагато прямокутників (максимум %(max)s)"
 msgstr "coords: too many rectangles (maximum %(max)s)"
 
-#: annotations/validators.py:67
+#: annotations/validators.py:72
 #, python-format
 msgid "coords[%(index)s]: очікується об'єкт"
 msgstr "coords[%(index)s]: an object is expected"
 
-#: annotations/validators.py:69
+#: annotations/validators.py:74
 #, python-format
 msgid "coords[%(index)s]: потрібні саме ключі %(keys)s"
 msgstr "coords[%(index)s]: exactly these keys are required: %(keys)s"
 
-#: annotations/validators.py:73
+#: annotations/validators.py:78
 #, python-format
 msgid "coords[%(index)s]: порожній прямокутник"
 msgstr "coords[%(index)s]: empty rectangle"
 
-#: annotations/validators.py:81
+#: annotations/validators.py:86
 msgid "color: очікується колір у форматі #RRGGBB"
 msgstr "color: a color in #RRGGBB format is expected"
 
-#: annotations/validators.py:87
+#: annotations/validators.py:92
 #, python-format
 msgid "%(field)s: очікується ціле число"
 msgstr "%(field)s: an integer is expected"
 
-#: annotations/validators.py:89
+#: annotations/validators.py:94
 #, python-format
 msgid "%(field)s: поза межами документа (1..%(pages)s)"
 msgstr "%(field)s: outside the document (1..%(pages)s)"
 
-#: annotations/validators.py:97
+#: annotations/validators.py:102
 #, python-format
 msgid "%(field)s: очікується рядок"
 msgstr "%(field)s: a string is expected"
 
-#: annotations/validators.py:99
+#: annotations/validators.py:104
 #, python-format
 msgid "%(field)s: задовгий текст (максимум %(max)s)"
 msgstr "%(field)s: text is too long (maximum %(max)s)"
 
-#: annotations/validators.py:105
+#: annotations/validators.py:110
 msgid "name: очікується рядок"
 msgstr "name: a string is expected"
 
-#: annotations/validators.py:108
+#: annotations/validators.py:113
 msgid "name: назва теми не може бути порожньою"
 msgstr "name: the topic name cannot be empty"
 
-#: annotations/validators.py:110
+#: annotations/validators.py:115
 #, python-format
 msgid "name: задовга назва (максимум %(max)s)"
 msgstr "name: the name is too long (maximum %(max)s)"
 
-#: annotations/validators.py:118
+#: annotations/validators.py:123
 msgid "group: очікується id теми або null"
 msgstr "group: a topic id or null is expected"
 
-#: annotations/validators.py:145
+#: annotations/validators.py:150
 #, python-format
 msgid "поля не можна змінювати: %(fields)s"
 msgstr "these fields cannot be changed: %(fields)s"
 
-#: annotations/validators.py:147
+#: annotations/validators.py:152
 msgid "нема що оновлювати"
 msgstr "nothing to update"
 
-#: annotations/views.py:62 book_library/views.py:50 book_library/views.py:317
+#: annotations/views.py:62 book_library/views.py:51 book_library/views.py:325
 msgid "Бібліотека"
 msgstr "Library"
 
@@ -307,68 +307,68 @@ msgstr "Topic renamed."
 msgid "Тему видалено, її нотатки тепер «Без групи»."
 msgstr "Topic deleted; its notes are now under “No topic”."
 
-#: book_library/forms.py:41
+#: book_library/forms.py:42
 msgid "Назва теки"
 msgstr "Folder name"
 
-#: book_library/forms.py:42
+#: book_library/forms.py:43
 msgid "Батьківська тека"
 msgstr "Parent folder"
 
-#: book_library/forms.py:43
+#: book_library/forms.py:44
 msgid "Показувати в каталозі"
 msgstr "Show in catalog"
 
-#: book_library/forms.py:45
+#: book_library/forms.py:46
 msgid "Теку разом з усім вкладеним побачить кожен користувач."
 msgstr "Every user will see this folder with everything inside it."
 
-#: book_library/forms.py:59
+#: book_library/forms.py:62
 msgid "— корінь бібліотеки —"
 msgstr "— library root —"
 
-#: book_library/forms.py:67 book_library/forms.py:106
+#: book_library/forms.py:70 book_library/forms.py:109
 #: book_library/templates/book_library/book_detail.html:175 sharing/forms.py:29
 #: users/forms.py:68
 msgid "Зберегти"
 msgstr "Save"
 
-#: book_library/forms.py:76 book_library/templates/book_library/library.html:83
+#: book_library/forms.py:79 book_library/templates/book_library/library.html:83
 msgid "Назва"
 msgstr "Title"
 
-#: book_library/forms.py:76
+#: book_library/forms.py:79
 #: book_library/templates/book_library/book_detail.html:45 sharing/forms.py:85
 #: sharing/forms.py:189 templates/partials/move_modal.html:12
 msgid "Тека"
 msgstr "Folder"
 
-#: book_library/forms.py:76
+#: book_library/forms.py:79
 msgid "PDF-файл"
 msgstr "PDF file"
 
-#: book_library/forms.py:77
+#: book_library/forms.py:80
 msgid "Вкажіть назву підручника."
 msgstr "Enter the textbook title."
 
-#: book_library/forms.py:90
+#: book_library/forms.py:93
 msgid "— без теки —"
 msgstr "— no folder —"
 
-#: book_library/forms.py:93
+#: book_library/forms.py:96
 #, python-format
 msgid "Максимум %(size)s"
 msgstr "Maximum %(size)s"
 
-#: book_library/forms.py:97
+#: book_library/forms.py:100
 msgid "Залиште порожнім, щоб не змінювати файл."
 msgstr "Leave empty to keep the current file."
 
-#: book_library/forms.py:108
+#: book_library/forms.py:111
 msgid "Поступ завантаження"
 msgstr "Upload progress"
 
-#: book_library/forms.py:108
+#: book_library/forms.py:111
 msgid "Завантаження…"
 msgstr "Uploading…"
 
@@ -536,7 +536,7 @@ msgid "Жодна з ваших груп не має доступу до ціє�
 msgstr "None of your groups has access to this book."
 
 #: book_library/templates/book_library/book_detail.html:181
-#: sharing/views.py:248
+#: sharing/views.py:268
 msgid "Надати доступ групі"
 msgstr "Give a group access"
 
@@ -549,7 +549,7 @@ msgid "Надати групі"
 msgstr "Share with group"
 
 #: book_library/templates/book_library/book_detail.html:201
-#: sharing/forms.py:142 sharing/templates/sharing/group_detail.html:85
+#: sharing/forms.py:142 sharing/templates/sharing/group_detail.html:94
 #: sharing/templates/sharing/link_list.html:80
 msgid "Створити посилання"
 msgstr "Create link"
@@ -673,7 +673,7 @@ msgstr "All textbooks"
 
 #: book_library/templates/book_library/book_reader.html:66
 #: book_library/templates/book_library/home.html:29
-#: book_library/templates/book_library/recent.html:4 book_library/views.py:212
+#: book_library/templates/book_library/recent.html:4 book_library/views.py:213
 #: templates/partials/sidebar.html:10
 msgid "Нещодавні"
 msgstr "Recent"
@@ -847,7 +847,7 @@ msgstr "Done"
 #: book_library/templates/book_library/library.html:36
 #: book_library/templates/book_library/welcome_content.html:51
 #: book_library/templates/book_library/welcome_content.html:93
-#: book_library/views.py:48 book_library/views.py:371
+#: book_library/views.py:49 book_library/views.py:379
 #: templates/partials/sidebar.html:19
 msgid "Каталог"
 msgstr "Catalog"
@@ -889,7 +889,7 @@ msgid "Адміністратор ще не відкрив жодної теки
 msgstr "The administrator has not opened any folder to everyone yet."
 
 #: book_library/templates/book_library/favorites.html:4
-#: book_library/views.py:236 templates/partials/sidebar.html:13
+#: book_library/views.py:244 templates/partials/sidebar.html:13
 msgid "Обране"
 msgstr "Favorites"
 
@@ -921,7 +921,7 @@ msgstr "To folder"
 #: book_library/templates/book_library/library.html:33
 #: book_library/templates/book_library/library.html:141
 #: book_library/templates/book_library/welcome_content.html:23
-#: book_library/views.py:627
+#: book_library/views.py:635
 msgid "Завантажити PDF"
 msgstr "Upload PDF"
 
@@ -984,7 +984,7 @@ msgid "Що вміє PDF+"
 msgstr "What PDF+ can do"
 
 #: book_library/templates/book_library/library.html:16
-#: book_library/views.py:147
+#: book_library/views.py:148
 msgid "За посиланням"
 msgstr "Via link"
 
@@ -999,12 +999,12 @@ msgstr "Folder actions"
 
 #: book_library/templates/book_library/library.html:25
 #: book_library/templates/book_library/library.html:139
-#: book_library/views.py:459
+#: book_library/views.py:467
 msgid "Додати книги"
 msgstr "Add books"
 
 #: book_library/templates/book_library/library.html:26
-#: book_library/views.py:397 book_library/views.py:398
+#: book_library/views.py:405 book_library/views.py:406
 msgid "Нова тека"
 msgstr "New folder"
 
@@ -1028,7 +1028,7 @@ msgstr "Search this folder and subfolders…,Search the whole library…"
 #: book_library/templates/book_library/library.html:54
 #: book_library/templates/book_library/library.html:70
 #: book_library/templates/book_library/shared_with_me.html:8
-#: book_library/views.py:77
+#: book_library/views.py:78
 msgid "Теки"
 msgstr "Folders"
 
@@ -1036,7 +1036,7 @@ msgstr "Folders"
 #: book_library/templates/book_library/library.html:77
 #: book_library/templates/book_library/library.html:123
 #: book_library/templates/book_library/shared_with_me.html:15
-#: book_library/views.py:78
+#: book_library/views.py:79
 msgid "Книги"
 msgstr "Books"
 
@@ -1093,7 +1093,7 @@ msgid "Книги, які ви почнете читати, з'являться 
 msgstr "Books you start reading will appear here."
 
 #: book_library/templates/book_library/shared_with_me.html:4
-#: book_library/views.py:344 templates/partials/sidebar.html:16
+#: book_library/views.py:352 templates/partials/sidebar.html:16
 msgid "Поділилися зі мною"
 msgstr "Shared with me"
 
@@ -1288,7 +1288,7 @@ msgstr ""
 
 #: book_library/templates/book_library/welcome_content.html:92
 #: sharing/templates/sharing/link_list.html:4
-#: sharing/templates/sharing/link_list.html:20 sharing/views.py:275
+#: sharing/templates/sharing/link_list.html:20 sharing/views.py:295
 #: templates/partials/sidebar.html:59
 msgid "Посилання"
 msgstr "Links"
@@ -1343,134 +1343,134 @@ msgstr "Upload your first book"
 msgid "Створити акаунт"
 msgstr "Create account"
 
-#: book_library/views.py:76
+#: book_library/views.py:77
 msgid "Усюди"
 msgstr "Everywhere"
 
-#: book_library/views.py:145
+#: book_library/views.py:146
 #, python-format
 msgid "Група %(name)s"
 msgstr "Group %(name)s"
 
-#: book_library/views.py:149
+#: book_library/views.py:150
 msgid "Приватно"
 msgstr "Private"
 
-#: book_library/views.py:155
+#: book_library/views.py:156
 #, python-format
 msgid "група %(name)s"
 msgstr "group %(name)s"
 
-#: book_library/views.py:157
+#: book_library/views.py:158
 msgid "за посиланням"
 msgstr "via link"
 
-#: book_library/views.py:158
+#: book_library/views.py:159
 msgid "приватно"
 msgstr "private"
 
-#: book_library/views.py:168
+#: book_library/views.py:169
 #, python-format
 msgid "Підручників: %(count)d"
 msgstr "Textbooks: %(count)d"
 
-#: book_library/views.py:189
+#: book_library/views.py:190
 #, python-format
 msgid "доступ: %(access)s"
 msgstr "access: %(access)s"
 
-#: book_library/views.py:213
+#: book_library/views.py:214
 msgid "Книги, які ви відкривали останніми"
 msgstr "Books you opened most recently"
 
-#: book_library/views.py:237
+#: book_library/views.py:245
 msgid "Книги, позначені зірочкою"
 msgstr "Books you starred"
 
-#: book_library/views.py:297
+#: book_library/views.py:305
 #, python-format
 msgid "Підручників: %(books)d · нотаток: %(notes)d"
 msgstr "Textbooks: %(books)d · notes: %(notes)d"
 
-#: book_library/views.py:372
+#: book_library/views.py:380
 msgid "Матеріали, доступні всім користувачам"
 msgstr "Materials available to all users"
 
-#: book_library/views.py:389
+#: book_library/views.py:397
 msgid "Теку створено."
 msgstr "Folder created."
 
-#: book_library/views.py:411
+#: book_library/views.py:419
 msgid "Теку оновлено."
 msgstr "Folder updated."
 
-#: book_library/views.py:419
+#: book_library/views.py:427
 msgid "Редагування теки"
 msgstr "Edit folder"
 
-#: book_library/views.py:420
+#: book_library/views.py:428
 #, python-format
 msgid "Тека «%(name)s»"
 msgstr "Folder “%(name)s”"
 
-#: book_library/views.py:432
+#: book_library/views.py:440
 msgid "Теку видалено."
 msgstr "Folder deleted."
 
-#: book_library/views.py:460
+#: book_library/views.py:468
 #, python-format
 msgid "Додати книги до «%(name)s»"
 msgstr "Add books to “%(name)s”"
 
-#: book_library/views.py:578
+#: book_library/views.py:586
 msgid "тіло запиту не є коректним JSON"
 msgstr "the request body is not valid JSON"
 
-#: book_library/views.py:600
+#: book_library/views.py:608
 #, python-format
 msgid "«%(title)s» додано до обраного."
 msgstr "“%(title)s” added to favorites."
 
-#: book_library/views.py:602
+#: book_library/views.py:610
 #, python-format
 msgid "«%(title)s» прибрано з обраного."
 msgstr "“%(title)s” removed from favorites."
 
-#: book_library/views.py:618
+#: book_library/views.py:626
 #, python-format
 msgid "«%(title)s» завантажено: %(pages)s с."
 msgstr "“%(title)s” uploaded: %(pages)s p."
 
-#: book_library/views.py:626
+#: book_library/views.py:634
 msgid "Завантаження PDF"
 msgstr "Upload PDF"
 
-#: book_library/views.py:628
+#: book_library/views.py:636
 msgid "Приймаються файли у форматі PDF."
 msgstr "PDF files are accepted."
 
-#: book_library/views.py:641
+#: book_library/views.py:649
 msgid "Книгу оновлено."
 msgstr "Book updated."
 
-#: book_library/views.py:649
+#: book_library/views.py:657
 msgid "Редагування книги"
 msgstr "Edit book"
 
-#: book_library/views.py:662
+#: book_library/views.py:670
 msgid "Книгу видалено."
 msgstr "Book deleted."
 
-#: book_library/views.py:677
+#: book_library/views.py:685
 msgid "Некоректна тека."
 msgstr "Invalid folder."
 
-#: book_library/views.py:684
+#: book_library/views.py:692
 #, python-format
 msgid "«%(title)s» перенесено до теки «%(folder)s»."
 msgstr "“%(title)s” moved to folder “%(folder)s”."
 
-#: book_library/views.py:687
+#: book_library/views.py:695
 #, python-format
 msgid "«%(title)s» прибрано з теки."
 msgstr "“%(title)s” removed from its folder."
@@ -1491,7 +1491,7 @@ msgstr "Invite"
 msgid "Користувача з таким username не знайдено."
 msgstr "No user with this username was found."
 
-#: sharing/forms.py:57 sharing/views.py:156
+#: sharing/forms.py:57 sharing/views.py:157
 msgid "Ви власник цієї групи."
 msgstr "You own this group."
 
@@ -1573,8 +1573,8 @@ msgstr "Permission"
 msgid "%(name)s · учасників: %(count)d"
 msgstr "%(name)s · members: %(count)d"
 
-#: sharing/forms.py:223 sharing/templates/sharing/group_detail.html:134
-#: sharing/views.py:247
+#: sharing/forms.py:223 sharing/templates/sharing/group_detail.html:143
+#: sharing/views.py:267
 msgid "Надати доступ"
 msgstr "Give access"
 
@@ -1607,101 +1607,118 @@ msgstr "View"
 msgid "Редагування"
 msgstr "Edit"
 
-#: sharing/templates/sharing/group_detail.html:21
+#: sharing/templates/sharing/group_detail.html:16
+msgid "Вийти з групи?"
+msgstr "Leave the group?"
+
+#: sharing/templates/sharing/group_detail.html:17
+msgid ""
+"Ви втратите доступ до матеріалів групи. Повернутися можна лише за новим "
+"запрошенням чи посиланням."
+msgstr ""
+"You will lose access to the group's materials. You can only come back with a "
+"new invitation or link."
+
+#: sharing/templates/sharing/group_detail.html:18
+#: sharing/templates/sharing/group_detail.html:19
+msgid "Вийти з групи"
+msgstr "Leave group"
+
+#: sharing/templates/sharing/group_detail.html:30
 msgid "Учасники"
 msgstr "Members"
 
-#: sharing/templates/sharing/group_detail.html:33
+#: sharing/templates/sharing/group_detail.html:42
 #, python-format
 msgid "з %(date)s"
 msgstr "since %(date)s"
 
-#: sharing/templates/sharing/group_detail.html:39
+#: sharing/templates/sharing/group_detail.html:48
 msgid "Видалити учасника?"
 msgstr "Remove member?"
 
-#: sharing/templates/sharing/group_detail.html:40
+#: sharing/templates/sharing/group_detail.html:49
 #, python-format
 msgid "%(username)s втратить доступ до матеріалів групи."
 msgstr "%(username)s will lose access to the group's materials."
 
-#: sharing/templates/sharing/group_detail.html:47
+#: sharing/templates/sharing/group_detail.html:56
 msgid "Учасників ще немає."
 msgstr "No members yet."
 
-#: sharing/templates/sharing/group_detail.html:58
+#: sharing/templates/sharing/group_detail.html:67
 msgid "Посилання для приєднання"
 msgstr "Join link"
 
-#: sharing/templates/sharing/group_detail.html:61
+#: sharing/templates/sharing/group_detail.html:70
 msgid "Хто відкриє це посилання, зможе самостійно вступити в групу."
 msgstr "Anyone who opens this link can join the group."
 
-#: sharing/templates/sharing/group_detail.html:66
+#: sharing/templates/sharing/group_detail.html:75
 msgid "URL для приєднання"
 msgstr "Join URL"
 
-#: sharing/templates/sharing/group_detail.html:67
+#: sharing/templates/sharing/group_detail.html:76
 #: sharing/templates/sharing/link_list.html:47
 msgid "Скопіювати"
 msgstr "Copy"
 
-#: sharing/templates/sharing/group_detail.html:74
+#: sharing/templates/sharing/group_detail.html:83
 msgid "Оновити"
 msgstr "Regenerate"
 
-#: sharing/templates/sharing/group_detail.html:77
+#: sharing/templates/sharing/group_detail.html:86
 msgid "Вимкнути"
 msgstr "Disable"
 
-#: sharing/templates/sharing/group_detail.html:81
+#: sharing/templates/sharing/group_detail.html:90
 msgid "Посилання вимкнене. Учасники можуть вступити лише за запрошенням."
 msgstr "The link is disabled. Members can only join by invitation."
 
-#: sharing/templates/sharing/group_detail.html:96
+#: sharing/templates/sharing/group_detail.html:105
 msgid "Запросити учасника"
 msgstr "Invite a member"
 
-#: sharing/templates/sharing/group_detail.html:98
+#: sharing/templates/sharing/group_detail.html:107
 msgid ""
 "Користувач отримає запрошення і вступить у групу, лише якщо прийме його."
 msgstr ""
 "The user will receive an invitation and will join the group only if they "
 "accept it."
 
-#: sharing/templates/sharing/group_detail.html:104
+#: sharing/templates/sharing/group_detail.html:113
 msgid "Очікують відповіді"
 msgstr "Awaiting response"
 
-#: sharing/templates/sharing/group_detail.html:115
-#: sharing/templates/sharing/group_detail.html:116
+#: sharing/templates/sharing/group_detail.html:124
+#: sharing/templates/sharing/group_detail.html:125
 msgid "Скасувати запрошення"
 msgstr "Cancel invitation"
 
-#: sharing/templates/sharing/group_detail.html:131
+#: sharing/templates/sharing/group_detail.html:140
 msgid "Доступні матеріали"
 msgstr "Available materials"
 
-#: sharing/templates/sharing/group_detail.html:150
+#: sharing/templates/sharing/group_detail.html:159
 msgid "Відкликати доступ?"
 msgstr "Revoke access?"
 
-#: sharing/templates/sharing/group_detail.html:151
+#: sharing/templates/sharing/group_detail.html:160
 #, python-format
 msgid "Учасники групи «%(name)s» більше не бачитимуть цей матеріал."
 msgstr "Members of group “%(name)s” will no longer see this material."
 
-#: sharing/templates/sharing/group_detail.html:152
+#: sharing/templates/sharing/group_detail.html:161
 #: sharing/templates/sharing/link_list.html:69
 #: sharing/templates/sharing/link_list.html:70
 msgid "Відкликати"
 msgstr "Revoke"
 
-#: sharing/templates/sharing/group_detail.html:153
+#: sharing/templates/sharing/group_detail.html:162
 msgid "Відкликати доступ"
 msgstr "Revoke access"
 
-#: sharing/templates/sharing/group_detail.html:159
+#: sharing/templates/sharing/group_detail.html:168
 msgid "Групі ще нічого не надано."
 msgstr "Nothing has been shared with the group yet."
 
@@ -1724,7 +1741,7 @@ msgid "На головну"
 msgstr "Go home"
 
 #: sharing/templates/sharing/group_join.html:25
-#: sharing/templates/sharing/group_list.html:85 sharing/views.py:72
+#: sharing/templates/sharing/group_list.html:85 sharing/views.py:73
 #, python-format
 msgid "Організатор: %(owner)s"
 msgstr "Organizer: %(owner)s"
@@ -1742,8 +1759,8 @@ msgstr "Log in or create an account to join."
 msgid "Зареєструватися"
 msgstr "Sign up"
 
-#: sharing/templates/sharing/group_list.html:8 sharing/views.py:93
-#: sharing/views.py:94
+#: sharing/templates/sharing/group_list.html:8 sharing/views.py:94
+#: sharing/views.py:95
 msgid "Нова група"
 msgstr "New group"
 
@@ -1802,8 +1819,8 @@ msgstr "Groups give all their members access to your materials at once."
 msgid "Створити групу"
 msgstr "Create group"
 
-#: sharing/templates/sharing/link_list.html:8 sharing/views.py:303
-#: sharing/views.py:304
+#: sharing/templates/sharing/link_list.html:8 sharing/views.py:323
+#: sharing/views.py:324
 msgid "Нове посилання"
 msgstr "New link"
 
@@ -1892,94 +1909,99 @@ msgstr ""
 "Invitation sent. %(username)s will appear among the members once they accept "
 "it."
 
-#: sharing/views.py:85
+#: sharing/views.py:86
 msgid "Групу створено. Поділіться посиланням для приєднання з учасниками."
 msgstr "Group created. Share the join link with its members."
 
-#: sharing/views.py:107
+#: sharing/views.py:108
 msgid "Групу оновлено."
 msgstr "Group updated."
 
-#: sharing/views.py:115
+#: sharing/views.py:116
 msgid "Редагування групи"
 msgstr "Edit group"
 
-#: sharing/views.py:116
+#: sharing/views.py:117
 #, python-format
 msgid "Група «%(name)s»"
 msgstr "Group “%(name)s”"
 
-#: sharing/views.py:127
+#: sharing/views.py:128
 msgid "Групу видалено."
 msgstr "Group deleted."
 
-#: sharing/views.py:138
+#: sharing/views.py:139
 msgid "Посилання для приєднання оновлено. Старе більше не діє."
 msgstr "The join link was regenerated. The old one no longer works."
 
-#: sharing/views.py:142
+#: sharing/views.py:143
 msgid "Посилання для приєднання вимкнено."
 msgstr "The join link is disabled."
 
-#: sharing/views.py:160
+#: sharing/views.py:161
 #, python-format
 msgid "Ви вже в групі «%(name)s»."
 msgstr "You are already in group “%(name)s”."
 
-#: sharing/views.py:165 sharing/views.py:188
+#: sharing/views.py:166 sharing/views.py:193
 #, python-format
 msgid "Ви приєдналися до групи «%(name)s»."
 msgstr "You joined group “%(name)s”."
 
-#: sharing/views.py:200
+#: sharing/views.py:205
 #, python-format
 msgid "Запрошення до групи «%(name)s» відхилено."
 msgstr "Invitation to group “%(name)s” declined."
 
-#: sharing/views.py:211
+#: sharing/views.py:216
 msgid "Запрошення скасовано."
 msgstr "Invitation cancelled."
 
-#: sharing/views.py:221
+#: sharing/views.py:226
 msgid "Учасника видалено з групи."
 msgstr "Member removed from the group."
 
-#: sharing/views.py:239
+#: sharing/views.py:240
+#, python-format
+msgid "Ви вийшли з групи «%(name)s»."
+msgstr "You left group “%(name)s”."
+
+#: sharing/views.py:259
 msgid "Доступ надано."
 msgstr "Access granted."
 
-#: sharing/views.py:249
+#: sharing/views.py:269
 msgid "Оберіть групу і матеріал — книгу або теку — зі своєї бібліотеки."
 msgstr ""
 "Choose a group and a material — a book or a folder — from your library."
 
-#: sharing/views.py:261
+#: sharing/views.py:281
 msgid "Доступ відкликано."
 msgstr "Access revoked."
 
-#: sharing/views.py:295
+#: sharing/views.py:315
 msgid "Посилання створено."
 msgstr "Link created."
 
-#: sharing/views.py:305
+#: sharing/views.py:325
 msgid "Оберіть книгу або теку, до якої відкриваєте доступ."
 msgstr "Choose the book or folder you want to share."
 
-#: sharing/views.py:307
+#: sharing/views.py:327
 msgid ""
 "Гості за посиланням лише переглядають — редагувати й додавати нотатки не "
 "можуть."
 msgstr "Guests with the link can only view — they cannot edit or add notes."
 
-#: sharing/views.py:319
+#: sharing/views.py:339
 msgid "Посилання відкликано."
 msgstr "Link revoked."
 
-#: sharing/views.py:329
+#: sharing/views.py:349
 msgid "Посилання не існує або було відкликане."
 msgstr "The link does not exist or has been revoked."
 
-#: sharing/views.py:331
+#: sharing/views.py:351
 msgid "Термін дії посилання минув."
 msgstr "The link has expired."
 

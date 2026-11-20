@@ -14,7 +14,12 @@ JOIN_TOLERANCE = 0.25
 
 
 class PayloadError(ValueError):
-    pass
+    """Некоректний payload. code — машинний код для errors[] пушу в api/ (читалка його не
+    показує): "invalid" — битий формат, "not_found" — об'єкта нема або він недоступний."""
+
+    def __init__(self, message, code="invalid"):
+        super().__init__(message)
+        self.code = code
 
 
 def _number(value, field):

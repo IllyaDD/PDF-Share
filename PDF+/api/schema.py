@@ -39,16 +39,34 @@ def _ids(help_text):
 
 
 class ErrorSerializer(serializers.Serializer):
-    error = serializers.CharField(help_text="Опис помилки українською, не для розбору клієнтом.")
+    """Будь-яка помилка /api/v1/ (api.errors)."""
+
+    error = serializers.CharField(help_text="Текст українською для людини; може змінюватись.")
+    code = serializers.CharField(
+        help_text=(
+            "Машинний код — лише його розбирає клієнт: invalid, not_found, not_authenticated, "
+            "authentication_failed, token_not_valid, no_active_account, permission_denied, "
+            "method_not_allowed, unsupported_media_type, parse_error, throttled, "
+            "file_too_large, group_owner, already_member, already_invited, user_not_found, "
+            "invalid_since, batch_invalid, batch_too_large, google_token_missing, "
+            "google_token_invalid, google_email_unverified, google_not_configured, "
+            "google_unavailable, account_disabled."
+        )
+    )
+    fields = serializers.DictField(
+        child=serializers.JSONField(),
+        required=False,
+        help_text="Лише для code=invalid з серіалізатора: {поле: [повідомлення]}.",
+    )
 
 
-class DetailSerializer(serializers.Serializer):
-    """Помилки DRF і SimpleJWT: 401, 403, 404, 429."""
-
-    detail = serializers.CharField()
-    code = serializers.CharField(required=False)
-    messages = serializers.ListField(
-        child=serializers.DictField(), required=False, help_text="Лише в SimpleJWT."
+class FileUrlSerializer(serializers.Serializer):
+    url = serializers.URLField(
+        help_text="Абсолютна адреса файлу. Іти без заголовка Authorization: це інший хост."
+    )
+    expires_in = serializers.IntegerField(
+        allow_null=True,
+        help_text="Скільки секунд діє url; null — безстроково. Сам url не кешувати довше.",
     )
 
 
@@ -146,6 +164,12 @@ class AnnotationCreateSerializer(serializers.Serializer):
 
 class AnnotationUpdateSerializer(serializers.Serializer):
     id = serializers.IntegerField(min_value=1)
+    edited_at = serializers.DateTimeField(
+        help_text=(
+            "Коли зміну зроблено на пристрої, з часовим поясом. Якщо на сервері новіша правка "
+            "(edited_at анотації пізніший), зміна не застосовується — в updated фактичний стан."
+        )
+    )
     color = serializers.RegexField(HEX_COLOR.pattern, required=False)
     note_text = serializers.CharField(
         required=False, allow_null=True, allow_blank=True, max_length=MAX_NOTE_LENGTH
@@ -157,7 +181,7 @@ class AnnotationUpdateSerializer(serializers.Serializer):
 class AnnotationOpsSerializer(serializers.Serializer):
     create = AnnotationCreateSerializer(many=True, required=False)
     update = AnnotationUpdateSerializer(
-        many=True, required=False, help_text="Last-write-wins за часом надходження пушу."
+        many=True, required=False, help_text="Новіша правка виграє — за edited_at, а не за часом пушу."
     )
     delete = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
@@ -263,12 +287,19 @@ class PushErrorSerializer(serializers.Serializer):
     id = serializers.JSONField(required=False, help_text="Для update, delete, group_update, group_delete.")
     client_id = serializers.JSONField(required=False, help_text="Для create, group_create.")
     book = serializers.JSONField(required=False, help_text="Для progress, favorite_add, favorite_remove.")
-    error = serializers.CharField()
+    error = serializers.CharField(help_text="Текст для людини; може змінюватись.")
+    code = serializers.ChoiceField(
+        choices=[(code, code) for code in ("invalid", "not_found", "duplicate")],
+        help_text="invalid — битий елемент, not_found — об'єкта нема чи він недоступний, "
+        "duplicate — тема з такою назвою вже є.",
+    )
 
 
 class SyncPushSerializer(serializers.Serializer):
     created = PushedAnnotationSerializer(many=True)
-    updated = AnnotationSerializer(many=True)
+    updated = AnnotationSerializer(
+        many=True, help_text="Фактичний стан: правка, старіша за серверну, не застосована."
+    )
     deleted = _ids("id анотацій із запиту, оброблені без помилки.")
     reading_progress = ReadingProgressSerializer(
         many=True, help_text="Фактичний стан після злиття: позиція могла програти новішій."

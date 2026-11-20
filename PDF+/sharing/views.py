@@ -58,6 +58,7 @@ def group_detail_view(request, pk):
         {
             "group": group,
             "is_owner": is_owner,
+            "is_member": is_member,
             "memberships": GroupMembership.objects.filter(group=group).select_related("user"),
             "invitations": (
                 GroupInvitation.objects.filter(group=group).select_related("user") if is_owner else []
@@ -224,6 +225,21 @@ def membership_remove_view(request, pk):
         membership.delete()
         messages.success(request, _("Учасника видалено з групи."))
     return redirect("sharing:group_detail", pk=group_pk)
+
+
+@login_required
+def group_leave_view(request, pk):
+    """Учасник сам виходить із групи. Повернутися — лише за новим запрошенням чи посиланням."""
+    membership = get_object_or_404(
+        GroupMembership.objects.select_related("group"), group_id=pk, user=request.user
+    )
+    if request.method != "POST":
+        return redirect("sharing:group_detail", pk=pk)
+    membership.delete()
+    messages.success(
+        request, _("Ви вийшли з групи «%(name)s».") % {"name": membership.group.name}
+    )
+    return redirect("sharing:group_list")
 
 
 @login_required

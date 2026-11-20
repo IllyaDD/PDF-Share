@@ -6,6 +6,7 @@ visible_books() — книга, відкрита за посиланням, до
 """
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -102,6 +103,8 @@ class AnnotationDetailView(ReaderApiView):
         fields = parse_annotation_update(payload)
         fields.update(group_fields(payload, annotation.layer.book_id, request.user))
 
+        # Правка з вебу — «зараз»: за edited_at синк не дасть старішій офлайн-правці її затерти.
+        fields["edited_at"] = timezone.now()
         for name, value in fields.items():
             setattr(annotation, name, value)
         annotation.save(update_fields=[*fields, "updated_at"])

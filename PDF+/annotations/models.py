@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from book_library.models import Book
@@ -137,6 +138,11 @@ class Annotation(models.Model):
     # Ключ ідемпотентності пушу синку: повтор того самого create не дублює нотатку.
     # null — нотатка з вебу, повторів там нема.
     client_id = models.UUIDField(null=True, blank=True, editable=False)
+    # Коли автор востаннє змінив нотатку — на своєму пристрої, а не коли зміна дійшла до
+    # сервера. За ним пуш синку розв'язує конфлікт (новіша правка виграє): офлайн-правка
+    # тижневої давності не затре свіжу з вебу. updated_at для цього не годиться — він
+    # міняється й від приходу старої правки, і від видалення теми.
+    edited_at = models.DateTimeField(default=timezone.now, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

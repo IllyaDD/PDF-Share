@@ -9,6 +9,15 @@
 {% block page_actions %}
   {% if is_owner %}
     <a href="{% url 'sharing:group_edit' group.pk %}" class="btn btn-outline-secondary">{% translate "Перейменувати" %}</a>
+  {% elif is_member %}
+    <button type="button" class="btn btn-outline-danger"
+            data-bs-toggle="modal" data-bs-target="#confirmModal"
+            data-action="{% url 'sharing:group_leave' group.pk %}"
+            data-title="{% translate "Вийти з групи?" %}"
+            data-text="{% translate "Ви втратите доступ до матеріалів групи. Повернутися можна лише за новим запрошенням чи посиланням." %}"
+            data-confirm="{% translate "Вийти з групи" %}">
+      <i class="bi bi-box-arrow-right me-1"></i>{% translate "Вийти з групи" %}
+    </button>
   {% endif %}
 {% endblock %}
 
