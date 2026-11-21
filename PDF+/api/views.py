@@ -1,4 +1,5 @@
 import ipaddress
+import secrets
 
 from annotations.access import publishable_groups
 from annotations.models import Layer
@@ -7,8 +8,9 @@ from book_library.folders import delete_folder
 from book_library.models import Book, Folder
 from book_library.views import _search_titles
 from django.conf import settings
-from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.types import OpenApiTypes
@@ -22,7 +24,7 @@ from google.auth.exceptions import GoogleAuthError, TransportError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.generics import ListAPIView, ListCreateAPIView
 from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -40,12 +42,13 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from sharing.models import Group, GroupInvitation, ShareLink
+from sharing.models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 from sharing.views import _join_group
 from users.google import UnverifiedEmail, google_account
 from users.models import User
 
 from . import schema as docs
+from .errors import Code, error_response
 from .serializers import (
     BookCreateSerializer,
     BookSerializer,
@@ -53,19 +56,26 @@ from .serializers import (
     CatalogBookSerializer,
     FolderSerializer,
     FolderWriteSerializer,
+    GroupAccessSerializer,
+    GroupDetailSerializer,
+    GroupWriteSerializer,
     InvitationSerializer,
+    InviteUserSerializer,
     JoinedGroupSerializer,
     JoinTokenSerializer,
     LayerPublicationsSerializer,
     LayerPublicationsUpdateSerializer,
     MeSerializer,
+    MemberSerializer,
+    SentInvitationSerializer,
     ShareLinkSerializer,
 )
 from .sync import BatchError, pull_state, push_changes
 
-FIELD_ERRORS = OpenApiResponse(OpenApiTypes.OBJECT, description="Помилки полів: {поле: [повідомлення]}.")
-DETAIL = docs.DetailSerializer
-THROTTLED = OpenApiResponse(DETAIL, description="Понад 10 запитів на хвилину з однієї IP.")
+ERROR = docs.ErrorSerializer
+PATH_ID = OpenApiParameter("id", int, OpenApiParameter.PATH)
+FIELD_ERRORS = OpenApiResponse(ERROR, description="code=invalid; помилки полів — у fields.")
+THROTTLED = OpenApiResponse(ERROR, description="code=throttled: понад 10 запитів на хвилину з однієї IP.")
 
 
 class AuthTokenThrottle(AnonRateThrottle):
@@ -103,7 +113,7 @@ class TokenPairSerializer(TokenObtainPairSerializer):
         responses={
             200: docs.TokenPairSerializer,
             400: FIELD_ERRORS,
-            401: OpenApiResponse(DETAIL, description="Невірний логін чи пароль або акаунт вимкнено."),
+            401: OpenApiResponse(ERROR, description="Невірний логін чи пароль або акаунт вимкнено."),
             429: THROTTLED,
         },
     )
@@ -136,7 +146,7 @@ class RefreshSerializer(TokenRefreshSerializer):
             200: docs.RefreshSerializer,
             400: FIELD_ERRORS,
             401: OpenApiResponse(
-                DETAIL, description="Refresh недійсний, прострочений, відкликаний або акаунта нема."
+                ERROR, description="Refresh недійсний, прострочений, відкликаний або акаунта нема."
             ),
             429: THROTTLED,
         },
@@ -156,7 +166,7 @@ class RefreshTokenView(TokenRefreshView):
         responses={
             200: OpenApiResponse(OpenApiTypes.OBJECT, description="Порожній об'єкт {}."),
             400: FIELD_ERRORS,
-            401: OpenApiResponse(DETAIL, description="Refresh недійсний або вже відкликаний."),
+            401: OpenApiResponse(ERROR, description="Refresh недійсний або вже відкликаний."),
         },
     )
 )
@@ -239,48 +249,54 @@ class GoogleTokenView(APIView):
         request=docs.GoogleIdTokenSerializer,
         responses={
             200: docs.GoogleTokenSerializer,
-            400: OpenApiResponse(docs.ErrorSerializer, description="Нема id_token."),
-            401: OpenApiResponse(docs.ErrorSerializer, description="Токен недійсний або прострочений."),
+            400: OpenApiResponse(ERROR, description="Нема id_token."),
+            401: OpenApiResponse(ERROR, description="Токен недійсний або прострочений."),
             403: OpenApiResponse(
-                docs.ErrorSerializer, description="Google не підтвердив пошту або акаунт вимкнено."
+                ERROR, description="Google не підтвердив пошту або акаунт вимкнено."
             ),
             429: THROTTLED,
             503: OpenApiResponse(
-                docs.ErrorSerializer, description="Google недоступний або вхід не налаштований."
+                ERROR, description="Google недоступний або вхід не налаштований."
             ),
         },
     )
     def post(self, request):
         raw = request.data.get("id_token")
         if not isinstance(raw, str) or not raw:
-            return Response({"error": "id_token: очікується рядок"}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                "id_token: очікується рядок", Code.GOOGLE_TOKEN_MISSING, status.HTTP_400_BAD_REQUEST
+            )
         audiences = settings.GOOGLE_TOKEN_AUDIENCES
         # Без aud бібліотека не перевіряє отримувача, і токен будь-якого чужого
         # Google-застосунку відкрив би акаунт. Тому порожній список — відмова, а не пропуск.
         if not audiences:
-            return Response(
-                {"error": "вхід через Google не налаштований"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            return error_response(
+                "вхід через Google не налаштований",
+                Code.GOOGLE_NOT_CONFIGURED,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         try:
             # Підпис ключами Google, iss, exp і aud перевіряє бібліотека.
             claims = id_token.verify_oauth2_token(raw, google_requests.Request(), audience=audiences)
         except TransportError:
-            return Response(
-                {"error": "Google тимчасово недоступний"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            return error_response(
+                "Google тимчасово недоступний", Code.GOOGLE_UNAVAILABLE,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except (ValueError, GoogleAuthError):
-            return Response(
-                {"error": "id_token: недійсний або прострочений"}, status=status.HTTP_401_UNAUTHORIZED
+            return error_response(
+                "id_token: недійсний або прострочений", Code.GOOGLE_TOKEN_INVALID,
+                status.HTTP_401_UNAUTHORIZED,
             )
         try:
             user, created, _reset = google_account(claims)
         except UnverifiedEmail:
-            return Response(
-                {"error": "Google не підтвердив адресу пошти"}, status=status.HTTP_403_FORBIDDEN
+            return error_response(
+                "Google не підтвердив адресу пошти", Code.GOOGLE_EMAIL_UNVERIFIED,
+                status.HTTP_403_FORBIDDEN,
             )
         if not user.is_active:
-            return Response({"error": "акаунт вимкнено"}, status=status.HTTP_403_FORBIDDEN)
+            return error_response("акаунт вимкнено", Code.ACCOUNT_DISABLED, status.HTTP_403_FORBIDDEN)
 
         refresh = RefreshToken.for_user(user)
         return Response(
@@ -316,58 +332,62 @@ class CatalogBooksView(ListAPIView):
         return _search_titles(queryset, query) if query else queryset
 
 
+def _file_url(request, field):
+    """JSON з адресою файлу замість 302: частина HTTP-клієнтів переносить Authorization на
+    хост редиректу, і R2 відхиляє підписаний запит із чужим заголовком."""
+    storage = field.storage
+    expires_in = (
+        storage.querystring_expire if getattr(storage, "querystring_auth", False) else None
+    )
+    return Response({"url": request.build_absolute_uri(field.url), "expires_in": expires_in})
+
+
+class BookFileThrottle(UserRateThrottle):
+    scope = "book_file"
+
+
 class BookFileView(APIView):
+    throttle_classes = [BookFileThrottle]
 
     @extend_schema(
         operation_id="getBookFile",
-        summary="Файл книги",
+        summary="Адреса файлу книги",
         description=(
-            "302 на файл у сховищі. З R2 — підписане посилання, що живе 3600 с: не кешувати "
-            "його, а щоразу йти сюди. Заголовок Authorization на інший хост не передавати."
+            "З R2 — підписане посилання на expires_in секунд: сам url не зберігати, а щоразу "
+            "йти сюди. Кешувати завантажений PDF — за file_version."
         ),
-        parameters=[
-            OpenApiParameter("id", int, OpenApiParameter.PATH),
-            OpenApiParameter(
-                "Location", str, OpenApiParameter.HEADER, response=[302],
-                description="URL PDF-файлу.",
-            ),
-        ],
+        parameters=[PATH_ID],
         responses={
-            302: OpenApiResponse(description="Редирект на PDF."),
-            404: OpenApiResponse(DETAIL, description="Книги нема або вона недоступна."),
+            200: docs.FileUrlSerializer,
+            404: OpenApiResponse(ERROR, description="Книги нема або вона недоступна."),
+            429: OpenApiResponse(ERROR, description="code=throttled: забагато запитів файлів."),
         },
     )
     def get(self, request, pk):
         book = get_object_or_404(visible_books(request.user), pk=pk)
-        return redirect(book.file.url)
+        return _file_url(request, book.file)
 
 
 class BookCoverView(APIView):
 
     @extend_schema(
         operation_id="getBookCover",
-        summary="Обкладинка книги",
+        summary="Адреса обкладинки книги",
         description=(
-            "302 на JPEG у сховищі, як books/{id}/file/: підписане посилання не кешувати. "
-            "Кешувати саму картинку за file_version — обкладинка рендериться з файлу."
+            "Як books/{id}/file/: url підписаний на expires_in секунд. Кешувати саму картинку "
+            "за file_version — обкладинка рендериться з файлу."
         ),
-        parameters=[
-            OpenApiParameter("id", int, OpenApiParameter.PATH),
-            OpenApiParameter(
-                "Location", str, OpenApiParameter.HEADER, response=[302],
-                description="URL JPEG-обкладинки.",
-            ),
-        ],
+        parameters=[PATH_ID],
         responses={
-            302: OpenApiResponse(description="Редирект на JPEG."),
+            200: docs.FileUrlSerializer,
             404: OpenApiResponse(
-                DETAIL, description="Книги нема, вона недоступна або без обкладинки (has_cover=false)."
+                ERROR, description="Книги нема, вона недоступна або без обкладинки (has_cover=false)."
             ),
         },
     )
     def get(self, request, pk):
         book = get_object_or_404(visible_books(request.user).exclude(cover=""), pk=pk)
-        return redirect(book.cover.url)
+        return _file_url(request, book.cover)
 
 
 # ── Групи: вступ і вхідні запрошення ────────────────────────────────────────────
@@ -394,10 +414,9 @@ class GroupJoinView(APIView):
         responses={
             200: JOINED,
             400: OpenApiResponse(
-                OpenApiTypes.OBJECT,
-                description="Помилки полів або {error}, якщо користувач — власник групи.",
+                ERROR, description="code=invalid (поля) або group_owner — користувач власник групи."
             ),
-            404: OpenApiResponse(DETAIL, description="Посилання недійсне або перевипущене."),
+            404: OpenApiResponse(ERROR, description="Посилання недійсне або перевипущене."),
         },
     )
     def post(self, request):
@@ -407,7 +426,9 @@ class GroupJoinView(APIView):
             Group.objects.select_related("owner"), invite_token=serializer.validated_data["token"]
         )
         if group.owner_id == request.user.pk:
-            return Response({"error": "Ви власник цієї групи"}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(
+                "Ви власник цієї групи", Code.GROUP_OWNER, status.HTTP_400_BAD_REQUEST
+            )
         return _joined(group, _join_group(group, request.user))
 
 
@@ -437,7 +458,7 @@ def _own_invitation(request, pk):
 
 
 INVITATION_NOT_FOUND = OpenApiResponse(
-    DETAIL, description="Запрошення нема: чуже, вже прийняте, відхилене чи скасоване."
+    ERROR, description="Запрошення нема: чуже, вже прийняте, відхилене чи скасоване."
 )
 
 
@@ -474,8 +495,7 @@ class InvitationDeclineView(APIView):
 # чужа видима книга тут так само 404, як і неіснуюча. Нове чи змінене клієнт бачить і
 # наступним pull (updated_at), але відповідь уже містить об'єкт у форматі синку.
 
-PATH_ID = OpenApiParameter("id", int, OpenApiParameter.PATH)
-OWN_NOT_FOUND = OpenApiResponse(DETAIL, description="Нема, чуже або недоступне.")
+OWN_NOT_FOUND = OpenApiResponse(ERROR, description="Нема, чуже або недоступне.")
 # Запас на multipart-обгортку й інші поля форми поверх самого файлу.
 UPLOAD_OVERHEAD = 1024 * 1024
 
@@ -499,8 +519,8 @@ class BookCreateView(APIView):
         responses={
             201: BookSerializer,
             400: FIELD_ERRORS,
-            413: OpenApiResponse(docs.ErrorSerializer, description="Запит більший за ліміт файлу."),
-            429: OpenApiResponse(DETAIL, description="Забагато завантажень за годину."),
+            413: OpenApiResponse(ERROR, description="Запит більший за ліміт файлу."),
+            429: OpenApiResponse(ERROR, description="Забагато завантажень за годину."),
         },
     )
     def post(self, request):
@@ -511,8 +531,8 @@ class BookCreateView(APIView):
         except ValueError:
             length = 0
         if length > settings.MAX_UPLOAD_SIZE + UPLOAD_OVERHEAD:
-            return Response(
-                {"error": "файл завеликий"}, status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            return error_response(
+                "файл завеликий", Code.FILE_TOO_LARGE, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
             )
         serializer = BookCreateSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -631,7 +651,7 @@ class LayerPublicationsView(APIView):
         operation_id="getLayerPublications",
         summary="Для яких груп відкрито мій шар на книзі",
         parameters=[OpenApiParameter("book_id", int, OpenApiParameter.PATH)],
-        responses={200: LayerPublicationsSerializer, 404: OpenApiResponse(DETAIL, description="Книга недоступна.")},
+        responses={200: LayerPublicationsSerializer, 404: OpenApiResponse(ERROR, description="Книга недоступна.")},
     )
     def get(self, request, book_id):
         return self._state(request, get_object_or_404(visible_books(request.user), pk=book_id))
@@ -648,7 +668,7 @@ class LayerPublicationsView(APIView):
         responses={
             200: LayerPublicationsSerializer,
             400: FIELD_ERRORS,
-            404: OpenApiResponse(DETAIL, description="Книга недоступна."),
+            404: OpenApiResponse(ERROR, description="Книга недоступна."),
         },
     )
     def put(self, request, book_id):
@@ -661,10 +681,7 @@ class LayerPublicationsView(APIView):
     
         stale = set(layer.shared_with_groups.values_list("pk", flat=True)) if layer else set()
         if wanted - {group.pk for group in groups} - stale:
-            return Response(
-                {"group_ids": ["Лише власні групи, учасники яких бачать цю книгу."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValidationError({"group_ids": ["Лише власні групи, учасники яких бачать цю книгу."]})
         if groups and layer is None:
             layer = Layer.objects.get_or_create(book=book, owner=request.user)[0]
         if layer is not None:
@@ -718,10 +735,18 @@ class ShareLinkDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class SyncThrottle(UserRateThrottle):
+    scope = "sync"
+
+
+SYNC_THROTTLED = OpenApiResponse(ERROR, description="code=throttled: забагато синків за хвилину.")
+
+
 class SyncView(APIView):
     # Секції пушу вкладені — форма їх не передасть (раніше це був 400, тепер чесний 415),
     # і схема не обіцяє form/multipart.
     parser_classes = [JSONParser]
+    throttle_classes = [SyncThrottle]
 
     @extend_schema(
         operation_id="pullSync",
@@ -739,18 +764,23 @@ class SyncView(APIView):
         ],
         responses={
             200: docs.SyncPullSerializer,
-            400: OpenApiResponse(docs.ErrorSerializer, description="since без часового поясу чи битий."),
+            400: OpenApiResponse(ERROR, description="code=invalid_since: без часового поясу чи битий."),
+            429: SYNC_THROTTLED,
         },
     )
     def get(self, request):
         raw = request.query_params.get("since", "").strip()
         since = None
         if raw:
-            since = parse_datetime(raw)
+            try:
+                since = parse_datetime(raw)
+            except ValueError:  # формат правильний, а дата — ні
+                since = None
             if since is None or since.tzinfo is None:
-                return Response(
-                    {"error": "since: очікується ISO 8601 з часовим поясом"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                return error_response(
+                    "since: очікується ISO 8601 з часовим поясом",
+                    Code.INVALID_SINCE,
+                    status.HTTP_400_BAD_REQUEST,
                 )
         return Response(pull_state(request.user, since))
 
@@ -762,13 +792,320 @@ class SyncView(APIView):
         responses={
             200: docs.SyncPushSerializer,
             400: OpenApiResponse(
-                docs.ErrorSerializer, description="Битий формат секції або забагато операцій."
+                ERROR,
+                description="code=batch_invalid (битий формат секції) або batch_too_large.",
             ),
+            429: SYNC_THROTTLED,
         },
     )
     def post(self, request):
         try:
             result = push_changes(request.user, request.data)
         except BatchError as error:
-            return Response({"error": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(error, error.code, status.HTTP_400_BAD_REQUEST)
         return Response(result)
+
+
+# ── Керування групами ───────────────────────────────────────────────────────────
+# Змінює групу лише власник; учасник бачить склад і доступи, але не запрошення й посилання.
+# Учасник не додається напряму: лише запрошення, яке він сам приймає (acceptInvitation),
+# або вступ за посиланням (joinGroup). Нові й відкликані доступи учасники отримають
+# наступним pull: visible_*_ids щоразу повні.
+
+
+def _groups_of(user):
+    """Власні групи й ті, де користувач учасник, з кількістю учасників."""
+    return (
+        Group.objects.filter(Q(owner=user) | Q(memberships__user=user))
+        .distinct()
+        .select_related("owner")
+        .annotate(member_count=Count("memberships", distinct=True))
+        .order_by("name", "pk")
+    )
+
+
+def _visible_group(request, pk):
+    return get_object_or_404(_groups_of(request.user), pk=pk)
+
+
+def _own_group(request, pk):
+    return get_object_or_404(_groups_of(request.user).filter(owner=request.user), pk=pk)
+
+
+def _group_response(request, group, status_code=status.HTTP_200_OK):
+    # member_count — анотація: після create чи зміни перечитуємо, щоб він був у відповіді.
+    group = _groups_of(request.user).get(pk=group.pk)
+    return Response(
+        GroupDetailSerializer(group, context={"request": request}).data, status=status_code
+    )
+
+
+GROUP_NOT_FOUND = OpenApiResponse(ERROR, description="Групи нема або користувач у ній не учасник.")
+OWN_GROUP_NOT_FOUND = OpenApiResponse(
+    ERROR, description="Групи нема або користувач не її власник (учасник теж отримує 404)."
+)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="listGroups",
+        summary="Мої групи",
+        description="Власні (is_owner=true) і ті, де користувач учасник. Без пагінації.",
+    ),
+    post=extend_schema(
+        operation_id="createGroup",
+        summary="Створити групу",
+        description="Посилання для вступу (invite_url) вмикається одразу.",
+        request=GroupWriteSerializer,
+        responses={201: GroupDetailSerializer, 400: FIELD_ERRORS},
+    ),
+)
+class GroupListView(ListCreateAPIView):
+    serializer_class = GroupDetailSerializer
+    pagination_class = None
+    parser_classes = [JSONParser]
+
+    def get_queryset(self):
+        return _groups_of(self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = GroupWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group = serializer.save(owner=request.user, invite_token=secrets.token_urlsafe(32))
+        return _group_response(request, group, status.HTTP_201_CREATED)
+
+
+class GroupDetailView(APIView):
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        operation_id="getGroup",
+        summary="Група",
+        parameters=[PATH_ID],
+        responses={200: GroupDetailSerializer, 404: GROUP_NOT_FOUND},
+    )
+    def get(self, request, pk):
+        return _group_response(request, _visible_group(request, pk))
+
+    @extend_schema(
+        operation_id="updateGroup",
+        summary="Перейменувати групу",
+        parameters=[PATH_ID],
+        request=GroupWriteSerializer,
+        responses={200: GroupDetailSerializer, 400: FIELD_ERRORS, 404: OWN_GROUP_NOT_FOUND},
+    )
+    def patch(self, request, pk):
+        group = _own_group(request, pk)
+        serializer = GroupWriteSerializer(group, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        return _group_response(request, serializer.save())
+
+    @extend_schema(
+        operation_id="deleteGroup",
+        summary="Видалити групу",
+        description=(
+            "Разом із членствами, запрошеннями, доступами й публікаціями шарів. Учасники "
+            "втрачають доступ із наступним pull."
+        ),
+        parameters=[PATH_ID],
+        responses={204: None, 404: OWN_GROUP_NOT_FOUND},
+    )
+    def delete(self, request, pk):
+        _own_group(request, pk).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GroupInviteLinkView(APIView):
+    """Те саме, що кнопки «оновити» й «вимкнути» посилання на сторінці групи."""
+
+    @extend_schema(
+        operation_id="regenerateGroupInviteLink",
+        summary="Новий токен посилання для вступу",
+        description="Старе посилання перестає діяти. Вмикає вимкнене.",
+        request=None,
+        parameters=[PATH_ID],
+        responses={200: GroupDetailSerializer, 404: OWN_GROUP_NOT_FOUND},
+    )
+    def post(self, request, pk):
+        group = _own_group(request, pk)
+        group.regenerate_invite_token()
+        return _group_response(request, group)
+
+    @extend_schema(
+        operation_id="disableGroupInviteLink",
+        summary="Вимкнути посилання для вступу",
+        description="Запрошення за username діють і далі.",
+        parameters=[PATH_ID],
+        responses={200: GroupDetailSerializer, 404: OWN_GROUP_NOT_FOUND},
+    )
+    def delete(self, request, pk):
+        group = _own_group(request, pk)
+        group.invite_token = None
+        group.save(update_fields=["invite_token"])
+        return _group_response(request, group)
+
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="listGroupMembers",
+        summary="Учасники групи",
+        description="Без власника й без пагінації. Бачать власник і учасники.",
+        parameters=[PATH_ID],
+        responses={200: MemberSerializer(many=True), 404: GROUP_NOT_FOUND},
+    )
+)
+class GroupMembersView(ListAPIView):
+    serializer_class = MemberSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        group = _visible_group(self.request, self.kwargs["pk"])
+        return group.memberships.select_related("user").order_by("user__username", "pk")
+
+
+class MembershipDetailView(APIView):
+
+    @extend_schema(
+        operation_id="deleteMembership",
+        summary="Вилучити учасника або вийти з групи",
+        description=(
+            "Власник групи вилучає будь-кого; учасник може видалити лише власне членство. "
+            "Доступ до матеріалів групи зникає з наступним pull."
+        ),
+        parameters=[PATH_ID],
+        responses={204: None, 404: OpenApiResponse(ERROR, description="Членства нема або воно чуже.")},
+    )
+    def delete(self, request, pk):
+        get_object_or_404(
+            GroupMembership.objects.filter(Q(group__owner=request.user) | Q(user=request.user)),
+            pk=pk,
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GroupInvitationsView(APIView):
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        operation_id="listGroupInvitations",
+        summary="Надіслані запрошення групи",
+        description="Ще не прийняті й не відхилені. Лише для власника, без пагінації.",
+        parameters=[PATH_ID],
+        responses={200: SentInvitationSerializer(many=True), 404: OWN_GROUP_NOT_FOUND},
+    )
+    def get(self, request, pk):
+        group = _own_group(request, pk)
+        invitations = group.invitations.select_related("user").order_by("-created_at", "-pk")
+        return Response(SentInvitationSerializer(invitations, many=True).data)
+
+    @extend_schema(
+        operation_id="inviteToGroup",
+        summary="Запросити користувача за username",
+        description=(
+            "Прав запрошення не дає: учасником користувач стане, лише прийнявши його "
+            "(acceptInvitation)."
+        ),
+        parameters=[PATH_ID],
+        request=InviteUserSerializer,
+        responses={
+            201: SentInvitationSerializer,
+            400: OpenApiResponse(
+                ERROR,
+                description=(
+                    "code=invalid (поля), user_not_found, group_owner (запрошує себе), "
+                    "already_member, already_invited."
+                ),
+            ),
+            404: OWN_GROUP_NOT_FOUND,
+        },
+    )
+    def post(self, request, pk):
+        group = _own_group(request, pk)
+        serializer = InviteUserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        # Ті самі перевірки, що InvitationForm на сайті.
+        user = User.objects.filter(username=serializer.validated_data["username"]).first()
+        bad_request = status.HTTP_400_BAD_REQUEST
+        if user is None:
+            return error_response("Користувача з таким username не знайдено.", Code.USER_NOT_FOUND, bad_request)
+        if user.pk == group.owner_id:
+            return error_response("Ви власник цієї групи.", Code.GROUP_OWNER, bad_request)
+        if GroupMembership.objects.filter(group=group, user=user).exists():
+            return error_response("Цей користувач уже в групі.", Code.ALREADY_MEMBER, bad_request)
+        invitation, created = GroupInvitation.objects.get_or_create(
+            group=group, user=user, defaults={"invited_by": request.user}
+        )
+        if not created:
+            return error_response("Цього користувача вже запрошено.", Code.ALREADY_INVITED, bad_request)
+        return Response(SentInvitationSerializer(invitation).data, status=status.HTTP_201_CREATED)
+
+
+class InvitationDetailView(APIView):
+
+    @extend_schema(
+        operation_id="cancelInvitation",
+        summary="Скасувати надіслане запрошення",
+        description="Лише власник групи. Запрошений відхиляє своє через declineInvitation.",
+        parameters=[PATH_ID],
+        responses={
+            204: None,
+            404: OpenApiResponse(ERROR, description="Запрошення нема або група не ваша."),
+        },
+    )
+    def delete(self, request, pk):
+        get_object_or_404(GroupInvitation, pk=pk, group__owner=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GroupAccessesView(APIView):
+    parser_classes = [JSONParser]
+
+    def _accesses(self, group):
+        return group.accesses.select_related("book", "folder").order_by("-created_at", "-pk")
+
+    @extend_schema(
+        operation_id="listGroupAccesses",
+        summary="Матеріали, відкриті групі",
+        description="Бачать власник і учасники. Без пагінації.",
+        parameters=[PATH_ID],
+        responses={200: GroupAccessSerializer(many=True), 404: GROUP_NOT_FOUND},
+    )
+    def get(self, request, pk):
+        group = _visible_group(request, pk)
+        return Response(GroupAccessSerializer(self._accesses(group), many=True).data)
+
+    @extend_schema(
+        operation_id="grantGroupAccess",
+        summary="Відкрити групі власну книгу чи теку",
+        description="Тека — з усім вкладеним. Учасники отримають матеріал наступним pull.",
+        parameters=[PATH_ID],
+        request=GroupAccessSerializer,
+        responses={201: GroupAccessSerializer, 400: FIELD_ERRORS, 404: OWN_GROUP_NOT_FOUND},
+    )
+    def post(self, request, pk):
+        group = _own_group(request, pk)
+        serializer = GroupAccessSerializer(
+            data=request.data, context={"request": request, "group": group}
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            # Savepoint: дубль, створений паралельним запитом між перевіркою й INSERT.
+            with transaction.atomic():
+                access = serializer.save(group=group, granted_by=request.user)
+        except IntegrityError:
+            raise ValidationError("Група вже має доступ до цього матеріалу.") from None
+        return Response(GroupAccessSerializer(access).data, status=status.HTTP_201_CREATED)
+
+
+class AccessDetailView(APIView):
+
+    @extend_schema(
+        operation_id="revokeGroupAccess",
+        summary="Закрити групі доступ",
+        description="Учасники втрачають матеріал із наступним pull (visible_*_ids).",
+        parameters=[PATH_ID],
+        responses={204: None, 404: OpenApiResponse(ERROR, description="Доступу нема або група не ваша.")},
+    )
+    def delete(self, request, pk):
+        get_object_or_404(GroupAccess, pk=pk, group__owner=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

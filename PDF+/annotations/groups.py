@@ -21,7 +21,7 @@ def create_note_group(book, owner, name):
         with transaction.atomic():
             return NoteGroup.objects.create(layer=layer, name=name)
     except IntegrityError:
-        raise PayloadError(DUPLICATE_NAME)
+        raise PayloadError(DUPLICATE_NAME, code="duplicate") from None
 
 
 def rename_note_group(group, name):
@@ -32,7 +32,7 @@ def rename_note_group(group, name):
             group.save(update_fields=["name", "updated_at"])
     except IntegrityError:
         group.name = previous
-        raise PayloadError(DUPLICATE_NAME)
+        raise PayloadError(DUPLICATE_NAME, code="duplicate") from None
     return group
 
 
@@ -54,7 +54,9 @@ def group_fields(payload, book_id, owner, client_groups=None, released_ids=froze
         try:
             group = client_groups[payload["group_client_id"]]
         except (KeyError, TypeError):
-            raise PayloadError(_("group_client_id: такої теми нема в цьому пуші"))
+            raise PayloadError(
+                _("group_client_id: такої теми нема в цьому пуші"), code="not_found"
+            ) from None
         if group.layer.book_id != book_id:
             raise PayloadError(_("group_client_id: тема з іншої книги"))
         return {"group": group}
@@ -68,5 +70,5 @@ def group_fields(payload, book_id, owner, client_groups=None, released_ids=froze
         pk=group_id, layer__book_id=book_id, layer__owner=owner
     ).first()
     if group is None:
-        raise PayloadError(_("group: теми нема або вона з іншої книги"))
+        raise PayloadError(_("group: теми нема або вона з іншої книги"), code="not_found")
     return {"group": group}

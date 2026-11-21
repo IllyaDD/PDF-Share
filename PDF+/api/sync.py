@@ -23,6 +23,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from sharing.models import GroupAccess, GroupMembership
 
+from .errors import Code
 from .models import DeletedAnnotation
 from .serializers import (
     AnnotationSerializer,
@@ -35,6 +36,24 @@ from .serializers import (
 )
 
 MAX_BATCH_OPS = 500
+
+
+class BatchError(ValueError):
+    """Помилка всього пушу (400), а не окремого елемента."""
+
+    def __init__(self, message, code=Code.BATCH_INVALID):
+        super().__init__(message)
+        self.code = code
+
+
+def _aware_datetime(raw, field):
+    try:
+        value = parse_datetime(raw) if isinstance(raw, str) else None
+    except ValueError:  # формат правильний, а дата — ні (місяць 13)
+        value = None
+    if value is None or value.tzinfo is None:
+        raise PayloadError(f"{field}: очікується ISO 8601 з часовим поясом")
+    return value
 
 
 def _newly_granted(user, since):
@@ -111,10 +130,14 @@ def pull_state(user, since=None):
             .values_list("annotation_id", flat=True)
         )
 
+    visible_folder_ids = sorted(folders.values_list("pk", flat=True))
+    # Книга, до якої дали доступ напряму, лежить у теці власника, якої користувач не бачить:
+    # такі folder і parent їдуть як null, а не id, якого нема ні в folders, ні у visible_folder_ids.
+    context = {"visible_folder_ids": set(visible_folder_ids)}
     return {
         "server_time": server_time,
-        "books": BookSerializer(changed_books, many=True).data,
-        "folders": FolderSerializer(changed_folders, many=True).data,
+        "books": BookSerializer(changed_books, many=True, context=context).data,
+        "folders": FolderSerializer(changed_folders, many=True, context=context).data,
         "annotations": AnnotationSerializer(changed_annotations, many=True).data,
         "deleted_annotation_ids": deleted_ids,
         # Тем мало, тож список щоразу повний: тема, якої нема, — видалена (без тумбстоунів).
@@ -128,12 +151,8 @@ def pull_state(user, since=None):
         # з обраного прибрана, тож тумбстоуни не потрібні.
         "favorite_book_ids": sorted(visible_favorites(user).values_list("book_id", flat=True)),
         "visible_book_ids": sorted(books.values_list("pk", flat=True)),
-        "visible_folder_ids": sorted(folders.values_list("pk", flat=True)),
+        "visible_folder_ids": visible_folder_ids,
     }
-
-
-class BatchError(ValueError):
-    pass
 
 
 def _ops(section, name, prefix="annotations"):
@@ -154,7 +173,7 @@ def _visible_book(user, item):
     try:
         return visible_books(user).get(pk=book_id)
     except Book.DoesNotExist:
-        raise PayloadError("book: книги нема або вона недоступна")
+        raise PayloadError("book: книги нема або вона недоступна", code=Code.NOT_FOUND) from None
 
 
 def _create_group(user, item):
@@ -176,7 +195,7 @@ def _update_group(user, item):
     pk = _int_id(item.get("id"), "id")
     group = NoteGroup.objects.filter(pk=pk, layer__owner=user).first()
     if group is None:
-        raise PayloadError("id: теми нема або вона не ваша")
+        raise PayloadError("id: теми нема або вона не ваша", code=Code.NOT_FOUND)
     return rename_note_group(group, parse_group_name(item.get("name")))
 
 
@@ -184,7 +203,7 @@ def _uuid(value, field):
     try:
         return uuid.UUID(value)
     except (TypeError, ValueError, AttributeError):
-        raise PayloadError(f"{field}: очікується UUID")
+        raise PayloadError(f"{field}: очікується UUID") from None
 
 
 def _create(user, item, client_groups, released):
@@ -209,10 +228,7 @@ def _record_progress(user, item):
     book = _visible_book(user, item)
 
     page = parse_page_number(item.get("last_page"), book.page_count, field="last_page")
-    raw_read_at = item.get("read_at")
-    read_at = parse_datetime(raw_read_at) if isinstance(raw_read_at, str) else None
-    if read_at is None or read_at.tzinfo is None:
-        raise PayloadError("read_at: очікується ISO 8601 з часовим поясом")
+    read_at = _aware_datetime(item.get("read_at"), "read_at")
     return record_progress(user, book, page, read_at)
 
 
@@ -222,13 +238,20 @@ def _update(user, item, client_groups, released):
     pk = _int_id(item.get("id"), "id")
     annotation = Annotation.objects.filter(pk=pk, layer__owner=user).select_related("layer").first()
     if annotation is None:
-        raise PayloadError("id: анотації нема або вона не ваша")
+        raise PayloadError("id: анотації нема або вона не ваша", code=Code.NOT_FOUND)
+    # Майбутній час (збитий годинник пристрою) обрізаємо: інакше правка вигравала б завжди.
+    edited_at = min(_aware_datetime(item.get("edited_at"), "edited_at"), timezone.now())
 
-    changes = {k: v for k, v in item.items() if k not in ("id", "group_client_id")}
+    changes = {k: v for k, v in item.items() if k not in ("id", "group_client_id", "edited_at")}
     fields = parse_annotation_update(changes) if changes else {}
     fields.update(group_fields(item, annotation.layer.book_id, user, client_groups, released))
     if not fields:
         raise PayloadError("нема що оновлювати")
+    # Новіша правка виграє, як read_at у прогресі: офлайн-правка, зроблена до свіжішої з
+    # вебу чи іншого пристрою, не застосовується. Не помилка — у відповіді фактичний стан.
+    if edited_at < annotation.edited_at:
+        return annotation
+    fields["edited_at"] = edited_at
     for name, value in fields.items():
         setattr(annotation, name, value)
     annotation.save(update_fields=[*fields, "updated_at"])
@@ -246,7 +269,7 @@ def _each(items, op, key, key_of, apply, errors):
         try:
             results.append(apply(item))
         except PayloadError as error:
-            errors.append({"op": op, key: key_of(item), "error": str(error)})
+            errors.append({"op": op, key: key_of(item), "error": str(error), "code": error.code})
     return results
 
 
@@ -358,7 +381,7 @@ def _push_favorites(user, ops, errors):
         _int_id(pk, "add")
         book = visible_books(user).filter(pk=pk).first()
         if book is None:
-            raise PayloadError("add: книги нема або вона недоступна")
+            raise PayloadError("add: книги нема або вона недоступна", code=Code.NOT_FOUND)
         set_favorite(user, book, True)
         return pk
 
@@ -385,7 +408,7 @@ def push_changes(user, payload):
         + len(progress_items)
     )
     if total > MAX_BATCH_OPS:
-        raise BatchError(f"забагато операцій (максимум {MAX_BATCH_OPS})")
+        raise BatchError(f"забагато операцій (максимум {MAX_BATCH_OPS})", Code.BATCH_TOO_LARGE)
 
     errors = []
     note_groups, client_groups, released = _push_note_groups(user, group_ops, errors)

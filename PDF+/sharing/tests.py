@@ -714,3 +714,63 @@ class ShareLinkAdminTopicsTests(TestCase):
         self.assertContains(response, "Фізика — Формули")
         self.assertNotContains(response, 'name="annotation_scope"')
         self.assertNotContains(response, 'name="note_groups"')
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class GroupLeaveTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="orhanizatorka", email="o@example.com", password="parol-parol-42"
+        )
+        self.member = User.objects.create_user(
+            username="uchasnyk", email="m@example.com", password="parol-parol-42"
+        )
+        self.group = Group.objects.create(owner=self.owner, name="Гурток")
+        GroupMembership.objects.create(group=self.group, user=self.member)
+        self.leave_url = reverse("sharing:group_leave", args=[self.group.pk])
+
+    def test_member_sees_leave_button(self):
+        self.client.force_login(self.member)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertContains(response, self.leave_url)
+
+    def test_owner_does_not_see_leave_button(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertNotContains(response, self.leave_url)
+
+    def test_post_removes_own_membership_and_access(self):
+        book = make_book(self.owner, title="Алгебра")
+        GroupAccess.objects.create(group=self.group, book=book, granted_by=self.owner)
+        self.client.force_login(self.member)
+        book_url = reverse("book_library:book_detail", args=[book.pk])
+        self.assertEqual(self.client.get(book_url).status_code, 200)
+
+        response = self.client.post(self.leave_url)
+
+        self.assertRedirects(response, reverse("sharing:group_list"))
+        self.assertFalse(GroupMembership.objects.filter(group=self.group, user=self.member).exists())
+        self.assertNotEqual(self.client.get(book_url).status_code, 200)
+
+    def test_get_does_not_leave(self):
+        self.client.force_login(self.member)
+        response = self.client.get(self.leave_url)
+        self.assertRedirects(response, reverse("sharing:group_detail", args=[self.group.pk]))
+        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=self.member).exists())
+
+    def test_outsider_gets_404(self):
+        outsider = User.objects.create_user(
+            username="storonniy", email="s@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.post(self.leave_url).status_code, 404)
+        self.assertEqual(GroupMembership.objects.filter(group=self.group).count(), 1)
+
+    def test_leave_touches_only_own_membership(self):
+        other = User.objects.create_user(
+            username="insha", email="i@example.com", password="parol-parol-42"
+        )
+        GroupMembership.objects.create(group=self.group, user=other)
+        self.client.force_login(self.member)
+        self.client.post(self.leave_url)
+        self.assertTrue(GroupMembership.objects.filter(group=self.group, user=other).exists())

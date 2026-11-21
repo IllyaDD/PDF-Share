@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from sharing.models import Group, GroupInvitation, ShareLink
+from sharing.models import Group, GroupAccess, GroupInvitation, GroupMembership, ShareLink
 from users.models import User
 
 
@@ -47,13 +47,37 @@ class MeSerializer(serializers.ModelSerializer):
         ]
 
 
-class FolderSerializer(serializers.ModelSerializer):
+class _HideInvisibleFolder:
+    """Посилання на теку, якої користувач не бачить, віддається як null.
+
+    Набір видимих тек передає синк у context["visible_folder_ids"]. Без нього (власні книги
+    й теки, каталог) посилання завжди на видиму теку, тож поле віддається як є.
+    """
+
+    folder_field = "folder"
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        visible = self.context.get("visible_folder_ids")
+        if visible is not None and data[self.folder_field] not in visible:
+            data[self.folder_field] = None
+        return data
+
+
+class FolderSerializer(_HideInvisibleFolder, serializers.ModelSerializer):
+    folder_field = "parent"
+
     class Meta:
         model = Folder
         fields = ["id", "name", "parent", "owner", "is_catalog", "created_at", "updated_at"]
+        extra_kwargs = {
+            "parent": {
+                "help_text": "null — корінь або батьківська тека, до якої доступу нема."
+            }
+        }
 
 
-class BookSerializer(serializers.ModelSerializer):
+class BookSerializer(_HideInvisibleFolder, serializers.ModelSerializer):
     has_cover = serializers.SerializerMethodField(
         help_text="Обкладинку віддає books/{id}/cover/. Рендериться з файлу, тож оновлюється з file_version."
     )
@@ -76,6 +100,14 @@ class BookSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "updated_at",
         ]
+        extra_kwargs = {
+            "folder": {
+                "help_text": (
+                    "null — у корені або в чужій теці, до якої доступу нема (книгу відкрито "
+                    "напряму). Тека, якої нема у visible_folder_ids, — теж корінь."
+                )
+            }
+        }
 
     def get_has_cover(self, book) -> bool:
         return bool(book.cover)
@@ -108,6 +140,11 @@ class AnnotationSerializer(serializers.ModelSerializer):
         ),
     )
 
+    edited_at = serializers.DateTimeField(
+        read_only=True,
+        help_text="Час останньої правки на пристрої автора; за ним пуш вирішує, чия правка новіша.",
+    )
+
     class Meta:
         model = Annotation
         fields = [
@@ -122,6 +159,7 @@ class AnnotationSerializer(serializers.ModelSerializer):
             "group",
             # Ключ ідемпотентності пушу; за ним клієнт зіставляє локальні записи з серверними.
             "client_id",
+            "edited_at",
             "created_at",
             "updated_at",
         ]
@@ -405,3 +443,95 @@ class ShareLinkSerializer(serializers.ModelSerializer):
         )
         link.note_groups.set(groups)
         return link
+
+
+# ── Керування групами ───────────────────────────────────────────────────────────
+# Членство виникає лише за згодою користувача (вступ за посиланням чи прийняте
+# запрошення) — додати учасника напряму API не дає, як і сайт.
+
+
+class GroupDetailSerializer(GroupSerializer):
+    is_owner = serializers.SerializerMethodField()
+    member_count = serializers.IntegerField(read_only=True)
+    invite_url = serializers.SerializerMethodField(
+        help_text=(
+            "Посилання для вступу (/groups/join/<token>/ на сайті; токен — для joinGroup). "
+            "Лише для власника; null — вимкнене або користувач не власник."
+        )
+    )
+
+    class Meta(GroupSerializer.Meta):
+        fields = [*GroupSerializer.Meta.fields, "is_owner", "member_count", "invite_url", "created_at"]
+
+    def get_is_owner(self, group) -> bool:
+        return group.owner_id == self.context["request"].user.pk
+
+    def get_invite_url(self, group) -> str | None:
+        if not group.invite_token or not self.get_is_owner(group):
+            return None
+        return self.context["request"].build_absolute_uri(
+            reverse("sharing:group_join", args=[group.invite_token])
+        )
+
+
+class GroupWriteSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=255)
+
+    class Meta:
+        model = Group
+        fields = ["name"]
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Назва не може бути порожньою.")
+        return value
+
+
+class MemberSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = GroupMembership
+        fields = ["id", "user", "username", "joined_at"]
+        extra_kwargs = {"id": {"help_text": "id членства — для DELETE memberships/{id}/."}}
+
+
+class SentInvitationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = GroupInvitation
+        fields = ["id", "user", "username", "created_at"]
+
+
+class InviteUserSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+
+
+class GroupAccessSerializer(serializers.ModelSerializer):
+    """Доступ групи до власної книги чи теки (з усім вкладеним)."""
+
+    book = OwnBookField(required=False, allow_null=True, help_text="Власна книга; рівно одне з book/folder.")
+    folder = OwnFolderField(required=False, allow_null=True, help_text="Власна тека з усім вкладеним.")
+    title = serializers.SerializerMethodField(help_text="Назва книги чи теки.")
+
+    class Meta:
+        model = GroupAccess
+        fields = ["id", "book", "folder", "title", "permission", "created_at"]
+        read_only_fields = ["permission", "created_at"]
+        extra_kwargs = {
+            "permission": {"help_text": "Поки завжди view: учасники лише читають."},
+        }
+
+    def get_title(self, access) -> str:
+        return access.book.title if access.book_id else access.folder.name
+
+    def validate(self, attrs):
+        book, folder = attrs.get("book"), attrs.get("folder")
+        if bool(book) == bool(folder):
+            raise serializers.ValidationError("Потрібне рівно одне: book або folder.")
+        group = self.context["group"]
+        if GroupAccess.objects.filter(group=group, book=book, folder=folder).exists():
+            raise serializers.ValidationError("Група вже має доступ до цього матеріалу.")
+        return attrs
