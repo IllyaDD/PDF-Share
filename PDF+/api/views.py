@@ -121,6 +121,7 @@ class TokenPairSerializer(TokenObtainPairSerializer):
 class ObtainTokenView(TokenObtainPairView):
 
     serializer_class = TokenPairSerializer
+    parser_classes = [JSONParser]
     throttle_classes = [AuthTokenThrottle]
 
 
@@ -154,6 +155,7 @@ class RefreshSerializer(TokenRefreshSerializer):
 )
 class RefreshTokenView(TokenRefreshView):
     serializer_class = RefreshSerializer
+    parser_classes = [JSONParser]
     throttle_classes = [AuthTokenThrottle]
 
 
@@ -176,6 +178,8 @@ class LogoutView(TokenBlacklistView):
     Автентифікація — сам refresh, а не access: той міг уже прострочитись. Виданий access
     живе до кінця свого строку (до 30 хв), бо перевіряється лише підписом.
     """
+
+    parser_classes = [JSONParser]
 
 
 def revoke_refresh_tokens(user):
@@ -238,6 +242,7 @@ class GoogleTokenView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
     throttle_classes = [AuthTokenThrottle]
+    parser_classes = [JSONParser]
 
     @extend_schema(
         operation_id="googleSignIn",
@@ -405,6 +410,7 @@ def _joined(group, joined):
 
 
 class GroupJoinView(APIView):
+    parser_classes = [JSONParser]
 
     @extend_schema(
         operation_id="joinGroup",

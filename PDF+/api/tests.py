@@ -86,7 +86,7 @@ class ApiTestCase(TestCase):
 class TokenTests(ApiTestCase):
     def test_exchanges_credentials_for_token_pair(self):
         response = APIClient().post(
-            reverse("api:auth_token"), {"username": "uchen", "password": "parol-parol-42"}
+            reverse("api:auth_token"), {"username": "uchen", "password": "parol-parol-42"}, format="json"
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -101,7 +101,7 @@ class TokenTests(ApiTestCase):
 
     def test_refresh_returns_new_pair(self):
         refresh = str(RefreshToken.for_user(self.user))
-        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh}, format="json")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(AccessToken(data["access"])["user_id"], str(self.user.pk))
@@ -118,13 +118,13 @@ class TokenTests(ApiTestCase):
         self.assertEqual(client.get(reverse("api:sync")).status_code, 401)
 
         # Refresh видає нову пару, але access несе старий хеш пароля — теж відкликаний.
-        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh}, format="json")
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.json().get('access', '')}")
         self.assertEqual(client.get(reverse("api:sync")).status_code, 401)
 
     def test_wrong_password_rejected(self):
         response = APIClient().post(
-            reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}
+            reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, format="json"
         )
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("access", response.json())
@@ -148,7 +148,10 @@ class AuthThrottleTests(ApiTestCase):
         if ip:
             headers["HTTP_CF_CONNECTING_IP"] = ip
         return APIClient().post(
-            reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, **headers
+            reverse("api:auth_token"),
+            {"username": "uchen", "password": "ne-toi"},
+            format="json",
+            **headers,
         ).status_code
 
     def test_spoofed_forwarded_for_does_not_reset_limit(self):
@@ -288,13 +291,13 @@ class GoogleTokenTests(ApiTestCase):
 
 class LogoutTests(ApiTestCase):
     def refresh(self, token):
-        return APIClient().post(reverse("api:auth_token_refresh"), {"refresh": token})
+        return APIClient().post(reverse("api:auth_token_refresh"), {"refresh": token}, format="json")
 
     def test_logout_revokes_this_device_refresh(self):
         here = str(RefreshToken.for_user(self.user))
         other = str(RefreshToken.for_user(self.user))
 
-        response = APIClient().post(reverse("api:auth_logout"), {"refresh": here})
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": here}, format="json")
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.refresh(here).status_code, 401)
@@ -303,11 +306,11 @@ class LogoutTests(ApiTestCase):
     def test_logout_works_without_access_token(self):
         # Access міг прострочитись — вихід тримається на самому refresh.
         refresh = str(RefreshToken.for_user(self.user))
-        response = APIClient().post(reverse("api:auth_logout"), {"refresh": refresh})
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": refresh}, format="json")
         self.assertEqual(response.status_code, 200)
 
     def test_logout_with_invalid_refresh_is_401(self):
-        response = APIClient().post(reverse("api:auth_logout"), {"refresh": "ne-token"})
+        response = APIClient().post(reverse("api:auth_logout"), {"refresh": "ne-token"}, format="json")
         self.assertEqual(response.status_code, 401)
 
     def test_rotated_refresh_is_blacklisted(self):
@@ -379,7 +382,7 @@ class MeTests(ApiTestCase):
         self.client.delete(reverse("api:me"))
 
         self.assertEqual(self.client.get(reverse("api:sync")).status_code, 401)
-        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh})
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": refresh}, format="json")
         self.assertEqual(response.status_code, 401)
 
     def test_refresh_of_untracked_token_after_delete_is_401(self):
@@ -389,7 +392,7 @@ class MeTests(ApiTestCase):
         OutstandingToken.objects.filter(jti=refresh["jti"]).delete()
         self.user.delete()
 
-        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": str(refresh)})
+        response = APIClient().post(reverse("api:auth_token_refresh"), {"refresh": str(refresh)}, format="json")
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("access", response.json())
 
@@ -1699,6 +1702,17 @@ class OpenApiSchemaTests(ApiTestCase):
         errors = [f"{list(e.absolute_path)}: {e.message}" for e in validator.iter_errors(response.json())]
         self.assertEqual(errors, [])
 
+    def test_request_bodies_are_json_only(self):
+        # Генератор клієнта робить окремий тип на кожен content type: form/multipart поруч
+        # із JSON — зайві варіанти, які сервер насправді ніде не очікує. Файл — виняток.
+        mixed = {
+            f"{method.upper()} {path}": list(op["requestBody"]["content"])
+            for path, ops in self.schema["paths"].items()
+            for method, op in ops.items()
+            if "requestBody" in op and list(op["requestBody"]["content"]) != ["application/json"]
+        }
+        self.assertEqual(mixed, {"POST /api/v1/books/": ["multipart/form-data"]})
+
     def test_only_v1_endpoints(self):
         # API читалки (/api/books/…) сесійне й не версіонується — не контракт для клієнтів.
         self.assertEqual(
@@ -1837,12 +1851,12 @@ class OpenApiSchemaTests(ApiTestCase):
     def test_token_responses_match(self):
         client = APIClient()
         response = client.post(
-            reverse("api:auth_token"), {"username": "uchen", "password": "parol-parol-42"}
+            reverse("api:auth_token"), {"username": "uchen", "password": "parol-parol-42"}, format="json"
         )
         self.assert_matches(response, "/api/v1/auth/token/", "post")
-        refresh = client.post(reverse("api:auth_token_refresh"), {"refresh": response.json()["refresh"]})
+        refresh = client.post(reverse("api:auth_token_refresh"), {"refresh": response.json()["refresh"]}, format="json")
         self.assert_matches(refresh, "/api/v1/auth/token/refresh/", "post")
-        logout = client.post(reverse("api:auth_logout"), {"refresh": refresh.json()["refresh"]})
+        logout = client.post(reverse("api:auth_logout"), {"refresh": refresh.json()["refresh"]}, format="json")
         self.assert_matches(logout, "/api/v1/auth/logout/", "post")
 
     @override_settings(GOOGLE_TOKEN_AUDIENCES=["web-client-id"])
@@ -2023,11 +2037,11 @@ class OpenApiSchemaTests(ApiTestCase):
 
     def test_auth_errors_match(self):
         self.assert_matches(
-            APIClient().post(reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}),
+            APIClient().post(reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, format="json"),
             "/api/v1/auth/token/", "post", 401,
         )
         self.assert_matches(
-            APIClient().post(reverse("api:auth_token_refresh"), {"refresh": "bytyi"}),
+            APIClient().post(reverse("api:auth_token_refresh"), {"refresh": "bytyi"}, format="json"),
             "/api/v1/auth/token/refresh/", "post", 401,
         )
 
@@ -2049,12 +2063,26 @@ class ErrorFormatTests(ApiTestCase):
         bad.credentials(HTTP_AUTHORIZATION="Bearer bytyi")
         self.assert_error(bad.get(reverse("api:sync")), 401, "token_not_valid")
         self.assert_error(
-            APIClient().post(reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}),
+            APIClient().post(reverse("api:auth_token"), {"username": "uchen", "password": "ne-toi"}, format="json"),
             401, "no_active_account",
         )
         self.assert_error(self.client.get(reverse("api:book_file", args=[999999])), 404, "not_found")
         self.assert_error(self.client.put(reverse("api:sync"), {}, format="json"), 405, "method_not_allowed")
         self.assert_error(self.client.post(reverse("api:sync"), {"x": "1"}), 415, "unsupported_media_type")
+
+    def test_form_body_rejected_where_schema_says_json(self):
+        cases = [
+            ("api:auth_token", APIClient()),
+            ("api:auth_token_refresh", APIClient()),
+            ("api:auth_google", APIClient()),
+            ("api:auth_logout", APIClient()),
+            ("api:group_join", self.client),
+        ]
+        for name, client in cases:
+            with self.subTest(name):
+                self.assert_error(
+                    client.post(reverse(name), {"x": "1"}), 415, "unsupported_media_type"
+                )
 
     def test_404_hides_django_message(self):
         data = self.assert_error(self.client.get(reverse("api:book_file", args=[999999])), 404, "not_found")
