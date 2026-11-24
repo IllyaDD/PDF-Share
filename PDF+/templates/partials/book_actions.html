@@ -1,7 +1,10 @@
 {% load i18n %}
 {# Меню «⋯» книги: спільне для картки в сітці й рядка таблиці теки. #}
+{# menu_fixed — для рядка таблиці: .table-card і .table-responsive обрізають меню (overflow), #}
+{# а fixed-стратегія Popper виводить його поверх. У картках не вмикати: transform на :hover #}
+{# робить картку containing block для fixed, і меню з'їде. #}
 <div class="dropdown">
-  <button class="btn btn-icon" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% translate "Дії з книгою" %}">
+  <button class="btn btn-icon" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{% translate "Дії з книгою" %}"{% if menu_fixed %} data-bs-popper-config='{"strategy":"fixed"}'{% endif %}>
     <i class="bi bi-three-dots"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end">

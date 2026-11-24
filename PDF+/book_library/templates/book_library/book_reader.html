@@ -20,7 +20,8 @@
       <a href="{% url 'book_library:book_detail' book.pk %}" class="btn btn-icon" title="{% translate "Назад" %}" aria-label="{% translate "Назад" %}">
         <i class="bi bi-chevron-left"></i>
       </a>
-      <div class="min-w-0">
+      {# На телефоні місця під назву нема: вона стискалась до кількох px і вилазила з-під масштабу. #}
+      <div class="min-w-0 d-none d-sm-block">
         <div class="title" title="{{ book.title }}">{{ book.title }}</div>
         <div class="subtitle">
           {% if book.folder and book.owner_id == user.pk %}
@@ -236,18 +237,22 @@
   {% if user.is_authenticated %}
 
     <div class="floating-panel highlight-palette" id="highlightPalette" hidden>
-      {% for value, label in palette %}
-        <button type="button" class="swatch" data-color="{{ value }}"
-                style="--swatch: {{ value }}" title="{{ label }}"
-                aria-label="{% blocktranslate %}Виділити: {{ label }}{% endblocktranslate %}"></button>
-      {% endfor %}
+      <div class="palette-group">
+        {% for value, label in palette %}
+          <button type="button" class="swatch" data-color="{{ value }}"
+                  style="--swatch: {{ value }}" title="{{ label }}"
+                  aria-label="{% blocktranslate %}Виділити: {{ label }}{% endblocktranslate %}"></button>
+        {% endfor %}
+      </div>
       <span class="palette-divider" aria-hidden="true"></span>
-      <button type="button" class="btn palette-action is-primary" data-palette-note>
-        <i class="bi bi-chat-square-text" aria-hidden="true"></i>{% translate "Нотатка" %}
-      </button>
-      <button type="button" class="btn palette-action is-plain" data-palette-copy>
-        <i class="bi bi-copy" aria-hidden="true"></i><span data-palette-copy-label>{% translate "Копіювати" %}</span>
-      </button>
+      <div class="palette-group">
+        <button type="button" class="btn palette-action is-primary" data-palette-note>
+          <i class="bi bi-chat-square-text" aria-hidden="true"></i>{% translate "Нотатка" %}
+        </button>
+        <button type="button" class="btn palette-action is-plain" data-palette-copy>
+          <i class="bi bi-copy" aria-hidden="true"></i><span data-palette-copy-label>{% translate "Копіювати" %}</span>
+        </button>
+      </div>
     </div>
 
     <div class="floating-panel annotation-popover" id="annotationPopover" hidden>

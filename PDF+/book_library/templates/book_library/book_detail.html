@@ -70,8 +70,10 @@
             </div>
           </dd>
 
-          <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Власник" %}</dt>
-          <dd class="col-sm-8">{{ book.owner.username }}</dd>
+          {% if show_owner %}
+            <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Власник" %}</dt>
+            <dd class="col-sm-8">{{ book.owner.username }}</dd>
+          {% endif %}
 
           <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Сторінок" %}</dt>
           <dd class="col-sm-8">{{ book.page_count }}</dd>

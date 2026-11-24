@@ -516,6 +516,8 @@ def book_detail_view(request, pk):
         {
             "book": book,
             "is_owner": is_owner,
+            # Власника каталожної книги (адміна) не показуємо: його логін — пів облікових даних.
+            "show_owner": not (book.folder and is_catalog_folder(book.folder)),
             "progress": progress,
             "annotation_count": Annotation.objects.filter(layer=layer).count() if layer else 0,
             "teacher_layers": teacher_layers,
