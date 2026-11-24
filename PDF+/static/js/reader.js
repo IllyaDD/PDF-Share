@@ -554,7 +554,8 @@ if (viewer) {
   function place(panel, x, y) {
     panel.hidden = false;
     const rect = panel.getBoundingClientRect();
-    const left = Math.min(Math.max(x - rect.width / 2, 8), window.innerWidth - rect.width - 8);
+    // Лівий край — останнім: якщо панель ширша за екран, обрізається правий бік, а не початок.
+    const left = Math.max(Math.min(x - rect.width / 2, window.innerWidth - rect.width - 8), 8);
     const top = Math.max(y - rect.height - 10, 8);
     panel.style.left = `${left}px`;
     panel.style.top = `${top}px`;

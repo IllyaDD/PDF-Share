@@ -1012,6 +1012,29 @@ class CatalogTests(TestCase):
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
 
+    def test_catalog_book_hides_owner_username(self):
+        self.admin.username = "tajemnyi-admin"
+        self.admin.save(update_fields=["username"])
+        self.client.force_login(self.reader)
+
+        response = self.client.get(reverse("book_library:book_detail", args=[self.nested_book.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "tajemnyi-admin")
+        self.assertNotContains(response, "Власник")
+
+    def test_own_book_outside_catalog_shows_owner(self):
+        self.client.force_login(self.reader)
+        own = Book.objects.create(owner=self.reader, title="Моя", file=make_pdf())
+
+        response = self.client.get(reverse("book_library:book_detail", args=[own.pk]))
+        self.assertContains(response, "Власник")
+        self.assertContains(response, "chytach")
+
+    def test_folder_table_menu_escapes_overflow(self):
+        self.client.force_login(self.reader)
+        response = self.client.get(reverse("book_library:folder", args=[self.catalog.pk]))
+        self.assertContains(response, """data-bs-popper-config='{"strategy":"fixed"}'""")
+
     def test_private_admin_material_stays_hidden(self):
         self.client.force_login(self.reader)
         self.assertEqual(
