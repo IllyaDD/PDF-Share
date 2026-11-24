@@ -527,7 +527,7 @@ def main():
 
     for note in SKIPPED.values():
         print(f"  – {note}")
-    print(f"Демо-вхід: {ORGANIZER['username']} / {MEMBER['username']}, пароль {PASSWORD}. "
+    print(f"Демо-вхід: {ORGANIZER['username']} / {MEMBER['username']}. "
           f"Прибрати: --reset")
     if failed:
         print(f"Не вдалося: {', '.join(failed)}")
