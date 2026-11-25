@@ -1,0 +1,14 @@
+{% load i18n %}
+{# Банер згоди на кукі. Після вибору лишається в розмітці прихованим: «Налаштування кукі» відкриває його знову. #}
+{# Форма працює й без JS (редирект на next); js/cookie-consent.js шле її без перезавантаження. #}
+<section class="cookie-banner" data-cookie-banner aria-label="{% translate "Згода на кукі" %}"{% if cookie_consent %} hidden{% endif %}>
+  <p class="cookie-banner-text">
+    {% translate "Ми використовуємо обов'язкові кукі, без яких не працюють вхід, мова інтерфейсу й захист форм. Необов'язкові, наприклад для аналітики, — лише з вашої згоди." %}
+  </p>
+  <form method="post" action="{% url 'cookie_consent' %}" class="cookie-banner-actions" data-cookie-form>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <button type="submit" name="consent" value="necessary" class="btn btn-outline-primary">{% translate "Лише обов'язкові" %}</button>
+    <button type="submit" name="consent" value="all" class="btn btn-primary">{% translate "Прийняти всі" %}</button>
+  </form>
+</section>

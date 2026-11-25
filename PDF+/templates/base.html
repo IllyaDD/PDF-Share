@@ -71,6 +71,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   {% include "partials/confirm_modal.html" %}
+  {% include "partials/cookie_banner.html" %}
+  <script src="{% static 'js/cookie-consent.js' %}" defer></script>
   {# Зірочки є на багатьох сторінках і в кожній картці, тож скрипт один на весь сайт, а не біля партіала. #}
   {% if user.is_authenticated %}<script src="{% static 'js/favorite-toggle.js' %}" defer></script>{% endif %}
   {% block extra_js %}{% endblock %}
