@@ -415,6 +415,11 @@
   color: var(--app-primary);
 }
 
+/* «З каталогу» під назвою власної копії: на картці й у рядку таблиці теки. */
+.catalog-copy-badge {
+  margin-top: .375rem;
+}
+
 .upload-zone {
   display: flex;
   align-items: center;

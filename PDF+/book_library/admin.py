@@ -42,12 +42,15 @@ class BookAdmin(ModelAdmin):
     list_filter = ("extracted_text", "uploaded_at")
     search_fields = ("title", "owner__username", "owner__email")
     autocomplete_fields = ("owner", "folder")
-    readonly_fields = ("page_count", "file_size", "extracted_text", "uploaded_at")
+    readonly_fields = ("page_count", "file_size", "extracted_text", "source_book", "uploaded_at")
     date_hierarchy = "uploaded_at"
     inlines = (LayerInline,)
     fieldsets = (
         (None, {"fields": ("title", "owner", "folder", "file")}),
-        ("Metadata", {"fields": ("page_count", "file_size", "extracted_text", "uploaded_at")}),
+        (
+            "Metadata",
+            {"fields": ("page_count", "file_size", "extracted_text", "source_book", "uploaded_at")},
+        ),
     )
 
     @display(description="Size", ordering="file_size")

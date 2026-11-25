@@ -11,6 +11,22 @@
     <li><a class="dropdown-item" href="{% url 'book_library:book_reader' book.pk %}">{% translate "Читати" %}</a></li>
     <li><a class="dropdown-item" href="{% url 'book_library:book_detail' book.pk %}">{% translate "Деталі" %}</a></li>
     <li><a class="dropdown-item" href="{% url 'annotations:book_annotations' book.pk %}">{% translate "Мої нотатки" %}</a></li>
+    {# Книга каталогу: копія у свою бібліотеку. Якщо копія вже є, той самий POST відкриває її. #}
+    {% if book.owner_id != user.pk and book.folder_id in catalog_folder_id_set %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <form method="post" action="{% url 'book_library:book_add_to_library' book.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="dropdown-item">
+            {% if book.pk in library_source_ids %}
+              <i class="bi bi-check2 me-1"></i>{% translate "У моїй бібліотеці" %}
+            {% else %}
+              <i class="bi bi-journal-plus me-1"></i>{% translate "Додати у свою бібліотеку" %}
+            {% endif %}
+          </button>
+        </form>
+      </li>
+    {% endif %}
     {% if book.owner_id == user.pk %}
       <li><a class="dropdown-item" href="{% url 'book_library:book_edit' book.pk %}">{% translate "Редагувати" %}</a></li>
       <li><a class="dropdown-item" href="{% url 'sharing:link_create' %}?book={{ book.pk }}">{% translate "Поділитися" %}</a></li>

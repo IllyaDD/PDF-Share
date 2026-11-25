@@ -95,6 +95,9 @@
                       <span class="tile-icon"><i class="bi bi-book" aria-hidden="true"></i></span>
                       <span class="text-truncate">{{ book.title }}</span>
                     </a>
+                    {% if book.source_book_id and book.owner_id == user.pk %}
+                      {% include "partials/catalog_copy_badge.html" %}
+                    {% endif %}
                   </td>
                   <td>{% if book.note_count %}{{ book.note_count }}{% else %}—{% endif %}</td>
                   <td class="d-none d-md-table-cell text-nowrap">{{ book.updated_at|naturalday:"j E Y"|capfirst }}</td>
