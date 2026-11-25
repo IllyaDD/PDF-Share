@@ -5,6 +5,7 @@ from annotations.access import publishable_groups
 from annotations.models import Layer
 from book_library.access import catalog_folder_ids, visible_books
 from book_library.folders import delete_folder
+from book_library.library_copies import add_to_library
 from book_library.models import Book, Folder
 from book_library.views import _search_titles
 from django.conf import settings
@@ -335,6 +336,36 @@ class CatalogBooksView(ListAPIView):
         )
         query = self.request.query_params.get("search", "").strip()
         return _search_titles(queryset, query) if query else queryset
+
+
+class CatalogBookAddView(APIView):
+
+    @extend_schema(
+        operation_id="addCatalogBookToLibrary",
+        summary="Додати книгу каталогу у свою бібліотеку",
+        description=(
+            "Створює власну копію в корені бібліотеки: далі це звичайна книга користувача "
+            "(перейменувати, перенести в теку, поділитися, видалити). PDF не дублюється — "
+            "file_version той самий, що в оригіналу. Нотатки й прогрес у копії свої. Повтор "
+            "безпечний: наявна копія повертається з 200."
+        ),
+        parameters=[PATH_ID],
+        request=None,
+        responses={
+            201: BookSerializer,
+            200: OpenApiResponse(BookSerializer, description="Копія вже була — та сама книга."),
+            404: OpenApiResponse(ERROR, description="Книги нема в каталозі або вона й так ваша."),
+        },
+    )
+    def post(self, request, pk):
+        try:
+            copy, created = add_to_library(request.user, pk)
+        except Book.DoesNotExist:
+            return error_response("Книги нема в каталозі", Code.NOT_FOUND, status.HTTP_404_NOT_FOUND)
+        return Response(
+            BookSerializer(copy).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 def _file_url(request, field):

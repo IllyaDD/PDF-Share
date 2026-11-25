@@ -4,6 +4,7 @@ from django.db.models import Count, Q
 
 from sharing.models import Group
 
+from .access import catalog_folder_ids
 from .models import Book, Favorite, Folder
 
 
@@ -43,9 +44,25 @@ def sidebar(request):
     def favorite_book_ids():
         return frozenset(Favorite.objects.filter(user=user).values_list("book_id", flat=True))
 
+    # Для пункту «Додати у свою бібліотеку»: які теки каталожні й з яких книг копія вже є.
+    # Обидва ліниві — сторінки без карток книг у базу за ними не ходять.
+    @cache
+    def catalog_folder_id_set():
+        return frozenset(catalog_folder_ids())
+
+    @cache
+    def library_source_ids():
+        return frozenset(
+            Book.objects.filter(owner=user, source_book__isnull=False).values_list(
+                "source_book_id", flat=True
+            )
+        )
+
     return {
         "sidebar_book_count": book_count,
         "sidebar_folders": folders,
         "sidebar_groups": groups,
         "favorite_book_ids": favorite_book_ids,
+        "catalog_folder_id_set": catalog_folder_id_set,
+        "library_source_ids": library_source_ids,
     }

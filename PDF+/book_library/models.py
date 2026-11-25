@@ -72,12 +72,30 @@ class Book(models.Model):
     page_count = models.PositiveIntegerField(default=0)
     file_size = models.PositiveIntegerField(default=0, help_text=_("Розмір файлу в байтах"))
     extracted_text = models.BooleanField(default=False)
+    # Копія, яку користувач додав собі з каталогу (library_copies.add_to_library). Файл і
+    # обкладинка у сховищі спільні з оригіналом, тому signals.py видаляє blob лише тоді,
+    # коли на нього не посилається жодна книга.
+    source_book = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="library_copies",
+        help_text=_("Книга каталогу, з якої зроблено цю копію."),
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "library_book"
         ordering = ["-uploaded_at"]
+        constraints = [
+            # Одна копія на користувача: повторне «Додати» відкриває наявну, а не плодить нові.
+            models.UniqueConstraint(
+                fields=["owner", "source_book"],
+                name="unique_library_copy_per_owner",
+            )
+        ]
 
     def __str__(self):
         return self.title

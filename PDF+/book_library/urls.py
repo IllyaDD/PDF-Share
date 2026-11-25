@@ -25,6 +25,7 @@ urlpatterns = [
     path("books/<int:pk>/read/", views.book_reader_view, name="book_reader"),
     path("books/<int:pk>/progress/", views.book_progress_view, name="book_progress"),
     path("books/<int:pk>/favorite/", views.book_favorite_view, name="book_favorite"),
+    path("books/<int:pk>/add-to-library/", views.book_add_to_library_view, name="book_add_to_library"),
     path("books/<int:pk>/edit/", views.book_edit_view, name="book_edit"),
     path("books/<int:pk>/delete/", views.book_delete_view, name="book_delete"),
     path("books/<int:pk>/move/", views.book_move_view, name="book_move"),

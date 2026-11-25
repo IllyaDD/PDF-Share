@@ -29,6 +29,9 @@
           {% blocktranslate with pages=book.page_count %}{{ pages }} с.{% endblocktranslate %}{% if book.note_count %} · {% blocktranslate with notes=book.note_count %}нотаток: {{ notes }}{% endblocktranslate %}{% endif %}
         {% endif %}
       </div>
+      {% if book.source_book_id and book.owner_id == user.pk %}
+        {% include "partials/catalog_copy_badge.html" %}
+      {% endif %}
       {% if show_folder %}
         <div class="book-card-meta" title="{{ book.folder.path_label|default:_("Корінь бібліотеки") }}">
           <i class="bi bi-folder me-1"></i>{% if book.folder %}{{ book.folder.path_label }}{% else %}{% translate "Корінь бібліотеки" %}{% endif %}

@@ -18,6 +18,20 @@
   {% if is_owner %}
     <a href="{% url 'book_library:book_edit' book.pk %}" class="btn btn-outline-secondary">{% translate "Редагувати" %}</a>
   {% endif %}
+  {% if can_add_to_library %}
+    {% if library_copy %}
+      <a href="{% url 'book_library:book_detail' library_copy.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-check2 me-1"></i>{% translate "У моїй бібліотеці" %}
+      </a>
+    {% else %}
+      <form method="post" action="{% url 'book_library:book_add_to_library' book.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-primary">
+          <i class="bi bi-journal-plus me-1"></i>{% translate "Додати у свою бібліотеку" %}
+        </button>
+      </form>
+    {% endif %}
+  {% endif %}
   {% include "partials/favorite_button.html" %}
 {% endblock %}
 
@@ -69,6 +83,16 @@
               {% endif %}
             </div>
           </dd>
+
+          {% if is_owner and book.source_book_id %}
+            <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Джерело" %}</dt>
+            <dd class="col-sm-8">
+              <span class="access-badge"><i class="bi bi-collection" aria-hidden="true"></i>{% translate "З каталогу" %}</span>
+              {% if source_in_catalog %}
+                <a href="{% url 'book_library:book_detail' book.source_book_id %}" class="small ms-2">{% translate "Оригінал у каталозі" %}</a>
+              {% endif %}
+            </dd>
+          {% endif %}
 
           {% if show_owner %}
             <dt class="col-sm-4 fw-normal text-body-secondary">{% translate "Власник" %}</dt>

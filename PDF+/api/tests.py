@@ -426,6 +426,57 @@ class CatalogTests(ApiTestCase):
         response = self.client.get(reverse("api:catalog_books"), {"search": "хім"})
         self.assertEqual([b["title"] for b in response.json()["results"]], ["Хімія 10"])
 
+    def add(self, book):
+        return self.client.post(reverse("api:catalog_book_add", args=[book.pk]))
+
+    def test_add_to_library_creates_own_copy(self):
+        response = self.add(self.in_catalog)
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        copy = Book.objects.get(pk=data["id"])
+        self.assertEqual((copy.owner, copy.source_book), (self.user, self.in_catalog))
+        self.assertEqual(data["owner"], self.user.pk)
+        self.assertIsNone(data["folder"])
+        self.assertEqual(data["source_book"], self.in_catalog.pk)
+        self.assertEqual(data["title"], "Біологія 11")
+        # Той самий файл у сховищі — клієнт може не перекачувати PDF.
+        source = self.client.get(reverse("api:catalog_books")).json()["results"][0]
+        self.assertEqual(data["file_version"], source["file_version"])
+        self.assertIsNone(source["source_book"])
+
+    def test_add_to_library_is_idempotent(self):
+        first = self.add(self.in_catalog).json()
+        response = self.add(self.in_catalog)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], first["id"])
+        self.assertEqual(Book.objects.filter(source_book=self.in_catalog).count(), 1)
+
+    def test_add_non_catalog_or_own_book_is_404(self):
+        response = self.add(self.private)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "not_found")
+        teacher = APIClient()
+        teacher.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.teacher)}")
+        response = teacher.post(reverse("api:catalog_book_add", args=[self.in_catalog.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_copy_is_editable_and_synced_as_own(self):
+        copy_id = self.add(self.in_catalog).json()["id"]
+        response = self.client.patch(
+            reverse("api:book_detail", args=[copy_id]), {"title": "Моя біологія"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.in_catalog.refresh_from_db()
+        self.assertEqual(self.in_catalog.title, "Біологія 11")
+
+        books = {b["id"]: b for b in self.client.get(reverse("api:sync")).json()["books"]}
+        self.assertEqual(books[copy_id]["source_book"], self.in_catalog.pk)
+        self.assertEqual(books[copy_id]["title"], "Моя біологія")
+
+    def test_add_requires_token(self):
+        response = APIClient().post(reverse("api:catalog_book_add", args=[self.in_catalog.pk]))
+        self.assertEqual(response.status_code, 401)
+
 
 class BookFileTests(ApiTestCase):
     def test_returns_storage_url_for_visible_book(self):
@@ -1726,6 +1777,7 @@ class OpenApiSchemaTests(ApiTestCase):
                 "/api/v1/auth/logout/all/",
                 "/api/v1/me/",
                 "/api/v1/catalog/books/",
+                "/api/v1/catalog/books/{id}/add-to-library/",
                 "/api/v1/books/",
                 "/api/v1/books/{id}/",
                 "/api/v1/books/{id}/file/",
@@ -1764,7 +1816,8 @@ class OpenApiSchemaTests(ApiTestCase):
             ids,
             sorted([
                 "obtainToken", "refreshToken", "googleSignIn", "logout", "logoutAll",
-                "getMe", "deleteMe", "listCatalogBooks", "getBookFile", "getBookCover",
+                "getMe", "deleteMe", "listCatalogBooks", "addCatalogBookToLibrary",
+                "getBookFile", "getBookCover",
                 "joinGroup", "listInvitations", "acceptInvitation", "declineInvitation",
                 "pullSync", "pushSync",
                 "uploadBook", "updateBook", "deleteBook",
@@ -1871,10 +1924,17 @@ class OpenApiSchemaTests(ApiTestCase):
     def test_me_and_catalog_match(self):
         self.assert_matches(self.client.get(reverse("api:me")), "/api/v1/me/", "get")
         catalog = Folder.objects.create(owner=self.teacher, name="Каталог", is_catalog=True)
-        make_book(self.teacher, "Фізика", folder=catalog)
+        physics = make_book(self.teacher, "Фізика", folder=catalog)
         self.assert_matches(
             self.client.get(reverse("api:catalog_books")), "/api/v1/catalog/books/", "get"
         )
+        path, url = "/api/v1/catalog/books/{id}/add-to-library/", reverse(
+            "api:catalog_book_add", args=[physics.pk]
+        )
+        self.assert_matches(self.client.post(url), path, "post", 201)
+        self.assert_matches(self.client.post(url), path, "post", 200)
+        missing = reverse("api:catalog_book_add", args=[physics.pk + 1000])
+        self.assert_matches(self.client.post(missing), path, "post", 404)
 
     def test_group_join_and_invitations_match(self):
         group = Group.objects.create(name="9-А", owner=self.teacher)

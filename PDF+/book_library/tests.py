@@ -1755,3 +1755,267 @@ class FavoriteTests(TestCase):
         response = self.client.get(reverse("book_library:library"))
         self.assertContains(response, 'favorite-toggle" aria-pressed="true"', count=1)
         self.assertContains(response, reverse("book_library:favorites"))
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class LibraryCopyTests(TestCase):
+    """«Додати у свою бібліотеку»: копія каталожної книги без другого PDF у сховищі."""
+
+    def setUp(self):
+        from django.core.files.base import ContentFile
+
+        self.admin = User.objects.create_user(
+            username="admin", email="admin@example.com", password="parol-parol-42", is_staff=True
+        )
+        self.reader = User.objects.create_user(
+            username="chytach", email="ch@example.com", password="parol-parol-42"
+        )
+        self.catalog = Folder.objects.create(owner=self.admin, name="Каталог", is_catalog=True)
+        self.nested = Folder.objects.create(owner=self.admin, name="10 клас", parent=self.catalog)
+        self.source = Book.objects.create(
+            owner=self.admin, folder=self.nested, title="Біологія", file=make_pdf(),
+            page_count=7, file_size=1234, extracted_text=True,
+        )
+        self.source.cover.save("cover.jpg", ContentFile(b"\xff\xd8\xff-cover"))
+        self.private = Book.objects.create(owner=self.admin, title="Приватна", file=make_pdf())
+        self.storage = self.source.file.storage
+        self.client.force_login(self.reader)
+
+    def add(self, book):
+        return self.client.post(reverse("book_library:book_add_to_library", args=[book.pk]))
+
+    def copy(self):
+        return Book.objects.get(owner=self.reader, source_book=self.source)
+
+    def test_add_creates_copy_sharing_blobs(self):
+        response = self.add(self.source)
+        copy = self.copy()
+        self.assertRedirects(response, reverse("book_library:book_detail", args=[copy.pk]))
+        self.assertIsNone(copy.folder)
+        self.assertEqual(copy.title, "Біологія")
+        self.assertEqual(copy.file.name, self.source.file.name)
+        self.assertEqual(copy.cover.name, self.source.cover.name)
+        self.assertEqual(
+            (copy.page_count, copy.file_size, copy.extracted_text), (7, 1234, True)
+        )
+
+    def test_repeat_returns_same_copy(self):
+        self.add(self.source)
+        response = self.add(self.source)
+        self.assertEqual(Book.objects.filter(source_book=self.source).count(), 1)
+        self.assertRedirects(response, reverse("book_library:book_detail", args=[self.copy().pk]))
+
+    def test_only_catalog_books_of_others(self):
+        self.assertEqual(self.add(self.private).status_code, 404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.add(self.source).status_code, 404)
+        self.assertFalse(Book.objects.filter(source_book__isnull=False).exists())
+
+    def test_post_only_and_login_required(self):
+        url = reverse("book_library:book_add_to_library", args=[self.source.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.client.logout()
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:login"), response["Location"])
+
+    def test_copy_in_library_root_with_badge(self):
+        self.add(self.source)
+        response = self.client.get(reverse("book_library:library"))
+        self.assertEqual([b.pk for b in response.context["books"]], [self.copy().pk])
+        self.assertContains(response, "catalog-copy-badge")
+
+    def test_copy_behaves_like_own_book(self):
+        self.add(self.source)
+        copy = self.copy()
+        folder = Folder.objects.create(owner=self.reader, name="Моя тека")
+
+        self.client.post(reverse("book_library:book_move", args=[copy.pk]), {"folder": folder.pk})
+        self.client.post(
+            reverse("book_library:book_edit", args=[copy.pk]), {"title": "Моя біологія", "folder": folder.pk}
+        )
+        copy.refresh_from_db()
+        self.assertEqual((copy.title, copy.folder_id), ("Моя біологія", folder.pk))
+        self.source.refresh_from_db()
+        self.assertEqual((self.source.title, self.source.folder_id), ("Біологія", self.nested.pk))
+
+        response = self.client.get(reverse("book_library:folder", args=[folder.pk]))
+        self.assertContains(response, "catalog-copy-badge")
+
+    def test_shared_folder_with_copy_opens_it_for_group(self):
+        from sharing.models import Group, GroupAccess, GroupMembership
+
+        self.add(self.source)
+        folder = Folder.objects.create(owner=self.reader, name="Для класу")
+        Book.objects.filter(pk=self.copy().pk).update(folder=folder)
+        pupil = User.objects.create_user(username="uchen", email="u@example.com", password="parol-parol-42")
+        group = Group.objects.create(owner=self.reader, name="9-А")
+        GroupMembership.objects.create(group=group, user=pupil)
+        GroupAccess.objects.create(group=group, folder=folder, granted_by=self.reader)
+
+        self.client.force_login(pupil)
+        response = self.client.get(reverse("book_library:folder", args=[folder.pk]))
+        self.assertEqual([b.pk for b in response.context["books"]], [self.copy().pk])
+
+    def test_deleting_copy_keeps_catalog_blobs(self):
+        self.add(self.source)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(reverse("book_library:book_delete", args=[self.copy().pk]))
+        self.assertTrue(self.storage.exists(self.source.file.name))
+        self.assertTrue(self.storage.exists(self.source.cover.name))
+
+    def test_replacing_file_in_copy_keeps_catalog_blobs(self):
+        self.add(self.source)
+        copy = self.copy()
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(
+                reverse("book_library:book_edit", args=[copy.pk]),
+                {"title": "Біологія", "file": make_pdf("novyi.pdf", pages=2)},
+            )
+        copy.refresh_from_db()
+        self.assertNotEqual(copy.file.name, self.source.file.name)
+        self.assertTrue(self.storage.exists(self.source.file.name))
+        self.assertTrue(self.storage.exists(self.source.cover.name))
+
+    def test_deleting_source_keeps_copy_and_its_blobs(self):
+        self.add(self.source)
+        copy = self.copy()
+        before = copy.updated_at
+        file_name, cover_name = self.source.file.name, self.source.cover.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.source.delete()
+        copy.refresh_from_db()
+        self.assertIsNone(copy.source_book_id)
+        # Дельта синку має побачити, що source_book став null.
+        self.assertGreater(copy.updated_at, before)
+        self.assertTrue(self.storage.exists(file_name))
+        self.assertTrue(self.storage.exists(cover_name))
+
+    def test_last_reference_removes_blob(self):
+        self.add(self.source)
+        file_name = self.source.file.name
+        with self.captureOnCommitCallbacks(execute=True):
+            self.source.delete()
+        with self.captureOnCommitCallbacks(execute=True):
+            Book.objects.get(owner=self.reader).delete()
+        self.assertFalse(self.storage.exists(file_name))
+
+    def test_removed_from_catalog_copy_stays(self):
+        self.add(self.source)
+        Folder.objects.filter(pk=self.catalog.pk).update(is_catalog=False)
+        response = self.client.get(reverse("book_library:library"))
+        self.assertEqual([b.pk for b in response.context["books"]], [self.copy().pk])
+        # Нову копію з книги поза каталогом не зробити.
+        self.assertEqual(self.add(self.source).status_code, 404)
+
+    def test_detail_button_then_link_to_copy(self):
+        url = reverse("book_library:book_detail", args=[self.source.pk])
+        add_url = reverse("book_library:book_add_to_library", args=[self.source.pk])
+        response = self.client.get(url)
+        self.assertContains(response, add_url)
+        self.assertContains(response, "Додати у свою бібліотеку")
+
+        self.add(self.source)
+        response = self.client.get(url)
+        self.assertNotContains(response, "Додати у свою бібліотеку")
+        self.assertContains(response, reverse("book_library:book_detail", args=[self.copy().pk]))
+
+    def test_copy_detail_links_original(self):
+        self.add(self.source)
+        response = self.client.get(reverse("book_library:book_detail", args=[self.copy().pk]))
+        self.assertContains(response, "З каталогу")
+        self.assertContains(response, reverse("book_library:book_detail", args=[self.source.pk]))
+        self.assertNotContains(response, "Додати у свою бібліотеку")
+
+    def test_catalog_menu_item_state(self):
+        url = reverse("book_library:folder", args=[self.nested.pk])
+        self.assertContains(self.client.get(url), "Додати у свою бібліотеку")
+        self.add(self.source)
+        response = self.client.get(url)
+        self.assertNotContains(response, "Додати у свою бібліотеку")
+        self.assertContains(response, "У моїй бібліотеці")
+
+    def test_no_menu_item_outside_catalog(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("book_library:folder", args=[self.nested.pk]))
+        self.assertNotContains(response, "Додати у свою бібліотеку")
+
+    def test_deleting_account_with_copy_keeps_catalog_blobs(self):
+        self.add(self.source)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.reader.delete()
+        self.assertTrue(self.storage.exists(self.source.file.name))
+        self.assertTrue(self.storage.exists(self.source.cover.name))
+
+    def test_deleting_catalog_owner_account_keeps_copy_blobs(self):
+        self.add(self.source)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.admin.delete()
+        copy = Book.objects.get(owner=self.reader)
+        self.assertIsNone(copy.source_book_id)
+        self.assertTrue(self.storage.exists(copy.file.name))
+        self.assertTrue(self.storage.exists(copy.cover.name))
+
+    def test_admin_replacing_original_keeps_copy_on_old_file(self):
+        from .forms import BookAdminForm
+
+        self.add(self.source)
+        old_name = self.source.file.name
+        form = BookAdminForm(
+            data={"title": "Біологія", "owner": self.admin.pk, "folder": self.nested.pk},
+            files={"file": make_pdf("nova.pdf", pages=3)},
+            instance=self.source,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        with self.captureOnCommitCallbacks(execute=True):
+            form.save()
+        self.source.refresh_from_db()
+        self.assertNotEqual(self.source.file.name, old_name)
+        self.assertEqual(self.copy().file.name, old_name)
+        self.assertTrue(self.storage.exists(old_name))
+
+
+from django.test import TransactionTestCase  # noqa: E402
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, STORAGES=FILESYSTEM_STORAGES)
+class ReplacedFileAutocommitTests(TransactionTestCase):
+    """Заміна PDF через сайт іде без транзакції (ATOMIC_REQUESTS вимкнено), і on_commit
+    виконується одразу. Прибирання старого blob мусить бачити вже оновлений рядок."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="avtokomit", email="avtokomit@example.com", password="parol-parol-42"
+        )
+        self.client.force_login(self.user)
+
+    def replace(self, book):
+        self.client.post(
+            reverse("book_library:book_edit", args=[book.pk]),
+            {"title": book.title, "file": make_pdf("novyi.pdf", pages=2)},
+        )
+        book.refresh_from_db()
+
+    def test_old_file_and_cover_removed(self):
+        self.client.post(reverse("book_library:book_upload"), {"title": "Своя", "file": make_pdf()})
+        book = Book.objects.get(title="Своя")
+        old_file, old_cover = book.file.name, book.cover.name
+        self.assertTrue(old_cover)
+        self.replace(book)
+        storage = book.file.storage
+        self.assertNotEqual(book.file.name, old_file)
+        self.assertFalse(storage.exists(old_file))
+        self.assertFalse(storage.exists(old_cover))
+        self.assertTrue(storage.exists(book.file.name))
+
+    def test_copy_replacement_keeps_shared_file(self):
+        admin = User.objects.create_user(
+            username="admin", email="admin@example.com", password="parol-parol-42", is_staff=True
+        )
+        catalog = Folder.objects.create(owner=admin, name="Каталог", is_catalog=True)
+        source = Book.objects.create(owner=admin, folder=catalog, title="Біологія", file=make_pdf())
+        self.client.post(reverse("book_library:book_add_to_library", args=[source.pk]))
+        copy = Book.objects.get(owner=self.user)
+        self.replace(copy)
+        self.assertNotEqual(copy.file.name, source.file.name)
+        self.assertTrue(source.file.storage.exists(source.file.name))

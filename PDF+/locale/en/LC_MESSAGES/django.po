@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-20 11:30+0200\n"
+"POT-Creation-Date: 2026-11-25 08:53+0200\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -15,12 +15,12 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: annotations/api.py:61 annotations/validators.py:129
-#: annotations/validators.py:144 book_library/views.py:583
+#: annotations/validators.py:144 book_library/views.py:604
 msgid "очікується JSON-об'єкт"
 msgstr "a JSON object is expected"
 
 #: annotations/forms.py:13
-#: book_library/templates/book_library/book_reader.html:70
+#: book_library/templates/book_library/book_reader.html:71
 #: book_library/templates/book_library/welcome_content.html:65
 #: book_library/templates/book_library/welcome_content.html:90
 #: sharing/templates/sharing/group_list.html:4 sharing/views.py:31
@@ -88,7 +88,7 @@ msgid "Відкрити книгу"
 msgstr "Open book"
 
 #: annotations/templates/annotations/annotation_list.html:22
-#: book_library/templates/book_library/book_reader.html:171
+#: book_library/templates/book_library/book_reader.html:172
 msgid "Без групи"
 msgstr "No topic"
 
@@ -173,10 +173,10 @@ msgid "Виділення та коментар до нього буде вид�
 msgstr "The highlight and its comment will be deleted."
 
 #: annotations/templates/annotations/partials/annotation_item.html:30
-#: book_library/templates/book_library/book_detail.html:262
+#: book_library/templates/book_library/book_detail.html:288
 #: sharing/templates/sharing/group_detail.html:50
 #: sharing/templates/sharing/group_list.html:66
-#: templates/partials/book_actions.html:43
+#: templates/partials/book_actions.html:62
 #: templates/partials/confirm_modal.html:16
 #: templates/partials/folder_card.html:34
 msgid "Видалити"
@@ -266,14 +266,14 @@ msgstr "these fields cannot be changed: %(fields)s"
 msgid "нема що оновлювати"
 msgstr "nothing to update"
 
-#: annotations/views.py:62 book_library/views.py:51 book_library/views.py:325
+#: annotations/views.py:62 book_library/views.py:52 book_library/views.py:326
 msgid "Бібліотека"
 msgstr "Library"
 
 #: annotations/views.py:66
-#: book_library/templates/book_library/book_detail.html:122
-#: book_library/templates/book_library/book_reader.html:129
-#: templates/partials/book_actions.html:10
+#: book_library/templates/book_library/book_detail.html:148
+#: book_library/templates/book_library/book_reader.html:130
+#: templates/partials/book_actions.html:13
 msgid "Мої нотатки"
 msgstr "My notes"
 
@@ -328,7 +328,7 @@ msgid "— корінь бібліотеки —"
 msgstr "— library root —"
 
 #: book_library/forms.py:70 book_library/forms.py:109
-#: book_library/templates/book_library/book_detail.html:175 sharing/forms.py:29
+#: book_library/templates/book_library/book_detail.html:201 sharing/forms.py:29
 #: users/forms.py:68
 msgid "Зберегти"
 msgstr "Save"
@@ -338,7 +338,7 @@ msgid "Назва"
 msgstr "Title"
 
 #: book_library/forms.py:79
-#: book_library/templates/book_library/book_detail.html:45 sharing/forms.py:85
+#: book_library/templates/book_library/book_detail.html:59 sharing/forms.py:85
 #: sharing/forms.py:189 templates/partials/move_modal.html:12
 msgid "Тека"
 msgstr "Folder"
@@ -381,7 +381,11 @@ msgstr ""
 msgid "Розмір файлу в байтах"
 msgstr "File size in bytes"
 
-#: book_library/models.py:100
+#: book_library/models.py:84
+msgid "Книга каталогу, з якої зроблено цю копію."
+msgstr "Catalog book this copy was made from."
+
+#: book_library/models.py:118
 msgid "Коли читач був на цій сторінці; за ним вирішується, чия позиція новіша."
 msgstr "When the reader was on this page; decides which position is newer."
 
@@ -415,115 +419,138 @@ msgid "Продовжити з с. %(page)s"
 msgstr "Continue from p. %(page)s"
 
 #: book_library/templates/book_library/book_detail.html:15
-#: templates/partials/book_actions.html:8
+#: templates/partials/book_actions.html:11
 msgid "Читати"
 msgstr "Read"
 
 #: book_library/templates/book_library/book_detail.html:19
-#: templates/partials/book_actions.html:12
+#: templates/partials/book_actions.html:31
 #: users/templates/users/profile.html:19
 msgid "Редагувати"
 msgstr "Edit"
 
-#: book_library/templates/book_library/book_detail.html:34
+#: book_library/templates/book_library/book_detail.html:24
+#: templates/partials/book_actions.html:22
+msgid "У моїй бібліотеці"
+msgstr "In my library"
+
+#: book_library/templates/book_library/book_detail.html:30
+#: templates/partials/book_actions.html:24
+msgid "Додати у свою бібліотеку"
+msgstr "Add to my library"
+
+#: book_library/templates/book_library/book_detail.html:48
 msgid "Завантажити файл"
 msgstr "Download file"
 
-#: book_library/templates/book_library/book_detail.html:43
+#: book_library/templates/book_library/book_detail.html:57
 msgid "Про книгу"
 msgstr "About the book"
 
-#: book_library/templates/book_library/book_detail.html:57
+#: book_library/templates/book_library/book_detail.html:71
 #: templates/partials/move_modal.html:8 templates/partials/move_modal.html:27
 msgid "Перемістити"
 msgstr "Move"
 
-#: book_library/templates/book_library/book_detail.html:65
-#: templates/partials/book_actions.html:31
+#: book_library/templates/book_library/book_detail.html:79
+#: templates/partials/book_actions.html:50
 msgid "Прибрати з теки"
 msgstr "Remove from folder"
 
-#: book_library/templates/book_library/book_detail.html:73
+#: book_library/templates/book_library/book_detail.html:88
+msgid "Джерело"
+msgstr "Source"
+
+#: book_library/templates/book_library/book_detail.html:90
+#: templates/partials/catalog_copy_badge.html:4
+msgid "З каталогу"
+msgstr "From catalog"
+
+#: book_library/templates/book_library/book_detail.html:92
+msgid "Оригінал у каталозі"
+msgstr "Original in the catalog"
+
+#: book_library/templates/book_library/book_detail.html:98
 msgid "Власник"
 msgstr "Owner"
 
-#: book_library/templates/book_library/book_detail.html:76
+#: book_library/templates/book_library/book_detail.html:102
 msgid "Сторінок"
 msgstr "Pages"
 
-#: book_library/templates/book_library/book_detail.html:79
+#: book_library/templates/book_library/book_detail.html:105
 msgid "Розмір"
 msgstr "Size"
 
-#: book_library/templates/book_library/book_detail.html:82
+#: book_library/templates/book_library/book_detail.html:108
 msgid "Текст видобуто"
 msgstr "Text extracted"
 
-#: book_library/templates/book_library/book_detail.html:85
+#: book_library/templates/book_library/book_detail.html:111
 msgid "Так"
 msgstr "Yes"
 
-#: book_library/templates/book_library/book_detail.html:87
+#: book_library/templates/book_library/book_detail.html:113
 msgid "Ні"
 msgstr "No"
 
-#: book_library/templates/book_library/book_detail.html:91
+#: book_library/templates/book_library/book_detail.html:117
 msgid "Завантажено"
 msgstr "Uploaded"
 
-#: book_library/templates/book_library/book_detail.html:101
+#: book_library/templates/book_library/book_detail.html:127
 msgid "Мій прогрес"
 msgstr "My progress"
 
-#: book_library/templates/book_library/book_detail.html:103
+#: book_library/templates/book_library/book_detail.html:129
 #, python-format
 msgid "с. %(page)s з %(total)s"
 msgstr "p. %(page)s of %(total)s"
 
-#: book_library/templates/book_library/book_detail.html:107
+#: book_library/templates/book_library/book_detail.html:133
 #: book_library/templates/book_library/welcome_content.html:83
 #: templates/partials/book_card.html:14
 #: templates/partials/continue_banner.html:11
 msgid "Прогрес читання"
 msgstr "Reading progress"
 
-#: book_library/templates/book_library/book_detail.html:112
+#: book_library/templates/book_library/book_detail.html:138
 #, python-format
 msgid "Востаннє читали %(date)s."
 msgstr "Last read on %(date)s."
 
-#: book_library/templates/book_library/book_detail.html:124
+#: book_library/templates/book_library/book_detail.html:150
 #, python-format
 msgid "%(annotation_count)s виділень у вашому шарі."
 msgstr "Highlights in your layer: %(annotation_count)s."
 
-#: book_library/templates/book_library/book_detail.html:128
+#: book_library/templates/book_library/book_detail.html:154
 msgid "Переглянути"
 msgstr "View"
 
-#: book_library/templates/book_library/book_detail.html:137
+#: book_library/templates/book_library/book_detail.html:163
 msgid "Нотатки організатора"
 msgstr "Organizer's notes"
 
-#: book_library/templates/book_library/book_detail.html:138
+#: book_library/templates/book_library/book_detail.html:164
 msgid "Відкриваються в читалці окремим шаром, лише для читання."
 msgstr "Open in the reader as a separate read-only layer."
 
-#: book_library/templates/book_library/book_detail.html:144
+#: book_library/templates/book_library/book_detail.html:170
 #, python-format
 msgid "%(count_)s виділень"
 msgstr "highlights: %(count_)s"
 
-#: book_library/templates/book_library/book_detail.html:147
+#: book_library/templates/book_library/book_detail.html:173
 #: templates/partials/continue_banner.html:20
 msgid "Відкрити"
 msgstr "Open"
 
-#: book_library/templates/book_library/book_detail.html:159
+#: book_library/templates/book_library/book_detail.html:185
 msgid "Показати мої нотатки групам"
 msgstr "Show my notes to groups"
 
-#: book_library/templates/book_library/book_detail.html:161
+#: book_library/templates/book_library/book_detail.html:187
 msgid ""
 "Учасники обраних груп побачать ваші виділення й коментарі окремим шаром у "
 "читалці — без права змінювати."
@@ -531,80 +558,80 @@ msgstr ""
 "Members of the selected groups will see your highlights and comments as a "
 "separate layer in the reader — without the right to change them."
 
-#: book_library/templates/book_library/book_detail.html:179
+#: book_library/templates/book_library/book_detail.html:205
 msgid "Жодна з ваших груп не має доступу до цієї книги."
 msgstr "None of your groups has access to this book."
 
-#: book_library/templates/book_library/book_detail.html:181
+#: book_library/templates/book_library/book_detail.html:207
 #: sharing/views.py:268
 msgid "Надати доступ групі"
 msgstr "Give a group access"
 
-#: book_library/templates/book_library/book_detail.html:193
+#: book_library/templates/book_library/book_detail.html:219
 msgid "Спільний доступ"
 msgstr "Sharing"
 
-#: book_library/templates/book_library/book_detail.html:196
+#: book_library/templates/book_library/book_detail.html:222
 msgid "Надати групі"
 msgstr "Share with group"
 
-#: book_library/templates/book_library/book_detail.html:201
+#: book_library/templates/book_library/book_detail.html:227
 #: sharing/forms.py:142 sharing/templates/sharing/group_detail.html:94
 #: sharing/templates/sharing/link_list.html:80
 msgid "Створити посилання"
 msgstr "Create link"
 
-#: book_library/templates/book_library/book_detail.html:206
+#: book_library/templates/book_library/book_detail.html:232
 msgid "Лише книга"
 msgstr "Book only"
 
-#: book_library/templates/book_library/book_detail.html:211
+#: book_library/templates/book_library/book_detail.html:237
 msgid "Книга з моїми нотатками"
 msgstr "Book with my notes"
 
-#: book_library/templates/book_library/book_detail.html:225
+#: book_library/templates/book_library/book_detail.html:251
 #: sharing/templates/sharing/link_list.html:32
 msgid "Отримувач бачить ваші нотатки"
 msgstr "The recipient sees your notes"
 
-#: book_library/templates/book_library/book_detail.html:226
+#: book_library/templates/book_library/book_detail.html:252
 #: sharing/models.py:35 sharing/templates/sharing/link_list.html:33
 msgid "з нотатками"
 msgstr "with notes"
 
-#: book_library/templates/book_library/book_detail.html:230
+#: book_library/templates/book_library/book_detail.html:256
 #, python-format
 msgid "до %(date)s"
 msgstr "until %(date)s"
 
-#: book_library/templates/book_library/book_detail.html:230
+#: book_library/templates/book_library/book_detail.html:256
 msgid "безстроково"
 msgstr "no expiry"
 
-#: book_library/templates/book_library/book_detail.html:236
+#: book_library/templates/book_library/book_detail.html:262
 msgid "Посилань ще немає."
 msgstr "No links yet."
 
-#: book_library/templates/book_library/book_detail.html:241
+#: book_library/templates/book_library/book_detail.html:267
 msgid "Доступ груп:"
 msgstr "Group access:"
 
-#: book_library/templates/book_library/book_detail.html:254
+#: book_library/templates/book_library/book_detail.html:280
 msgid "Видалення книги"
 msgstr "Delete book"
 
-#: book_library/templates/book_library/book_detail.html:255
+#: book_library/templates/book_library/book_detail.html:281
 msgid "Разом з книгою зникнуть усі шари анотацій."
 msgstr "All annotation layers will be deleted with the book."
 
-#: book_library/templates/book_library/book_detail.html:260
-#: templates/partials/book_actions.html:41
+#: book_library/templates/book_library/book_detail.html:286
+#: templates/partials/book_actions.html:60
 #, python-format
 msgid "Видалити «%(title)s»?"
 msgstr "Delete “%(title)s”?"
 
-#: book_library/templates/book_library/book_detail.html:261
-#: templates/partials/book_actions.html:42
+#: book_library/templates/book_library/book_detail.html:287
+#: templates/partials/book_actions.html:61
 msgid "Книга та всі анотації до неї будуть видалені безповоротно."
 msgstr "The book and all its annotations will be permanently deleted."
 
@@ -616,12 +643,12 @@ msgstr "reader"
 msgid "Назад"
 msgstr "Back"
 
-#: book_library/templates/book_library/book_reader.html:27
+#: book_library/templates/book_library/book_reader.html:28
 #, python-format
 msgid "Папка «%(name)s»"
 msgstr "Folder “%(name)s”"
 
-#: book_library/templates/book_library/book_reader.html:29
+#: book_library/templates/book_library/book_reader.html:30
 #: book_library/templates/book_library/folder_add_books.html:32
 #: sharing/templates/sharing/share_view.html:26
 #: templates/partials/book_card.html:29
@@ -629,31 +656,31 @@ msgstr "Folder “%(name)s”"
 msgid "%(pages)s с."
 msgstr "%(pages)s p."
 
-#: book_library/templates/book_library/book_reader.html:35
+#: book_library/templates/book_library/book_reader.html:36
 msgid "Масштаб"
 msgstr "Zoom"
 
-#: book_library/templates/book_library/book_reader.html:36
+#: book_library/templates/book_library/book_reader.html:37
 msgid "Зменшити"
 msgstr "Zoom out"
 
-#: book_library/templates/book_library/book_reader.html:38
+#: book_library/templates/book_library/book_reader.html:39
 msgid "Збільшити"
 msgstr "Zoom in"
 
-#: book_library/templates/book_library/book_reader.html:42
+#: book_library/templates/book_library/book_reader.html:43
 msgid "Панель нотаток"
 msgstr "Notes panel"
 
-#: book_library/templates/book_library/book_reader.html:50
+#: book_library/templates/book_library/book_reader.html:51
 #: book_library/templates/book_library/library.html:13
-#: templates/partials/book_actions.html:13
+#: templates/partials/book_actions.html:32
 #: templates/partials/folder_card.html:26
 msgid "Поділитися"
 msgstr "Share"
 
-#: book_library/templates/book_library/book_reader.html:56
-#: book_library/templates/book_library/book_reader.html:228
+#: book_library/templates/book_library/book_reader.html:57
+#: book_library/templates/book_library/book_reader.html:229
 #: sharing/templates/sharing/group_join.html:35 templates/nav.html:31
 #: users/forms.py:49 users/templates/users/login.html:18
 #: users/templates/users/password_reset_complete.html:13
@@ -661,115 +688,115 @@ msgstr "Share"
 msgid "Увійти"
 msgstr "Log in"
 
-#: book_library/templates/book_library/book_reader.html:64
+#: book_library/templates/book_library/book_reader.html:65
 #: templates/base.html:65 templates/partials/sidebar.html:3
 msgid "Навігація"
 msgstr "Navigation"
 
-#: book_library/templates/book_library/book_reader.html:65
+#: book_library/templates/book_library/book_reader.html:66
 #: templates/partials/sidebar.html:6
 msgid "Усі підручники"
 msgstr "All textbooks"
 
-#: book_library/templates/book_library/book_reader.html:66
+#: book_library/templates/book_library/book_reader.html:67
 #: book_library/templates/book_library/home.html:29
-#: book_library/templates/book_library/recent.html:4 book_library/views.py:213
+#: book_library/templates/book_library/recent.html:4 book_library/views.py:214
 #: templates/partials/sidebar.html:10
 msgid "Нещодавні"
 msgstr "Recent"
 
-#: book_library/templates/book_library/book_reader.html:92
+#: book_library/templates/book_library/book_reader.html:93
 msgid "Завантаження"
 msgstr "Loading"
 
-#: book_library/templates/book_library/book_reader.html:93
+#: book_library/templates/book_library/book_reader.html:94
 msgid "Готуємо документ…"
 msgstr "Preparing the document…"
 
-#: book_library/templates/book_library/book_reader.html:95
+#: book_library/templates/book_library/book_reader.html:96
 msgid "Відкрити файл у новій вкладці"
 msgstr "Open file in a new tab"
 
-#: book_library/templates/book_library/book_reader.html:100
+#: book_library/templates/book_library/book_reader.html:101
 msgid "Сторінки"
 msgstr "Pages"
 
-#: book_library/templates/book_library/book_reader.html:102
+#: book_library/templates/book_library/book_reader.html:103
 msgid "На початок"
 msgstr "First page"
 
-#: book_library/templates/book_library/book_reader.html:106
+#: book_library/templates/book_library/book_reader.html:107
 msgid "Попередня сторінка"
 msgstr "Previous page"
 
-#: book_library/templates/book_library/book_reader.html:112
+#: book_library/templates/book_library/book_reader.html:113
 #, python-format
 msgid "Номер сторінки, всього %(total)s"
 msgstr "Page number, %(total)s in total"
 
-#: book_library/templates/book_library/book_reader.html:113
+#: book_library/templates/book_library/book_reader.html:114
 msgid "Введіть номер і натисніть Enter"
 msgstr "Type a number and press Enter"
 
-#: book_library/templates/book_library/book_reader.html:116
+#: book_library/templates/book_library/book_reader.html:117
 msgid "Наступна сторінка"
 msgstr "Next page"
 
-#: book_library/templates/book_library/book_reader.html:120
+#: book_library/templates/book_library/book_reader.html:121
 msgid "В кінець"
 msgstr "Last page"
 
-#: book_library/templates/book_library/book_reader.html:134
-#: book_library/templates/book_library/book_reader.html:169
-#: book_library/templates/book_library/book_reader.html:205
+#: book_library/templates/book_library/book_reader.html:135
+#: book_library/templates/book_library/book_reader.html:170
+#: book_library/templates/book_library/book_reader.html:206
 msgid "Усі"
 msgstr "All"
 
-#: book_library/templates/book_library/book_reader.html:141
+#: book_library/templates/book_library/book_reader.html:142
 msgid "Чиї нотатки показувати"
 msgstr "Whose notes to show"
 
-#: book_library/templates/book_library/book_reader.html:143
+#: book_library/templates/book_library/book_reader.html:144
 msgid "Мої"
 msgstr "Mine"
 
-#: book_library/templates/book_library/book_reader.html:148
+#: book_library/templates/book_library/book_reader.html:149
 #, python-format
 msgid "Нотатки організатора %(owner)s — лише для читання"
 msgstr "Organizer %(owner)s's notes — read only"
 
-#: book_library/templates/book_library/book_reader.html:149
+#: book_library/templates/book_library/book_reader.html:150
 msgid "Організатор"
 msgstr "Organizer"
 
-#: book_library/templates/book_library/book_reader.html:154
+#: book_library/templates/book_library/book_reader.html:155
 msgid "Нотатки організатора — лише для читання."
 msgstr "Organizer's notes — read only."
 
-#: book_library/templates/book_library/book_reader.html:162
+#: book_library/templates/book_library/book_reader.html:163
 msgid "Теми"
 msgstr "Topics"
 
-#: book_library/templates/book_library/book_reader.html:164
-#: book_library/templates/book_library/book_reader.html:263
+#: book_library/templates/book_library/book_reader.html:165
+#: book_library/templates/book_library/book_reader.html:268
 msgid "Тема"
 msgstr "Topic"
 
-#: book_library/templates/book_library/book_reader.html:167
+#: book_library/templates/book_library/book_reader.html:168
 msgid "Тема нотаток"
 msgstr "Notes topic"
 
-#: book_library/templates/book_library/book_reader.html:180
-#: book_library/templates/book_library/book_reader.html:268
+#: book_library/templates/book_library/book_reader.html:181
+#: book_library/templates/book_library/book_reader.html:273
 msgid "Назва нової теми"
 msgstr "New topic name"
 
-#: book_library/templates/book_library/book_reader.html:181
-#: book_library/templates/book_library/book_reader.html:269
+#: book_library/templates/book_library/book_reader.html:182
+#: book_library/templates/book_library/book_reader.html:274
 msgid "Створити"
 msgstr "Create"
 
-#: book_library/templates/book_library/book_reader.html:183
+#: book_library/templates/book_library/book_reader.html:184
 #: templates/partials/confirm_modal.html:13 templates/partials/form_card.html:5
 #: templates/partials/form_card.html:20 templates/partials/move_modal.html:26
 #: users/templates/users/password_change_form.html:16
@@ -777,19 +804,19 @@ msgstr "Create"
 msgid "Скасувати"
 msgstr "Cancel"
 
-#: book_library/templates/book_library/book_reader.html:195
+#: book_library/templates/book_library/book_reader.html:196
 msgid "Навігація по мітках"
 msgstr "Highlight navigation"
 
-#: book_library/templates/book_library/book_reader.html:196
+#: book_library/templates/book_library/book_reader.html:197
 msgid "Попередня мітка"
 msgstr "Previous highlight"
 
-#: book_library/templates/book_library/book_reader.html:199
+#: book_library/templates/book_library/book_reader.html:200
 msgid "Наступна мітка"
 msgstr "Next highlight"
 
-#: book_library/templates/book_library/book_reader.html:214
+#: book_library/templates/book_library/book_reader.html:215
 msgid ""
 "У документі нема текстового шару — схоже, це скан. Виділення тексту тут не "
 "працюватиме."
@@ -797,49 +824,49 @@ msgstr ""
 "The document has no text layer — it looks like a scan. Text selection will "
 "not work here."
 
-#: book_library/templates/book_library/book_reader.html:226
+#: book_library/templates/book_library/book_reader.html:227
 msgid "Нотаток ще немає"
 msgstr "No notes yet"
 
-#: book_library/templates/book_library/book_reader.html:226
+#: book_library/templates/book_library/book_reader.html:227
 msgid "Виділіть текст у книзі, щоб створити перше виділення."
 msgstr "Select text in the book to create your first highlight."
 
-#: book_library/templates/book_library/book_reader.html:228
+#: book_library/templates/book_library/book_reader.html:229
 msgid "Нотатки для зареєстрованих"
 msgstr "Notes are for registered users"
 
-#: book_library/templates/book_library/book_reader.html:228
+#: book_library/templates/book_library/book_reader.html:229
 msgid "Увійдіть, щоб робити виділення у цій книзі."
 msgstr "Log in to highlight this book."
 
-#: book_library/templates/book_library/book_reader.html:242
+#: book_library/templates/book_library/book_reader.html:244
 #, python-format
 msgid "Виділити: %(label)s"
 msgstr "Highlight: %(label)s"
 
-#: book_library/templates/book_library/book_reader.html:246
+#: book_library/templates/book_library/book_reader.html:250
 msgid "Нотатка"
 msgstr "Note"
 
-#: book_library/templates/book_library/book_reader.html:249
+#: book_library/templates/book_library/book_reader.html:253
 msgid "Копіювати"
 msgstr "Copy"
 
-#: book_library/templates/book_library/book_reader.html:258
+#: book_library/templates/book_library/book_reader.html:263
 #, python-format
 msgid "Перефарбувати: %(label)s"
 msgstr "Recolor: %(label)s"
 
-#: book_library/templates/book_library/book_reader.html:264
+#: book_library/templates/book_library/book_reader.html:269
 msgid "Тема нотатки"
 msgstr "Note topic"
 
-#: book_library/templates/book_library/book_reader.html:275
+#: book_library/templates/book_library/book_reader.html:280
 msgid "Коментар до виділення…"
 msgstr "Comment on the highlight…"
 
-#: book_library/templates/book_library/book_reader.html:283
+#: book_library/templates/book_library/book_reader.html:288
 msgid "Готово"
 msgstr "Done"
 
@@ -847,7 +874,7 @@ msgstr "Done"
 #: book_library/templates/book_library/library.html:36
 #: book_library/templates/book_library/welcome_content.html:51
 #: book_library/templates/book_library/welcome_content.html:93
-#: book_library/views.py:49 book_library/views.py:379
+#: book_library/views.py:50 book_library/views.py:380
 #: templates/partials/sidebar.html:19
 msgid "Каталог"
 msgstr "Catalog"
@@ -889,7 +916,7 @@ msgid "Адміністратор ще не відкрив жодної теки
 msgstr "The administrator has not opened any folder to everyone yet."
 
 #: book_library/templates/book_library/favorites.html:4
-#: book_library/views.py:244 templates/partials/sidebar.html:13
+#: book_library/views.py:245 templates/partials/sidebar.html:13
 msgid "Обране"
 msgstr "Favorites"
 
@@ -919,9 +946,9 @@ msgstr "To folder"
 #: book_library/templates/book_library/folder_add_books.html:13
 #: book_library/templates/book_library/home.html:18
 #: book_library/templates/book_library/library.html:33
-#: book_library/templates/book_library/library.html:141
+#: book_library/templates/book_library/library.html:144
 #: book_library/templates/book_library/welcome_content.html:23
-#: book_library/views.py:635
+#: book_library/views.py:672
 msgid "Завантажити PDF"
 msgstr "Upload PDF"
 
@@ -930,7 +957,7 @@ msgid "Пошук серед книг поза цією текою…"
 msgstr "Search books outside this folder…"
 
 #: book_library/templates/book_library/folder_add_books.html:31
-#: templates/partials/book_card.html:33 templates/partials/book_card.html:34
+#: templates/partials/book_card.html:36 templates/partials/book_card.html:37
 #: templates/partials/folder_card.html:13
 #: templates/partials/folder_card.html:14
 msgid "Корінь бібліотеки"
@@ -984,7 +1011,7 @@ msgid "Що вміє PDF+"
 msgstr "What PDF+ can do"
 
 #: book_library/templates/book_library/library.html:16
-#: book_library/views.py:148
+#: book_library/views.py:149
 msgid "За посиланням"
 msgstr "Via link"
 
@@ -998,13 +1025,13 @@ msgid "Дії з текою"
 msgstr "Folder actions"
 
 #: book_library/templates/book_library/library.html:25
-#: book_library/templates/book_library/library.html:139
-#: book_library/views.py:467
+#: book_library/templates/book_library/library.html:142
+#: book_library/views.py:468
 msgid "Додати книги"
 msgstr "Add books"
 
 #: book_library/templates/book_library/library.html:26
-#: book_library/views.py:405 book_library/views.py:406
+#: book_library/views.py:406 book_library/views.py:407
 msgid "Нова тека"
 msgstr "New folder"
 
@@ -1028,15 +1055,15 @@ msgstr "Search this folder and subfolders…,Search the whole library…"
 #: book_library/templates/book_library/library.html:54
 #: book_library/templates/book_library/library.html:70
 #: book_library/templates/book_library/shared_with_me.html:8
-#: book_library/views.py:78
+#: book_library/views.py:79
 msgid "Теки"
 msgstr "Folders"
 
 #: book_library/templates/book_library/library.html:60
 #: book_library/templates/book_library/library.html:77
-#: book_library/templates/book_library/library.html:123
+#: book_library/templates/book_library/library.html:126
 #: book_library/templates/book_library/shared_with_me.html:15
-#: book_library/views.py:79
+#: book_library/views.py:80
 msgid "Книги"
 msgstr "Books"
 
@@ -1054,33 +1081,33 @@ msgstr "Access"
 msgid "Дії"
 msgstr "Actions"
 
-#: book_library/templates/book_library/library.html:132
+#: book_library/templates/book_library/library.html:135
 msgid "Завантаж PDF у цю теку — натисни «Додати підручник»"
 msgstr "Upload a PDF to this folder — click “Add textbook”"
 
-#: book_library/templates/book_library/library.html:139
-#: book_library/templates/book_library/library.html:144
-#: book_library/templates/book_library/library.html:146
+#: book_library/templates/book_library/library.html:142
+#: book_library/templates/book_library/library.html:147
+#: book_library/templates/book_library/library.html:149
 msgid "Тека порожня"
 msgstr "The folder is empty"
 
-#: book_library/templates/book_library/library.html:139
+#: book_library/templates/book_library/library.html:142
 msgid "Покладіть сюди книги з бібліотеки або завантажте новий PDF."
 msgstr "Put books from your library here or upload a new PDF."
 
-#: book_library/templates/book_library/library.html:141
+#: book_library/templates/book_library/library.html:144
 msgid "Тут порожньо"
 msgstr "Nothing here yet"
 
-#: book_library/templates/book_library/library.html:141
+#: book_library/templates/book_library/library.html:144
 msgid "Завантажте перший PDF або створіть теку, щоб упорядкувати матеріали."
 msgstr "Upload your first PDF or create a folder to organize your materials."
 
-#: book_library/templates/book_library/library.html:144
+#: book_library/templates/book_library/library.html:147
 msgid "Адміністратор ще нічого сюди не поклав."
 msgstr "The administrator has not put anything here yet."
 
-#: book_library/templates/book_library/library.html:146
+#: book_library/templates/book_library/library.html:149
 msgid "Власник ще нічого сюди не поклав."
 msgstr "The owner has not put anything here yet."
 
@@ -1093,7 +1120,7 @@ msgid "Книги, які ви почнете читати, з'являться 
 msgstr "Books you start reading will appear here."
 
 #: book_library/templates/book_library/shared_with_me.html:4
-#: book_library/views.py:352 templates/partials/sidebar.html:16
+#: book_library/views.py:353 templates/partials/sidebar.html:16
 msgid "Поділилися зі мною"
 msgstr "Shared with me"
 
@@ -1343,134 +1370,148 @@ msgstr "Upload your first book"
 msgid "Створити акаунт"
 msgstr "Create account"
 
-#: book_library/views.py:77
+#: book_library/views.py:78
 msgid "Усюди"
 msgstr "Everywhere"
 
-#: book_library/views.py:146
+#: book_library/views.py:147
 #, python-format
 msgid "Група %(name)s"
 msgstr "Group %(name)s"
 
-#: book_library/views.py:150
+#: book_library/views.py:151
 msgid "Приватно"
 msgstr "Private"
 
-#: book_library/views.py:156
+#: book_library/views.py:157
 #, python-format
 msgid "група %(name)s"
 msgstr "group %(name)s"
 
-#: book_library/views.py:158
+#: book_library/views.py:159
 msgid "за посиланням"
 msgstr "via link"
 
-#: book_library/views.py:159
+#: book_library/views.py:160
 msgid "приватно"
 msgstr "private"
 
-#: book_library/views.py:169
+#: book_library/views.py:170
 #, python-format
 msgid "Підручників: %(count)d"
 msgstr "Textbooks: %(count)d"
 
-#: book_library/views.py:190
+#: book_library/views.py:191
 #, python-format
 msgid "доступ: %(access)s"
 msgstr "access: %(access)s"
 
-#: book_library/views.py:214
+#: book_library/views.py:215
 msgid "Книги, які ви відкривали останніми"
 msgstr "Books you opened most recently"
 
-#: book_library/views.py:245
+#: book_library/views.py:246
 msgid "Книги, позначені зірочкою"
 msgstr "Books you starred"
 
-#: book_library/views.py:305
+#: book_library/views.py:306
 #, python-format
 msgid "Підручників: %(books)d · нотаток: %(notes)d"
 msgstr "Textbooks: %(books)d · notes: %(notes)d"
 
-#: book_library/views.py:380
+#: book_library/views.py:381
 msgid "Матеріали, доступні всім користувачам"
 msgstr "Materials available to all users"
 
-#: book_library/views.py:397
+#: book_library/views.py:398
 msgid "Теку створено."
 msgstr "Folder created."
 
-#: book_library/views.py:419
+#: book_library/views.py:420
 msgid "Теку оновлено."
 msgstr "Folder updated."
 
-#: book_library/views.py:427
+#: book_library/views.py:428
 msgid "Редагування теки"
 msgstr "Edit folder"
 
-#: book_library/views.py:428
+#: book_library/views.py:429
 #, python-format
 msgid "Тека «%(name)s»"
 msgstr "Folder “%(name)s”"
 
-#: book_library/views.py:440
+#: book_library/views.py:441
 msgid "Теку видалено."
 msgstr "Folder deleted."
 
-#: book_library/views.py:468
+#: book_library/views.py:469
 #, python-format
 msgid "Додати книги до «%(name)s»"
 msgstr "Add books to “%(name)s”"
 
-#: book_library/views.py:586
+#: book_library/views.py:607
 msgid "тіло запиту не є коректним JSON"
 msgstr "the request body is not valid JSON"
 
-#: book_library/views.py:608
+#: book_library/views.py:629
 #, python-format
 msgid "«%(title)s» додано до обраного."
 msgstr "“%(title)s” added to favorites."
 
-#: book_library/views.py:610
+#: book_library/views.py:631
 #, python-format
 msgid "«%(title)s» прибрано з обраного."
 msgstr "“%(title)s” removed from favorites."
 
-#: book_library/views.py:626
+#: book_library/views.py:642
+msgid "Книги нема в каталозі."
+msgstr "This book is not in the catalog."
+
+#: book_library/views.py:645
+#, python-format
+msgid "«%(title)s» додано до вашої бібліотеки."
+msgstr "“%(title)s” added to your library."
+
+#: book_library/views.py:647
+#, python-format
+msgid "«%(title)s» уже є у вашій бібліотеці."
+msgstr "“%(title)s” is already in your library."
+
+#: book_library/views.py:663
 #, python-format
 msgid "«%(title)s» завантажено: %(pages)s с."
 msgstr "“%(title)s” uploaded: %(pages)s p."
 
-#: book_library/views.py:634
+#: book_library/views.py:671
 msgid "Завантаження PDF"
 msgstr "Upload PDF"
 
-#: book_library/views.py:636
+#: book_library/views.py:673
 msgid "Приймаються файли у форматі PDF."
 msgstr "PDF files are accepted."
 
-#: book_library/views.py:649
+#: book_library/views.py:686
 msgid "Книгу оновлено."
 msgstr "Book updated."
 
-#: book_library/views.py:657
+#: book_library/views.py:694
 msgid "Редагування книги"
 msgstr "Edit book"
 
-#: book_library/views.py:670
+#: book_library/views.py:707
 msgid "Книгу видалено."
 msgstr "Book deleted."
 
-#: book_library/views.py:685
+#: book_library/views.py:722
 msgid "Некоректна тека."
 msgstr "Invalid folder."
 
-#: book_library/views.py:692
+#: book_library/views.py:729
 #, python-format
 msgid "«%(title)s» перенесено до теки «%(folder)s»."
 msgstr "“%(title)s” moved to folder “%(folder)s”."
 
-#: book_library/views.py:695
+#: book_library/views.py:732
 #, python-format
 msgid "«%(title)s» прибрано з теки."
 msgstr "“%(title)s” removed from its folder."
@@ -2026,15 +2067,15 @@ msgstr "Search"
 msgid "Реєстрація"
 msgstr "Sign up"
 
-#: templates/partials/book_actions.html:4
+#: templates/partials/book_actions.html:7
 msgid "Дії з книгою"
 msgstr "Book actions"
 
-#: templates/partials/book_actions.html:9
+#: templates/partials/book_actions.html:12
 msgid "Деталі"
 msgstr "Details"
 
-#: templates/partials/book_actions.html:21
+#: templates/partials/book_actions.html:40
 msgid "Перемістити в теку…"
 msgstr "Move to folder…"
 
@@ -2048,6 +2089,10 @@ msgstr "Page %(page)s of %(total)s"
 #, python-format
 msgid "нотаток: %(notes)s"
 msgstr "notes: %(notes)s"
+
+#: templates/partials/catalog_copy_badge.html:3
+msgid "Додано з каталогу"
+msgstr "Added from the catalog"
 
 #: templates/partials/confirm_modal.html:6
 msgid "Підтвердити дію"
