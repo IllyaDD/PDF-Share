@@ -97,6 +97,7 @@ class BookSerializer(_HideInvisibleFolder, serializers.ModelSerializer):
             "extracted_text",
             "has_cover",
             "file_version",
+            "source_book",
             "uploaded_at",
             "updated_at",
         ]
@@ -106,7 +107,18 @@ class BookSerializer(_HideInvisibleFolder, serializers.ModelSerializer):
                     "null — у корені або в чужій теці, до якої доступу нема (книгу відкрито "
                     "напряму). Тека, якої нема у visible_folder_ids, — теж корінь."
                 )
-            }
+            },
+            "source_book": {
+                "read_only": True,
+                "help_text": (
+                    "Власна копія з каталогу (catalog/books/{id}/add-to-library/) — id книги "
+                    "каталогу, з якої її зроблено; показувати плашку «З каталогу». null — "
+                    "книгу завантажено самостійно або оригінал уже видалено (тоді копія "
+                    "приходить у дельті синку з новим updated_at). Оригінал може бути вже "
+                    "недоступний (прибраний з каталогу) — відкривати його лише якщо id є у "
+                    "visible_book_ids."
+                ),
+            },
         }
 
     def get_has_cover(self, book) -> bool:

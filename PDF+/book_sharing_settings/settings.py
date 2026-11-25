@@ -85,6 +85,7 @@ TEMPLATES = [
                 'django.template.context_processors.i18n',
                 'sharing.context_processors.invitations',
                 'book_library.context_processors.sidebar',
+                'book_sharing_settings.consent.cookie_consent',
             ],
         },
     },

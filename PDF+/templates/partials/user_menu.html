@@ -9,6 +9,7 @@
     <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">{% translate "Профіль" %}</a></li>
     <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">{% translate "Редагувати профіль" %}</a></li>
     <li><a class="dropdown-item" href="{% url 'book_library:welcome' %}">{% translate "Можливості PDF+" %}</a></li>
+    <li><button type="button" class="dropdown-item" data-cookie-settings>{% translate "Налаштування кукі" %}</button></li>
     <li><hr class="dropdown-divider"></li>
     <li>
       <form method="post" action="{% url 'accounts:logout' %}">

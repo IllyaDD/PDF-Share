@@ -16,6 +16,11 @@ urlpatterns = [
     path("auth/logout/all/", views.LogoutAllView.as_view(), name="auth_logout_all"),
     path("me/", views.MeView.as_view(), name="me"),
     path("catalog/books/", views.CatalogBooksView.as_view(), name="catalog_books"),
+    path(
+        "catalog/books/<int:pk>/add-to-library/",
+        views.CatalogBookAddView.as_view(),
+        name="catalog_book_add",
+    ),
     path("books/", views.BookCreateView.as_view(), name="books"),
     path("books/<int:pk>/", views.BookDetailView.as_view(), name="book_detail"),
     path("books/<int:pk>/file/", views.BookFileView.as_view(), name="book_file"),

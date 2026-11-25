@@ -16,12 +16,13 @@ from django.contrib import admin
 from django.contrib.auth.models import Group as AuthGroup
 from django.core import mail
 from django.db import OperationalError
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 from sharing.models import Group, GroupAccess, GroupMembership, ShareLink
 from users.models import User
 
+from .consent import CONSENT_ALL, CONSENT_COOKIE, CONSENT_MAX_AGE, CONSENT_NECESSARY
 from .dashboard import dashboard_callback
 from .testing import FILESYSTEM_STORAGES
 
@@ -274,6 +275,77 @@ class ThemeToggleTests(TestCase):
         self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
         response = self.client.get(reverse("book_library:home"))
         self.assertContains(response, 'aria-label="Dark theme"')
+
+
+class CookieConsentTests(TestCase):
+    """Банер згоди на кукі: вибір лежить у кукі cookie_consent, ставить його сервер."""
+
+    def test_banner_shown_until_choice_made(self):
+        html = self.client.get(reverse("accounts:login")).content.decode()
+        self.assertIn("data-cookie-banner", html)
+        self.assertIn("js/cookie-consent.js", html)
+        self.assertNotRegex(html, r"data-cookie-banner[^>]*hidden")
+
+    def test_banner_hidden_after_choice(self):
+        self.client.cookies[CONSENT_COOKIE] = CONSENT_NECESSARY
+        html = self.client.get(reverse("accounts:login")).content.decode()
+        # Лишається в розмітці, щоб «Налаштування кукі» відкрили його знову.
+        self.assertRegex(html, r"data-cookie-banner[^>]*hidden")
+
+    def test_forged_cookie_value_shows_banner_again(self):
+        self.client.cookies[CONSENT_COOKIE] = "<script>"
+        html = self.client.get(reverse("accounts:login")).content.decode()
+        self.assertNotRegex(html, r"data-cookie-banner[^>]*hidden")
+
+    def test_accept_all_sets_cookie_and_returns_to_next(self):
+        target = reverse("accounts:login")
+        response = self.client.post(reverse("cookie_consent"), {"consent": CONSENT_ALL, "next": target})
+
+        self.assertRedirects(response, target, fetch_redirect_response=False)
+        cookie = response.cookies[CONSENT_COOKIE]
+        self.assertEqual(cookie.value, CONSENT_ALL)
+        self.assertEqual(cookie["max-age"], CONSENT_MAX_AGE)
+        self.assertEqual(cookie["samesite"], "Lax")
+        # JS читає вибір у браузері, тож без HttpOnly.
+        self.assertFalse(cookie["httponly"])
+
+    def test_only_necessary_via_fetch_returns_204(self):
+        response = self.client.post(
+            reverse("cookie_consent"), {"consent": CONSENT_NECESSARY}, HTTP_X_REQUESTED_WITH="fetch"
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.cookies[CONSENT_COOKIE].value, CONSENT_NECESSARY)
+
+    def test_unknown_choice_rejected(self):
+        response = self.client.post(reverse("cookie_consent"), {"consent": "everything"})
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(CONSENT_COOKIE, response.cookies)
+
+    def test_get_not_allowed(self):
+        self.assertEqual(self.client.get(reverse("cookie_consent")).status_code, 405)
+
+    def test_foreign_next_ignored(self):
+        response = self.client.post(
+            reverse("cookie_consent"), {"consent": CONSENT_ALL, "next": "https://evil.example/"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("evil.example", response["Location"])
+
+    def test_requires_csrf_token(self):
+        client = Client(enforce_csrf_checks=True)
+        response = client.post(reverse("cookie_consent"), {"consent": CONSENT_ALL})
+        self.assertEqual(response.status_code, 403)
+
+    def test_settings_link_in_user_menu(self):
+        user = User.objects.create_user(username="kuki", email="k@example.com", password="parol-parol-42")
+        self.client.force_login(user)
+        self.assertContains(self.client.get(reverse("book_library:home")), "data-cookie-settings")
+
+    def test_banner_is_translated(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        response = self.client.get(reverse("accounts:login"))
+        self.assertContains(response, "Accept all")
+        self.assertContains(response, "Only necessary")
 
 
 class HealthCheckTests(TestCase):

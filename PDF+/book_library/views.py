@@ -34,6 +34,7 @@ from .access import (
 from .favorites import set_favorite, visible_favorites
 from .folders import delete_folder
 from .forms import BookForm, FolderForm
+from .library_copies import add_to_library, catalog_books
 from .models import Book, Folder, ReadingProgress
 from .progress import record_progress, visible_progress
 
@@ -510,14 +511,32 @@ def book_detail_view(request, pk):
         else None
     )
 
+    in_catalog = bool(book.folder and is_catalog_folder(book.folder))
+    # Каталожна книга: кнопка «Додати у свою бібліотеку» або посилання на вже зроблену копію.
+    can_add_to_library = in_catalog and request.user.is_authenticated and not is_owner
+    library_copy = (
+        Book.objects.filter(owner=request.user, source_book=book).first()
+        if can_add_to_library
+        else None
+    )
+    # Копія: посилання на оригінал, лише поки він у каталозі (інакше він недоступний).
+    source_in_catalog = bool(
+        is_owner
+        and book.source_book_id
+        and catalog_books().filter(pk=book.source_book_id).exists()
+    )
+
     return render(
         request,
         "book_library/book_detail.html",
         {
             "book": book,
             "is_owner": is_owner,
+            "can_add_to_library": can_add_to_library,
+            "library_copy": library_copy,
+            "source_in_catalog": source_in_catalog,
             # Власника каталожної книги (адміна) не показуємо: його логін — пів облікових даних.
-            "show_owner": not (book.folder and is_catalog_folder(book.folder)),
+            "show_owner": not in_catalog,
             "progress": progress,
             "annotation_count": Annotation.objects.filter(layer=layer).count() if layer else 0,
             "teacher_layers": teacher_layers,
@@ -611,6 +630,22 @@ def book_favorite_view(request, pk):
     else:
         messages.success(request, _("«%(title)s» прибрано з обраного.") % {"title": book.title})
     return redirect(_safe_next(request, reverse("book_library:book_detail", args=[book.pk])))
+
+
+@login_required
+@require_POST
+def book_add_to_library_view(request, pk):
+    """«Додати у свою бібліотеку» з каталогу: створює копію або відкриває наявну."""
+    try:
+        copy, created = add_to_library(request.user, pk)
+    except Book.DoesNotExist:
+        raise Http404(_("Книги нема в каталозі."))
+
+    if created:
+        messages.success(request, _("«%(title)s» додано до вашої бібліотеки.") % {"title": copy.title})
+    else:
+        messages.info(request, _("«%(title)s» уже є у вашій бібліотеці.") % {"title": copy.title})
+    return redirect("book_library:book_detail", pk=copy.pk)
 
 
 @login_required
