@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PDF+\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-25 08:53+0200\n"
+"POT-Creation-Date: 2026-11-25 09:58+0200\n"
 "PO-Revision-Date: 2026-10-12 00:00+0000\n"
 "Last-Translator: IllyaDD\n"
 "Language-Team: English\n"
@@ -2106,6 +2106,28 @@ msgstr "This cannot be undone."
 msgid "Продовжити читати"
 msgstr "Continue reading"
 
+#: templates/partials/cookie_banner.html:4
+msgid "Згода на кукі"
+msgstr "Cookie consent"
+
+#: templates/partials/cookie_banner.html:6
+msgid ""
+"Ми використовуємо обов'язкові кукі, без яких не працюють вхід, мова "
+"інтерфейсу й захист форм. Необов'язкові, наприклад для аналітики, — лише з "
+"вашої згоди."
+msgstr ""
+"We use necessary cookies that sign-in, the interface language and form "
+"protection depend on. Optional ones, such as for analytics, are used only "
+"with your consent."
+
+#: templates/partials/cookie_banner.html:11
+msgid "Лише обов'язкові"
+msgstr "Only necessary"
+
+#: templates/partials/cookie_banner.html:12
+msgid "Прийняти всі"
+msgstr "Accept all"
+
 #: templates/partials/empty_state.html:4
 msgid "Поки що порожньо"
 msgstr "Nothing here yet"
@@ -2208,7 +2230,11 @@ msgstr "Edit profile"
 msgid "Можливості PDF+"
 msgstr "PDF+ features"
 
-#: templates/partials/user_menu.html:16
+#: templates/partials/user_menu.html:12
+msgid "Налаштування кукі"
+msgstr "Cookie settings"
+
+#: templates/partials/user_menu.html:17
 msgid "Вийти"
 msgstr "Log out"
 

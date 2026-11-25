@@ -301,3 +301,40 @@
   color: var(--bs-secondary-color);
   margin-bottom: .75rem;
 }
+
+/* Банер згоди на кукі: плаває внизу поверх контенту. z-index вищий за шапку (1030),
+   але нижчий за offcanvas і модалки Bootstrap, щоб не перекривати їх. */
+.cookie-banner {
+  position: fixed;
+  inset: auto 1rem 1rem;
+  z-index: 1035;
+  max-width: 44rem;
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--app-surface);
+  border: 1px solid var(--app-outline);
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-pop);
+}
+
+/* display: flex вище перебиває атрибут hidden. */
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-banner-text {
+  flex: 1 1 18rem;
+  margin: 0;
+  font-size: .875rem;
+}
+
+.cookie-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: 0;
+}
